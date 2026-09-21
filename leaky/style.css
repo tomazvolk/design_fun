@@ -925,6 +925,11 @@ svg { flex: none; }
 .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--plum-60); font-size: 12px; line-height: 16px; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--sand-30); }
 .auth-switch { margin-top: 24px; }
+.auth .hero-sub strong { font-weight: 500; color: var(--plum-100); }
+.field-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.link-sm { min-height: 0; padding: 0; font-size: 12px; line-height: 16px; }
+.boot { display: grid; place-items: center; min-height: 50vh; }
+.boot .spinner { width: 20px; height: 20px; }
 .auth-note { margin-top: 12px; font-size: 12px; line-height: 16px; }
 
 .onb-narrow { max-width: 480px; width: 100%; margin-top: 32px; }

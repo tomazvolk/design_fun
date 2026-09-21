@@ -80,17 +80,27 @@
     drop: '<path d="M8 2s-4.5 5-4.5 8a4.5 4.5 0 0 0 9 0C12.5 7 8 2 8 2Z"/>',
     device: '<rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M7.5 12h1"/>',
     edit: '<path d="M10 3.5 12.5 6 6 12.5H3.5V10L10 3.5Z"/>',
+    google: '<path d="M14 8.2c0-.5 0-.9-.1-1.3H8v2.5h3.4a2.9 2.9 0 0 1-1.3 1.9v1.6h2.1C13.4 11.8 14 10.1 14 8.2Z"/><path d="M8 14.5c1.8 0 3.3-.6 4.3-1.6l-2.1-1.6c-.6.4-1.3.6-2.2.6a3.8 3.8 0 0 1-3.6-2.6H2.2v1.7A6.5 6.5 0 0 0 8 14.5Z"/><path d="M4.4 9.3a3.9 3.9 0 0 1 0-2.6V5H2.2a6.5 6.5 0 0 0 0 5.9Z"/><path d="M8 4.1c1 0 1.8.3 2.5 1l1.9-1.9A6.5 6.5 0 0 0 2.2 5l2.2 1.7A3.8 3.8 0 0 1 8 4.1Z"/>',
     logout: '<path d="M6.5 13.5h-3v-11h3"/><path d="M10 11l3-3-3-3M13 8H6.5"/>',
   };
+  const FILLED = ['google'];
   function icon(name, size) {
     const s = size || 16;
-    return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 16 16" fill="none" stroke="currentColor" ' +
-      'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
+    const paint = FILLED.includes(name)
+      ? 'fill="currentColor" stroke="none"'
+      : 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';
+    return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 16 16" ' + paint + ' aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
   }
 
   /* ======================================================================
      Reference data
      ====================================================================== */
+  const CFG = window.LEAKY_CONFIG || {};
+  const LIVE = !!(CFG.supabaseUrl && CFG.supabaseAnonKey);
+  const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+  const APP_URL = location.origin + location.pathname;
+  let sb = null;
+
   const FREE_LIMIT = 5;
   const PAGE_SIZE = 10;
   const STORE_KEY = 'leaky:v1';
@@ -169,27 +179,41 @@
     };
   }
 
-  function load() {
+  /* Fill in defaults and migrate older saved shapes. */
+  function normalize(s) {
     const base = defaultState();
+    if (!s || s.v !== 1) return base;
+    const out = Object.assign(base, s, { settings: Object.assign(base.settings, s.settings) });
+    if (out.step === 'scanning' || out.step === 'found') out.step = 'source';
+    out.accounts = (out.accounts || []).filter((a) => a.provider === 'gmail');
+    out.subs = out.subs || [];
+    out.subs.forEach((x) => { if (x.source !== 'gmail' && x.source !== 'manual') x.source = 'manual'; });
+    if (out.user && out.user.method === 'apple') out.user.method = 'email';
+    return out;
+  }
+
+  function load() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
-      if (raw) {
-        const s = JSON.parse(raw);
-        if (s && s.v === 1) {
-          const out = Object.assign(base, s, { settings: Object.assign(base.settings, s.settings) });
-          if (out.step === 'scanning' || out.step === 'found') out.step = 'source';
-          out.accounts = (out.accounts || []).filter((a) => a.provider === 'gmail');
-          out.subs.forEach((x) => { if (x.source !== 'gmail' && x.source !== 'manual') x.source = 'manual'; });
-          if (out.user && out.user.method === 'apple') out.user.method = 'email';
-          return out;
-        }
-      }
+      if (raw) return normalize(JSON.parse(raw));
     } catch (e) { /* storage blocked: run in memory */ }
-    return base;
+    return defaultState();
+  }
+
+  function saveLocal() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
   }
 
   function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+    saveLocal();
+    if (LIVE && sb && state.user && state.user.id) schedulePush();
+  }
+
+  /* Swap the whole state for another user's (or a fresh one), keeping the object identity. */
+  function replaceState(next) {
+    const fresh = normalize(next);
+    Object.keys(state).forEach((k) => delete state[k]);
+    Object.assign(state, fresh);
   }
 
   const state = load();
@@ -204,6 +228,9 @@
     connect: null,
     chartRange: '3m',
     authMode: 'signup',
+    authBusy: false,
+    authEmail: '',
+    booting: LIVE,
     relief: null,
     installEvent: null,
     toastTimer: null,
@@ -429,7 +456,7 @@
   function renderUserMenu() {
     const wrap = $('#user-menu');
     const u = state.user;
-    wrap.hidden = !u;
+    wrap.hidden = !u || ui.booting;
     if (!u) return;
     $('#avatar-btn').textContent = initials(u);
     $('#avatar-btn').setAttribute('aria-label', 'Account menu for ' + (u.name || u.email || 'you'));
@@ -459,7 +486,7 @@
   function renderNav() {
     const nav = $('#nav');
     const menu = $('#menu-btn');
-    if (!state.user || !state.onboarded) {
+    if (ui.booting || !state.user || !state.onboarded) {
       nav.innerHTML = '';
       menu.hidden = true;
       return;
@@ -476,6 +503,15 @@
     renderNav();
     renderUserMenu();
     const view = $('#view');
+    if (ui.booting) {
+      view.innerHTML = '<div class="boot" aria-busy="true" aria-label="Loading"><span class="spinner"></span></div>';
+      return;
+    }
+    if (ui.authMode === 'reset-new') {
+      view.innerHTML = viewAuth();
+      document.title = 'New password · Leaky';
+      return;
+    }
     if (!state.user || ui.connect || !state.onboarded) {
       view.innerHTML = !state.user ? viewAuth() : ui.connect ? viewConnect() : viewOnboarding();
       document.title = !state.user ? 'Sign in · Leaky' : ui.connect ? 'Connect ' + PROVIDERS[ui.connect.provider].label + ' · Leaky' : 'Get started · Leaky';
@@ -501,30 +537,74 @@
     { id: 'unused', icon: 'pause', title: 'Unused subscriptions', desc: 'Flag things I haven’t touched in months.', setting: 'unusedFlag' },
   ];
 
-  function viewAuth() {
-    const signup = ui.authMode === 'signup';
+  function authShell(title, sub, inner, foot) {
     return '<div class="auth step-enter">' +
-      '<h1 class="hero-title" tabindex="-1">' + (signup ? 'Create your account' : 'Welcome back') + '</h1>' +
-      '<p class="hero-sub">' + (signup ? 'Leaky finds the subscriptions hiding in your inbox and keeps them under budget.' : 'Sign in to pick up where you left off.') + '</p>' +
-      '<div class="auth-card">' +
-        '<div class="stack-xs">' +
-          btn('Continue with Google', 'social', { id: 'google', size: 'lg' }) +
-        '</div>' +
-        '<div class="divider" role="separator"><span>or</span></div>' +
-        '<form data-form="auth" class="stack-sm" novalidate>' +
-          '<div class="field"><label class="field-label" for="a-email">Email</label>' +
-            '<input class="input" id="a-email" name="email" type="email" autocomplete="email" required /></div>' +
-          '<div class="field"><label class="field-label" for="a-pass">Password</label>' +
-            (signup ? '<p class="field-desc">At least 8 characters.</p>' : '') +
-            '<input class="input" id="a-pass" name="password" type="password" autocomplete="' + (signup ? 'new-password' : 'current-password') + '" required />' +
-            '<p class="field-error" id="a-error" hidden>' + icon('alert') + '<span></span></p></div>' +
-          btn(signup ? 'Create account' : 'Sign in', null, { variant: 'primary', size: 'lg', type: 'submit' }) +
-        '</form>' +
-      '</div>' +
-      '<p class="auth-switch muted">' + (signup ? 'Already have an account?' : 'New to Leaky?') +
-        ' <button type="button" class="link-btn" data-action="auth-mode">' + (signup ? 'Sign in' : 'Create one') + '</button></p>' +
-      '<p class="tertiary auth-note">Prototype: sign-in is simulated and nothing is sent anywhere.</p>' +
+      '<h1 class="hero-title" tabindex="-1">' + esc(title) + '</h1>' +
+      (sub ? '<p class="hero-sub">' + sub + '</p>' : '') +
+      '<div class="auth-card">' + inner + '</div>' +
+      (foot || '') +
+      (LIVE ? '' : '<p class="tertiary auth-note">Demo mode: sign-in is simulated and nothing is sent anywhere.</p>') +
     '</div>';
+  }
+
+  const authError = '<p class="field-error" id="a-error" hidden>' + icon('alert') + '<span></span></p>';
+  const busyLabel = (idle, busy) => (ui.authBusy ? busy : idle);
+
+  function viewAuth() {
+    const mode = ui.authMode;
+    const email = esc(ui.authEmail || '');
+
+    if (mode === 'check-email') {
+      return authShell('Check your email',
+        'We sent a confirmation link to <strong>' + email + '</strong>. Open it on this device to finish creating your account.',
+        '<div class="stack-sm">' +
+          btn(busyLabel('Send the link again', 'Sending…'), 'resend-confirm', { size: 'lg', disabled: ui.authBusy }) +
+          authError +
+        '</div>',
+        '<p class="auth-switch muted">Wrong address? <button type="button" class="link-btn" data-action="auth-mode" data-id="signup">Start over</button></p>');
+    }
+    if (mode === 'forgot') {
+      return authShell('Reset your password', 'Enter your email and we’ll send you a link to choose a new password.',
+        '<form data-form="forgot" class="stack-sm" novalidate>' +
+          '<div class="field"><label class="field-label" for="a-email">Email</label>' +
+            '<input class="input" id="a-email" name="email" type="email" autocomplete="email" required value="' + email + '" /></div>' +
+          authError +
+          btn(busyLabel('Send reset link', 'Sending…'), null, { variant: 'primary', size: 'lg', type: 'submit', disabled: ui.authBusy }) +
+        '</form>',
+        '<p class="auth-switch muted"><button type="button" class="link-btn" data-action="auth-mode" data-id="signin">Back to sign in</button></p>');
+    }
+    if (mode === 'reset-sent') {
+      return authShell('Check your email', 'If there’s an account for <strong>' + email + '</strong>, a reset link is on its way. It expires in an hour.',
+        btn('Back to sign in', 'auth-mode', { id: 'signin', size: 'lg' }));
+    }
+    if (mode === 'reset-new') {
+      return authShell('Choose a new password', 'You’re signed in. Pick a new password to finish.',
+        '<form data-form="reset-new" class="stack-sm" novalidate>' +
+          '<div class="field"><label class="field-label" for="a-pass">New password</label>' +
+            '<p class="field-desc">At least 8 characters.</p>' +
+            '<input class="input" id="a-pass" name="password" type="password" autocomplete="new-password" required /></div>' +
+          authError +
+          btn(busyLabel('Save password', 'Saving…'), null, { variant: 'primary', size: 'lg', type: 'submit', disabled: ui.authBusy }) +
+        '</form>');
+    }
+
+    const signup = mode === 'signup';
+    return authShell(signup ? 'Create your account' : 'Welcome back',
+      signup ? 'Leaky finds the subscriptions hiding in your inbox and keeps them under budget.' : 'Sign in to pick up where you left off.',
+      '<div class="stack-xs">' + btn('Continue with Google', 'social', { id: 'google', size: 'lg', icon: 'google', disabled: ui.authBusy }) + '</div>' +
+      '<div class="divider" role="separator"><span>or</span></div>' +
+      '<form data-form="auth" class="stack-sm" novalidate>' +
+        '<div class="field"><label class="field-label" for="a-email">Email</label>' +
+          '<input class="input" id="a-email" name="email" type="email" autocomplete="email" required value="' + email + '" /></div>' +
+        '<div class="field"><div class="field-label-row"><label class="field-label" for="a-pass">Password</label>' +
+            (signup ? '' : '<button type="button" class="link-btn link-sm" data-action="auth-mode" data-id="forgot">Forgot password?</button>') + '</div>' +
+          (signup ? '<p class="field-desc">At least 8 characters.</p>' : '') +
+          '<input class="input" id="a-pass" name="password" type="password" autocomplete="' + (signup ? 'new-password' : 'current-password') + '" required /></div>' +
+        authError +
+        btn(busyLabel(signup ? 'Create account' : 'Sign in', signup ? 'Creating account…' : 'Signing in…'), null, { variant: 'primary', size: 'lg', type: 'submit', disabled: ui.authBusy }) +
+      '</form>',
+      '<p class="auth-switch muted">' + (signup ? 'Already have an account?' : 'New to Leaky?') +
+        ' <button type="button" class="link-btn" data-action="auth-mode" data-id="' + (signup ? 'signin' : 'signup') + '">' + (signup ? 'Sign in' : 'Create one') + '</button></p>');
   }
 
   function wizard(step, inner, o) {
@@ -1467,7 +1547,9 @@
         '<input class="input" id="name-input" autocomplete="given-name" style="max-width:240px" value="' + esc(u.name || '') + '" /></div>' +
       '<div class="setting"><div class="setting-text"><p class="setting-label">' + esc(method) + '</p>' +
         '<p class="setting-desc">' + (u.email ? esc(u.email) : 'Leaky only stores what it needs to keep your list on this device.') + '</p></div>' +
-        btn('Sign out', 'sign-out') + '</div>';
+        btn('Sign out', 'sign-out') + '</div>' +
+      (LIVE && u.method === 'email' ? '<div class="setting"><div class="setting-text"><p class="setting-label">Password</p>' +
+        '<p class="setting-desc">We’ll email you a link to choose a new one.</p></div>' + btn('Change password', 'change-password') + '</div>' : '');
 
     return pageHeader({ title: 'Settings', subtitle: 'Changes save automatically.' }) +
       section('account', 'Account', (u.name || 'No name') + (u.email ? ' · ' + u.email : ''), accountBody) +
@@ -1479,8 +1561,11 @@
         state.plan === 'free' && activeSubs().length > FREE_LIMIT) +
       '<h2 class="danger-title">Danger zone</h2>' +
       '<div class="card danger-card">' +
-        '<div class="setting"><div class="setting-text"><p class="setting-label">Delete all data</p><p class="setting-desc">Removes inboxes, subscriptions and settings from this device and starts over.</p></div>' +
-          btn('Delete all data', 'delete-all', { variant: 'danger-outline' }) + '</div>' +
+        (LIVE
+          ? '<div class="setting"><div class="setting-text"><p class="setting-label">Delete account</p><p class="setting-desc">Permanently deletes your account, subscriptions and settings.</p></div>' +
+            btn('Delete account', 'delete-all', { variant: 'danger-outline' }) + '</div>'
+          : '<div class="setting"><div class="setting-text"><p class="setting-label">Delete all data</p><p class="setting-desc">Removes inboxes, subscriptions and settings from this device and starts over.</p></div>' +
+            btn('Delete all data', 'delete-all', { variant: 'danger-outline' }) + '</div>') +
       '</div>';
   }
 
@@ -1659,9 +1744,36 @@
       render();
       focusTitle();
     },
-    social: (id) => signIn({ method: id, email: null, name: '' }),
-    'auth-mode': () => { ui.authMode = ui.authMode === 'signup' ? 'signin' : 'signup'; render(); focusTitle(); },
-    'sign-out': () => { setUserMenu(false); state.user = null; ui.authMode = 'signin'; save(); location.hash = ''; render(); focusTitle(); },
+    social: (id) => {
+      if (!LIVE) return signIn({ method: id, email: null, name: '' });
+      authRun(async () => {
+        const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: APP_URL } });
+        if (error) throw error;
+      }, true);
+    },
+    'auth-mode': (id) => {
+      const email = $('#a-email');
+      if (email && email.value) ui.authEmail = email.value.trim();
+      ui.authMode = id || (ui.authMode === 'signup' ? 'signin' : 'signup');
+      render();
+      focusTitle();
+    },
+    'resend-confirm': () => authRun(async () => {
+      const { error } = await sb.auth.resend({ type: 'signup', email: ui.authEmail, options: { emailRedirectTo: APP_URL } });
+      if (error) throw error;
+      toast('Sent. Check your inbox and spam folder.');
+    }),
+    'sign-out': async () => {
+      setUserMenu(false);
+      if (LIVE && sb) { await flushPush(); await sb.auth.signOut().catch(() => {}); }
+      signedOut();
+    },
+    'change-password': () => {
+      const email = state.user && state.user.email;
+      if (!LIVE || !email) return;
+      sb.auth.resetPasswordForEmail(email, { redirectTo: APP_URL })
+        .then(({ error }) => toast(error ? authMessage(error) : 'We sent a link to ' + email + ' to set a new password.'));
+    },
     'onb-back': () => {
       const i = stepIndex(state.step);
       goStep(STEPS[Math.max(0, i - 1)]);
@@ -1701,17 +1813,20 @@
       save(); render();
       toast('Disconnected ' + (a ? a.address : 'inbox'));
     },
-    'delete-all': () => confirmModal('Delete all data?', 'This removes your inboxes, subscriptions and settings from this device. It can’t be undone.', 'Delete everything', 'confirm-delete-all'),
-    'confirm-delete-all': () => {
-      const fresh = defaultState();
-      Object.keys(state).forEach((k) => delete state[k]);
-      Object.assign(state, fresh);
-      ui.authMode = 'signup';
-      save();
+    'delete-all': () => LIVE
+      ? confirmModal('Delete your account?', 'This permanently deletes your account, subscriptions and settings. It can’t be undone.', 'Delete account', 'confirm-delete-all')
+      : confirmModal('Delete all data?', 'This removes your inboxes, subscriptions and settings from this device. It can’t be undone.', 'Delete everything', 'confirm-delete-all'),
+    'confirm-delete-all': async () => {
+      if (LIVE && sb) {
+        clearTimeout(pushTimer);
+        const { error } = await sb.rpc('delete_account');
+        if (error) { closeOverlay(); toast('Couldn’t delete your account. Try again.'); return; }
+        await sb.auth.signOut().catch(() => {});
+      }
       closeOverlay();
-      location.hash = '';
+      signedOut();
+      ui.authMode = 'signup';
       render();
-      focusTitle();
     },
     'delete-sub': (id) => {
       const s = findSub(id);
@@ -1758,12 +1873,155 @@
     },
   };
 
+  /* Demo mode only: pretend the sign-in worked. */
   function signIn(user) {
     state.user = user;
     state.step = 'name';
     save();
     render();
     focusTitle();
+  }
+
+  function signedOut() {
+    clearTimeout(pushTimer);
+    replaceState(null);
+    ui.authMode = 'signin';
+    ui.connect = null;
+    saveLocal();
+    if (location.hash) history.replaceState(null, '', location.pathname);
+    render();
+    focusTitle();
+  }
+
+  function authMessage(err) {
+    const m = String((err && err.message) || '').toLowerCase();
+    const code = err && err.code;
+    if (code === 'invalid_credentials' || m.includes('invalid login')) return 'That email and password don’t match. Try again, or reset your password.';
+    if (code === 'email_not_confirmed' || m.includes('email not confirmed')) return 'Confirm your email first. Check your inbox for the link.';
+    if (code === 'user_already_exists' || m.includes('already registered')) return 'There’s already an account with this email. Sign in instead.';
+    if (code === 'weak_password' || m.includes('password should')) return 'Pick a stronger password, at least 8 characters.';
+    if (code === 'same_password') return 'That’s your current password. Pick a new one.';
+    if (code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || (err && err.status === 429) || m.includes('rate limit')) return 'Too many attempts. Wait a minute and try again.';
+    if (m.includes('provider is not enabled') || m.includes('unsupported provider')) return 'Google sign-in isn’t switched on yet.';
+    if (m.includes('failed to fetch') || m.includes('network')) return 'Couldn’t reach the server. Check your connection and try again.';
+    return (err && err.message) || 'Something went wrong. Try again.';
+  }
+
+  /* Run an auth call with a busy state and friendly errors. keepBusy: the page is about to redirect. */
+  async function authRun(fn, keepBusy) {
+    if (ui.authBusy) return;
+    ui.authBusy = true;
+    render();
+    try {
+      await fn();
+      if (!keepBusy) { ui.authBusy = false; render(); }
+    } catch (err) {
+      ui.authBusy = false;
+      render();
+      showError('a-error', authMessage(err));
+      const field = $('#a-pass') || $('#a-email');
+      if (field) field.focus();
+    }
+  }
+
+  /* ---- Supabase sync: one row per user holding the app state as JSON ---- */
+  let pushTimer = null;
+  let pushWarned = false;
+
+  function remotePayload() {
+    const data = JSON.parse(JSON.stringify(state));
+    data.user = { name: (state.user && state.user.name) || '' };
+    return data;
+  }
+
+  function schedulePush() {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushNow, 800);
+  }
+
+  async function pushNow() {
+    pushTimer = null;
+    if (!sb || !state.user || !state.user.id) return;
+    const { error } = await sb.from('leaky_state')
+      .upsert({ user_id: state.user.id, data: remotePayload(), updated_at: new Date().toISOString() });
+    if (error && !pushWarned) {
+      pushWarned = true;
+      toast('Couldn’t save to your account. Your changes are kept on this device for now.');
+    }
+    if (!error) pushWarned = false;
+  }
+
+  async function flushPush() {
+    if (pushTimer) { clearTimeout(pushTimer); await pushNow(); }
+  }
+
+  async function applySession(session) {
+    if (!session) {
+      if (state.user && state.user.id) { replaceState(null); saveLocal(); }
+      return;
+    }
+    const u = session.user;
+    const meta = u.user_metadata || {};
+    const provider = (u.app_metadata && u.app_metadata.provider) || 'email';
+    const metaName = meta.given_name || String(meta.full_name || meta.name || '').split(' ')[0] || '';
+    if (!state.user || state.user.id !== u.id) {
+      const { data, error } = await sb.from('leaky_state').select('data').eq('user_id', u.id).maybeSingle();
+      if (error) toast('Couldn’t load your saved data. Showing what’s on this device.');
+      else replaceState(data ? data.data : null);
+    }
+    state.user = {
+      id: u.id,
+      email: u.email,
+      method: provider === 'google' ? 'google' : 'email',
+      name: (state.user && state.user.name) || metaName,
+    };
+    ui.authBusy = false;
+    ui.authEmail = '';
+    saveLocal();
+  }
+
+  function onAuthEvent(event, session) {
+    if (event === 'PASSWORD_RECOVERY') {
+      applySession(session).then(() => { ui.authMode = 'reset-new'; render(); focusTitle(); });
+    } else if (event === 'SIGNED_IN') {
+      if (!state.user || !session || state.user.id !== session.user.id) {
+        applySession(session).then(() => { if (ui.authMode !== 'reset-new') ui.authMode = 'signin'; render(); focusTitle(); });
+      }
+    } else if (event === 'SIGNED_OUT') {
+      if (state.user) signedOut();
+    }
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = src;
+      el.onload = resolve;
+      el.onerror = () => reject(new Error('Failed to load ' + src));
+      document.head.appendChild(el);
+    });
+  }
+
+  async function bootLive() {
+    try {
+      await loadScript(SUPABASE_JS);
+      sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {
+        auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+      });
+      /* Defer work out of the callback: supabase-js holds a lock while it runs. */
+      sb.auth.onAuthStateChange((event, session) => { setTimeout(() => onAuthEvent(event, session), 0); });
+      const { data } = await sb.auth.getSession();
+      const errParam = new URLSearchParams(location.search).get('error_description');
+      if (location.search) history.replaceState(null, '', location.pathname + location.hash);
+      await applySession(data.session);
+      if (errParam) setTimeout(() => showError('a-error', errParam), 0);
+    } catch (e) {
+      setTimeout(() => toast('Couldn’t reach the account service. Try reloading.'), 0);
+    }
+    ui.booting = false;
+    render();
+    focusTitle();
+    checkAlerts();
   }
 
   function goStep(step) {
@@ -1788,6 +2046,8 @@
      Forms
      ====================================================================== */
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const focusSoon = () => setTimeout(focusTitle, 0);
 
   function showError(id, msg) {
     const el = $('#' + id);
@@ -1818,7 +2078,44 @@
         f.password.focus();
         return;
       }
-      signIn({ method: 'email', email: email, name: '' });
+      if (!LIVE) return signIn({ method: 'email', email: email, name: '' });
+      ui.authEmail = email;
+      if (ui.authMode === 'signup') {
+        authRun(async () => {
+          const { data, error } = await sb.auth.signUp({ email: email, password: pass, options: { emailRedirectTo: APP_URL } });
+          if (error) throw error;
+          /* An existing, confirmed email comes back with no identities instead of an error. */
+          if (data.user && data.user.identities && data.user.identities.length === 0) throw { code: 'user_already_exists' };
+          if (!data.session) { ui.authMode = 'check-email'; focusSoon(); }
+        });
+      } else {
+        authRun(async () => {
+          const { error } = await sb.auth.signInWithPassword({ email: email, password: pass });
+          if (error) throw error;
+        });
+      }
+    },
+    forgot: (f) => {
+      const email = f.email.value.trim();
+      if (!EMAIL_RE.test(email)) { showError('a-error', 'Enter a valid email address.'); f.email.focus(); return; }
+      ui.authEmail = email;
+      authRun(async () => {
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
+        if (error) throw error;
+        ui.authMode = 'reset-sent';
+        focusSoon();
+      });
+    },
+    'reset-new': (f) => {
+      const pass = f.password.value;
+      if (pass.length < 8) { showError('a-error', 'Use at least 8 characters.'); f.password.focus(); return; }
+      authRun(async () => {
+        const { error } = await sb.auth.updateUser({ password: pass });
+        if (error) throw error;
+        ui.authMode = 'signin';
+        toast('Password updated');
+        focusSoon();
+      });
     },
     'onb-name': (f) => {
       const name = f.name.value.trim();
@@ -2073,6 +2370,9 @@
     if (state.onboarded && route() === 'settings') render();
   });
 
+  window.addEventListener('pagehide', () => { if (pushTimer) pushNow(); });
+
   render();
-  checkAlerts();
+  if (LIVE) bootLive();
+  else checkAlerts();
 })();

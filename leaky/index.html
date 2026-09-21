@@ -37,12 +37,13 @@
 
   <main class="panel">
     <div class="content" id="view" tabindex="-1"></div>
-    <p class="panel-note">Prototype. Inbox scanning is simulated with sample subscriptions, and nothing leaves this browser.</p>
+    <p class="panel-note">Prototype. Inbox scanning uses sample subscriptions for now.</p>
   </main>
 
   <div id="overlay"></div>
   <div class="toast-region" id="toasts" aria-live="polite"></div>
 
+  <script src="config.js"></script>
   <script src="app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
