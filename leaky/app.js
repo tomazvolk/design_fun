@@ -295,10 +295,6 @@
     return 'sad';
   }
 
-  const MOOD_WORDS = {
-    neutral: 'curious', happy: 'happy', content: 'calm', worried: 'worried', sad: 'sad', relieved: 'delighted',
-  };
-
   function budgetStatus(projected, budget) {
     if (!budget) return null;
     if (projected > budget) return { tone: 'critical', label: 'Over budget' };
@@ -320,44 +316,6 @@
       case 'sad': return 'We’re leaking. You’re set to go ' + money(diff) + ' over budget.' + unusedNote;
       default: return state.subs.length ? 'Set a monthly budget and I’ll keep an eye on it for you.' : 'Pick a number that feels right. You can change it later.';
     }
-  }
-
-  /* Sal, a seal. Seals plug leaks. */
-  function mascot(mood, size) {
-    const w = size || 120;
-    const h = Math.round(w * 140 / 120);
-    const dotEyes = '<circle class="eye" cx="46" cy="58" r="4"/><circle class="eye" cx="74" cy="58" r="4"/>';
-    const arcEyes = '<path d="M40 59q6-7 12 0M68 59q6-7 12 0"/>';
-    const brows = '<path d="M39 47l11 5M81 47l-11 5"/>';
-    const cheeks = '<circle class="cheek" cx="34" cy="70" r="5"/><circle class="cheek" cx="86" cy="70" r="5"/>';
-    const muzzle = '<ellipse class="muzzle" cx="60" cy="76" rx="15" ry="11"/>' +
-      '<path class="whisker" d="M44 76 29 73M44 81 30 85M76 76l15-3M76 81l14 4"/>' +
-      '<path class="nose" d="M54 70h12l-6 7z"/>';
-    const sweat = '<path class="sweat" d="M100 50c0 3-2 5-4.5 5S91 53 91 50c0-3 4.5-8 4.5-8s4.5 5 4.5 8Z"/>';
-    const tear = '<path class="tear" d="M43 74c0 2.5-1.6 4-3.5 4S36 76.5 36 74c0-2.5 3.5-7 3.5-7s3.5 4.5 3.5 7Z"/>';
-    const sparkles = '<path class="sparkle" d="M104 34l2.2 5.8 5.8 2.2-5.8 2.2-2.2 5.8-2.2-5.8-5.8-2.2 5.8-2.2Z"/>' +
-      '<path class="sparkle" d="M14 54l1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5Z"/>';
-    const faces = {
-      neutral: dotEyes + muzzle + '<path d="M56 85h8"/>',
-      content: dotEyes + muzzle + '<path d="M54 83q6 5 12 0"/>',
-      happy: arcEyes + cheeks + muzzle + '<path d="M52 82q8 9 16 0"/>',
-      worried: brows + dotEyes + muzzle + '<path d="M53 86q3.5-3 7 0t7 0"/>' + sweat,
-      sad: brows + dotEyes + muzzle + '<path d="M53 88q7-7 14 0"/>' + tear,
-      relieved: arcEyes + cheeks + muzzle + '<path class="mouth-open" d="M51 81q9 12 18 0Z"/>' + sparkles,
-    };
-    return (
-      '<svg class="mascot mood-' + mood + '" width="' + w + '" height="' + h + '" viewBox="0 0 120 140" role="img" ' +
-      'aria-label="Sal the seal looks ' + MOOD_WORDS[mood] + '">' +
-        '<g class="mascot-body">' +
-          '<path class="tail skin" d="M52 121c-4 8-11 12-9 15 6 0 13-6 17-10 4 4 11 10 17 10 2-3-5-7-9-15Z"/>' +
-          '<path class="flipper flipper-l skin" d="M31 92C17 96 8 108 14 116c6 6 18-2 25-12Z"/>' +
-          '<path class="flipper flipper-r skin" d="M89 92c14 4 23 16 17 24-6 6-18-2-25-12Z"/>' +
-          '<path class="skin" d="M60 18C36 18 24 44 24 72c0 32 16 52 36 52s36-20 36-52c0-28-12-54-36-54Z"/>' +
-          '<ellipse class="belly" cx="60" cy="99" rx="19" ry="16"/>' +
-          '<g class="face">' + faces[mood] + '</g>' +
-        '</g>' +
-      '</svg>'
-    );
   }
 
   /* ======================================================================
@@ -493,6 +451,7 @@
     const views = { overview: viewOverview, subscriptions: viewSubs, inbox: viewInbox, settings: viewSettings };
     view.innerHTML = views[r]();
     document.title = (ROUTES.find((x) => x.id === r).label) + ' · Leaky';
+    renderChart();
   }
 
   /* ======================================================================
@@ -512,7 +471,6 @@
   function viewAuth() {
     const signup = ui.authMode === 'signup';
     return '<div class="auth step-enter">' +
-      '<div class="onb-mascot">' + mascot('content', 88) + '</div>' +
       '<h1 class="hero-title" tabindex="-1">' + (signup ? 'Create your account' : 'Welcome back') + '</h1>' +
       '<p class="hero-sub">' + (signup ? 'Leaky finds the subscriptions hiding in your inbox and keeps them under budget.' : 'Sign in to pick up where you left off.') + '</p>' +
       '<div class="auth-card">' +
@@ -562,9 +520,8 @@
   }
 
   function onbName() {
-    return '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
-      '<h1 class="hero-title" tabindex="-1">What should we call you?</h1>' +
-      '<p class="hero-sub">This is Sal. Sal keeps watch on your subscriptions and would like to know who it’s working for.</p>' +
+    return '<h1 class="hero-title" tabindex="-1">What should we call you?</h1>' +
+      '<p class="hero-sub">So Leaky can say hello properly. First names are fine.</p>' +
       '<form class="onb-form" data-form="onb-name" novalidate>' +
         '<div class="field"><label class="field-label" for="onb-name">Your name</label>' +
           '<input class="input" id="onb-name" name="name" autocomplete="given-name" required value="' + esc(state.user.name || '') + '" />' +
@@ -574,8 +531,7 @@
   }
 
   function onbGoals() {
-    return '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
-      '<h1 class="hero-title" tabindex="-1">What should Sal watch for?</h1>' +
+    return '<h1 class="hero-title" tabindex="-1">What should Leaky watch for?</h1>' +
       '<p class="hero-sub">Pick as many as you like. You can change these in settings.</p>' +
       '<div class="goal-grid stagger">' + GOALS.map((g) => {
         const on = state.goals.includes(g.id);
@@ -590,10 +546,9 @@
   function onbBudget() {
     const T = totals();
     const b = state.budget;
-    return '<div class="onb-mascot" id="onb-mascot">' + mascot(moodFor(T.projected, b), 112) + '</div>' +
-      '<h1 class="hero-title" tabindex="-1">What’s your monthly budget for subscriptions?</h1>' +
+    return '<h1 class="hero-title" tabindex="-1">What’s your monthly budget for subscriptions?</h1>' +
       '<p class="hero-sub">Subscriptions only, not your general spending.' +
-        (state.subs.length ? ' Yours come to ' + money(T.projected) + ' this month.' : ' Sal compares this with what we find next.') + '</p>' +
+        (state.subs.length ? ' Yours come to ' + money(T.projected) + ' this month.' : ' Leaky compares this with what we find next.') + '</p>' +
       '<form class="onb-form" data-form="onb-budget" novalidate>' +
         '<div class="field"><label class="field-label" for="onb-budget">Monthly budget</label>' +
           '<div class="affix"><span>$</span><input class="input" id="onb-budget" name="budget" inputmode="decimal" autocomplete="off" value="' + (b ? esc(b) : '') + '" /></div></div>' +
@@ -617,8 +572,7 @@
 
   function onbSource() {
     const has = state.subs.length > 0;
-    return '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
-      '<h1 class="hero-title" tabindex="-1">Where should we look for subscriptions?</h1>' +
+    return '<h1 class="hero-title" tabindex="-1">Where should we look for subscriptions?</h1>' +
       '<p class="hero-sub">Connect an inbox and Leaky reads the receipts and renewal emails for you. Or add them by hand.</p>' +
       '<div class="choice-grid stagger onb-choices">' +
         choiceCard({ tone: 'clay', icon: 'mail', title: 'Gmail', desc: 'Sign in with Google and allow read-only access. Takes a few seconds.',
@@ -646,8 +600,7 @@
 
   function onbScanning() {
     const p = ui.scan.phase;
-    return '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
-      '<h1 class="hero-title" tabindex="-1">Reading your inbox</h1>' +
+    return '<h1 class="hero-title" tabindex="-1">Reading your inbox</h1>' +
       '<p class="hero-sub">' + esc(ui.scan.account.address) + '. Only billing emails are read.</p>' +
       '<div class="onb-narrow">' +
         '<div class="progress" role="progressbar" aria-label="Scan progress" aria-valuemin="0" aria-valuemax="' + PHASES.length + '" aria-valuenow="' + p + '">' +
@@ -665,8 +618,7 @@
     const n = state.subs.length;
     const found = ui.lastFound == null ? n : ui.lastFound;
     const review = state.subs.filter((s) => s.review).length;
-    return '<div class="onb-mascot">' + mascot(found ? 'happy' : 'content', 96) + '</div>' +
-      '<h1 class="hero-title" tabindex="-1">' + (found ? 'We found ' + plural(found, 'subscription') : 'No subscriptions found') + '</h1>' +
+    return '<h1 class="hero-title" tabindex="-1">' + (found ? 'We found ' + plural(found, 'subscription') : 'No subscriptions found') + '</h1>' +
       '<p class="hero-sub">' + (found
         ? (review ? esc(plural(review, 'receipt')) + ' needed a second look, flagged below. ' : '') + 'Tap a row to edit it, or add anything we missed.'
         : 'Nothing that looks like a subscription turned up. You can add them by hand.') + '</p>' +
@@ -787,22 +739,23 @@
     const st = budgetStatus(T.projected, b);
     const budgetCard =
       '<section class="card budget-card" aria-labelledby="budget-h">' +
-        '<div class="budget-mascot">' + mascot(md, 144) + '</div>' +
-        '<div class="budget-main">' +
-          '<h2 class="label" id="budget-h">Projected for ' + esc(month) + '</h2>' +
-          '<p class="big-num"><span class="num-xl">' + money(T.projected) + '</span>' +
-            '<span class="muted">' + (b ? 'of ' + money(b) + ' budget' : 'no budget set') + '</span></p>' +
-          meter(T.projected, b) +
+        '<div class="budget-head">' +
+          '<div>' +
+            '<h2 class="label" id="budget-h">Projected for ' + esc(month) + '</h2>' +
+            '<p class="big-num"><span class="num-xl">' + money(T.projected) + '</span>' +
+              '<span class="muted">' + (b ? 'of ' + money(b) + ' budget' : 'no budget set') + '</span></p>' +
+          '</div>' +
           (st ? '<div class="budget-line">' + statusHtml(st.tone, st.label) +
             '<span class="muted">' + (T.projected > b ? money(T.projected - b) + ' over' : money(b - T.projected) + ' left') + '</span></div>' : '') +
-          '<p class="speech">' + esc(speech(md, T.projected, b)) + '</p>' +
-          '<dl class="stats">' +
-            '<div><dt>Already charged</dt><dd>' + money(T.charged) + '</dd></div>' +
-            '<div><dt>Still to come</dt><dd>' + money(T.toCome) + '</dd></div>' +
-            '<div><dt>Average per month</dt><dd>' + money(T.avg) + '</dd></div>' +
-            '<div><dt>Per year</dt><dd>' + money(T.yearly) + '</dd></div>' +
-          '</dl>' +
         '</div>' +
+        '<div class="chart" id="budget-chart" data-budget="' + (b || '') + '"></div>' +
+        '<p class="muted budget-note">' + esc(speech(md, T.projected, b)) + '</p>' +
+        '<dl class="stats">' +
+          '<div><dt>Already charged</dt><dd>' + money(T.charged) + '</dd></div>' +
+          '<div><dt>Still to come</dt><dd>' + money(T.toCome) + '</dd></div>' +
+          '<div><dt>Average per month</dt><dd>' + money(T.avg) + '</dd></div>' +
+          '<div><dt>Per year</dt><dd>' + money(T.yearly) + '</dd></div>' +
+        '</dl>' +
       '</section>';
 
     return header + '<div class="overview">' + budgetCard + attentionCard(T) + upcomingCard() + '</div>';
@@ -904,6 +857,139 @@
       (rows ? '<div class="upcoming stagger">' + rows + '</div>' : emptyState({ small: true, icon: 'clock', title: 'No renewals in the next two weeks' })) +
       '</section>';
   }
+
+  /* ======================================================================
+     Budget chart: cumulative spend through the month against the limit
+     ====================================================================== */
+  function chartData() {
+    const t = today();
+    const [y, m] = t.split('-').map(Number);
+    const days = new Date(y, m, 0).getDate();
+    const byDay = Array.from({ length: days + 1 }, () => []);
+    state.subs.forEach((s) => { const d = chargeThisMonth(s); if (d) byDay[Number(d.slice(8))].push(s); });
+    const cum = [0];
+    for (let d = 1; d <= days; d++) cum[d] = round2(cum[d - 1] + byDay[d].reduce((a, s) => a + s.amount, 0));
+    return { days: days, todayD: Number(t.slice(8)), byDay: byDay, cum: cum, y: y, m: m };
+  }
+
+  function renderChart() {
+    const el = $('#budget-chart');
+    if (!el) return;
+    const D = chartData();
+    const b = state.budget;
+    const W = Math.max(280, el.clientWidth);
+    const H = 200;
+    const padL = 44; const padR = 16; const padT = 20; const padB = 28;
+    const top = Math.max(D.cum[D.days], b || 0);
+    const maxV = (top || 10) * 1.2;
+    const x = (d) => padL + (d / D.days) * (W - padL - padR);
+    const yv = (v) => padT + (1 - v / maxV) * (H - padT - padB);
+    const pt = (d) => x(d).toFixed(1) + ',' + yv(D.cum[d]).toFixed(1);
+    const range = (a, c) => Array.from({ length: c - a + 1 }, (_, i) => a + i);
+    const baseY = yv(0);
+
+    const solid = range(0, D.todayD).map(pt).join(' ');
+    const dashed = range(D.todayD, D.days).map(pt).join(' ');
+    const all = range(0, D.days).map(pt).join(' ');
+    const area = all + ' ' + x(D.days).toFixed(1) + ',' + baseY.toFixed(1) + ' ' + x(0).toFixed(1) + ',' + baseY.toFixed(1);
+
+    /* Recessive grid on round steps. */
+    const step = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000].find((k) => maxV / k <= 4) || 10000;
+    let grid = '';
+    for (let v = step; v <= maxV; v += step) {
+      grid += '<line class="grid" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yv(v).toFixed(1) + '" y2="' + yv(v).toFixed(1) + '"/>' +
+        '<text class="axis" x="' + (padL - 8) + '" y="' + (yv(v) + 4).toFixed(1) + '" text-anchor="end">$' + v + '</text>';
+    }
+    const xt = [1, 8, 15, 22, D.days].map((d) =>
+      '<text class="axis" x="' + x(d).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + (d === 1 ? MONTHS[D.m - 1] + ' 1' : d) + '</text>').join('');
+
+    /* Budget reference line. Its label sits at the left, where spend is still low. */
+    let ref = '';
+    if (b) {
+      const by = yv(b);
+      ref = '<line class="ref" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + by.toFixed(1) + '" y2="' + by.toFixed(1) + '"/>' +
+        '<text class="ref-label" x="' + (padL + 4) + '" y="' + (by - 6).toFixed(1) + '">Budget ' + money(b) + '</text>';
+    }
+    const overClip = b ? '<clipPath id="over-clip"><rect x="0" y="0" width="' + W + '" height="' + yv(b).toFixed(1) + '"/></clipPath>' : '';
+    const over = b ? '<polygon class="over" points="' + area + '" clip-path="url(#over-clip)"/>' : '';
+    const endLabelY = yv(D.cum[D.days]);
+    const endLabel = '<text class="end-label" x="' + (x(D.days) - 10).toFixed(1) + '" y="' + (endLabelY - 8).toFixed(1) + '" text-anchor="end">' + money(D.cum[D.days]) + '</text>';
+
+    el.innerHTML =
+      '<svg class="chart-svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" ' +
+        'aria-label="Subscription spend through the month. ' + money(D.cum[D.todayD]) + ' charged so far, ' + money(D.cum[D.days]) + ' projected by ' + MONTHS[D.m - 1] + ' ' + D.days +
+        (b ? ', against a ' + money(b) + ' budget.' : '.') + '">' +
+        '<defs>' + overClip + '</defs>' +
+        grid + xt +
+        '<polygon class="area" points="' + area + '"/>' + over +
+        '<line class="base" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + baseY.toFixed(1) + '" y2="' + baseY.toFixed(1) + '"/>' +
+        ref +
+        '<polyline class="line" points="' + solid + '"/>' +
+        '<polyline class="line projected" points="' + dashed + '"/>' +
+        '<circle class="marker" cx="' + x(D.todayD).toFixed(1) + '" cy="' + yv(D.cum[D.todayD]).toFixed(1) + '" r="4"/>' +
+        endLabel +
+        '<g class="hover" hidden><line class="crosshair" y1="' + padT + '" y2="' + baseY.toFixed(1) + '"/><circle class="hover-dot" r="4"/></g>' +
+        '<rect class="hit" x="' + padL + '" y="0" width="' + (W - padL - padR) + '" height="' + H + '" fill="transparent"/>' +
+      '</svg>' +
+      '<div class="tooltip" hidden></div>' +
+      '<ul class="legend" aria-hidden="true">' +
+        '<li><span class="sw sw-solid"></span>Charged so far</li>' +
+        '<li><span class="sw sw-dashed"></span>Projected</li>' +
+        (b ? '<li><span class="sw sw-ref"></span>Budget</li>' : '') +
+      '</ul>';
+
+    el._geo = { D: D, x: x, yv: yv, padL: padL, padR: padR, W: W };
+  }
+
+  function chartHover(el, clientX) {
+    const g = el._geo;
+    if (!g) return;
+    const svg = el.querySelector('svg');
+    const rect = svg.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const d = Math.max(0, Math.min(g.D.days, Math.round(((px - g.padL) / (g.W - g.padL - g.padR)) * g.D.days)));
+    const hover = svg.querySelector('.hover');
+    const cx = g.x(d); const cy = g.yv(g.D.cum[d]);
+    hover.hidden = false;
+    hover.querySelector('.crosshair').setAttribute('x1', cx);
+    hover.querySelector('.crosshair').setAttribute('x2', cx);
+    hover.querySelector('.hover-dot').setAttribute('cx', cx);
+    hover.querySelector('.hover-dot').setAttribute('cy', cy);
+    const tip = el.querySelector('.tooltip');
+    const dateStr = d === 0 ? 'Start of month' : MONTHS[g.D.m - 1] + ' ' + d;
+    const kind = d <= g.D.todayD ? 'charged' : 'projected';
+    const items = g.D.byDay[d] || [];
+    tip.innerHTML = '<p class="tip-title">' + esc(dateStr) + '</p>' +
+      '<p><span class="tip-val">' + money(g.D.cum[d]) + '</span> <span class="muted">' + kind + ' so far</span></p>' +
+      (items.length ? '<ul class="tip-list">' + items.map((s) => '<li><span>' + esc(s.name) + '</span><span>' + money(s.amount) + '</span></li>').join('') + '</ul>' : '');
+    tip.hidden = false;
+    const tw = tip.offsetWidth;
+    let left = cx + 12;
+    if (left + tw > g.W) left = cx - tw - 12;
+    tip.style.left = Math.max(0, left) + 'px';
+    tip.style.top = Math.max(0, Math.min(cy - 12, 200 - tip.offsetHeight)) + 'px';
+  }
+
+  function chartLeave(el) {
+    const hover = el.querySelector('.hover');
+    const tip = el.querySelector('.tooltip');
+    if (hover) hover.hidden = true;
+    if (tip) tip.hidden = true;
+  }
+
+  document.addEventListener('pointermove', (e) => {
+    const el = e.target.closest && e.target.closest('#budget-chart');
+    if (el) chartHover(el, e.clientX);
+  });
+  document.addEventListener('pointerleave', (e) => {
+    if (e.target && e.target.id === 'budget-chart') chartLeave(e.target);
+  }, true);
+  document.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest && e.target.closest('#budget-chart');
+    if (el) chartHover(el, e.clientX);
+    else { const c = $('#budget-chart'); if (c) chartLeave(c); }
+  });
+  window.addEventListener('resize', () => { if ($('#budget-chart')) renderChart(); });
 
   /* ======================================================================
      Subscriptions
@@ -1379,7 +1465,7 @@
     if (h) h.focus({ preventScroll: true });
   }
 
-  /* Change a subscription and let the mascot celebrate if it frees room this month. */
+  /* Change a subscription and note the room it frees up this month. */
   function withRelief(fn) {
     const before = totals().projected;
     fn();
@@ -1773,7 +1859,6 @@
     else if (t.id === 'onb-budget') {
       const v = parseMoney(t.value);
       const T = totals();
-      $('#onb-mascot').innerHTML = mascot(moodFor(T.projected, v), 112);
       $('#onb-status').innerHTML = onbStatus(T.projected, v);
     }
   });
