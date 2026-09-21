@@ -164,7 +164,6 @@
 
   /* Three behaviours: giggle when under budget, cry when over, idle and blink in between. */
   const foxAct = (mood) => (mood === 'happy' || mood === 'relieved' ? 'giggle' : mood === 'sad' || mood === 'worried' ? 'cry' : 'idle');
-  const FOX_LABEL = { giggle: 'Giggling', idle: 'Keeping watch', cry: 'Crying' };
   const px = (x, y, w, h, c, cls) => '<rect' + (cls ? ' class="' + cls + '"' : '') + ' x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + c + '"/>';
   const pxHeart = (x, y, cls) => '<g class="' + cls + '">' + px(x, y, 1, 1, FOX_PAL.p) + px(x + 2, y, 1, 1, FOX_PAL.p) +
     px(x, y + 1, 3, 1, FOX_PAL.p) + px(x + 1, y + 2, 1, 1, FOX_PAL.p) + '</g>';
@@ -1092,10 +1091,12 @@
         '</dl>' +
       '</section>';
 
+    /* Amounts in Penny's line: bleeding red when over budget, yellow when things are fine. */
+    const pennyMoney = (html, over) => html.replace(/\$[\d,]+(\.\d{2})?/g, (m) =>
+      '<strong class="penny-num ' + (over ? 'is-over' : 'is-ok') + '">' + m + '</strong>');
     const pennyCard =
-      '<section class="card penny-card" aria-labelledby="penny-h">' +
-        '<div class="card-head"><h2 class="section-title" id="penny-h">Penny</h2><span class="muted">' + FOX_LABEL[foxAct(md)] + '</span></div>' +
-        '<div class="penny">' + fox(md, { size: 4, caption: false }) + '<p class="penny-says">' + esc(speech(md, T.projected, b)) + '</p></div>' +
+      '<section class="card penny-card" aria-label="Budget check-in">' +
+        '<div class="penny">' + fox(md, { size: 6, caption: false }) + '<p class="penny-says">' + pennyMoney(esc(speech(md, T.projected, b)), b && T.projected > b) + '</p></div>' +
       '</section>';
 
     return header + '<div class="overview">' + pennyCard + budgetCard + upcomingCard() + '</div>';

@@ -832,8 +832,35 @@ svg { flex: none; }
 /* Penny's own card: quiet, sits beside the upcoming list. */
 .penny { display: flex; align-items: center; gap: 16px; }
 .penny .fox { padding: 6px 6px 0; box-shadow: inset 0 -9px 0 #6e50d6; border-image: var(--frame-edge-hi) 4; }
-.penny .fox svg { width: 128px; height: 104px; }
+.penny .fox svg { width: 192px; height: 156px; }
+.penny { gap: 24px; }
 .penny-says { color: var(--muted); max-width: 640px; font-size: 22px; line-height: 26px; }
+.penny-num {
+  position: relative;
+  display: inline-block;
+  padding: 0 2px;
+  font: 14px/26px var(--font-px);
+  vertical-align: -1px;
+}
+.penny-num.is-ok { color: var(--yellow); text-shadow: 2px 2px 0 var(--red-lo); }
+.penny-num.is-over { color: var(--red); text-shadow: 2px 2px 0 var(--bg-deep); }
+/* A single red pixel drips off the number and fades. */
+.penny-num.is-over::after {
+  content: '';
+  position: absolute;
+  left: 60%;
+  top: 100%;
+  width: 4px;
+  height: 6px;
+  margin-top: -6px;
+  background: var(--red);
+  animation: bleed 1.8s steps(6, end) infinite;
+}
+@keyframes bleed {
+  0% { transform: translateY(0); opacity: 1; }
+  70% { transform: translateY(12px); opacity: 1; }
+  100% { transform: translateY(16px); opacity: 0; }
+}
 
 .speech {
   position: relative;
@@ -1453,8 +1480,10 @@ svg { flex: none; }
   .num-xl { font-size: 20px; line-height: 28px; }
   .stats dd { font-size: 12px; }
   .fox svg { width: 96px; height: 78px; }
-  .penny .fox svg { width: 96px; height: 78px; }
+  .penny .fox svg { width: 128px; height: 104px; }
+  .penny { flex-direction: column; align-items: flex-start; gap: 16px; }
   .penny-says { font-size: 20px; line-height: 24px; }
+  .penny-num { font-size: 12px; line-height: 24px; }
   .say { gap: 12px; }
 
   /* Tables become stacked list rows. */
