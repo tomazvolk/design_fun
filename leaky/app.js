@@ -175,7 +175,7 @@
         const s = JSON.parse(raw);
         if (s && s.v === 1) {
           const out = Object.assign(base, s, { settings: Object.assign(base.settings, s.settings) });
-          if (out.step === 'scanning') out.step = 'source';
+          if (out.step === 'scanning' || out.step === 'found') out.step = 'source';
           return out;
         }
       }
@@ -196,9 +196,8 @@
     sort: { key: 'next', dir: 'asc' },
     page: 1,
     openSection: 'budget',
-    scanning: false,
-    scan: null,
-    lastFound: null,
+    connect: null,
+    chartRange: '3m',
     authMode: 'signup',
     relief: null,
     installEvent: null,
@@ -441,10 +440,9 @@
     state.subs.forEach(rollForward);
     renderNav();
     const view = $('#view');
-    view.classList.toggle('narrow', state.onboarded && route() === 'settings');
-    if (!state.user || !state.onboarded) {
-      view.innerHTML = state.user ? viewOnboarding() : viewAuth();
-      document.title = state.user ? 'Get started · Leaky' : 'Sign in · Leaky';
+    if (!state.user || ui.connect || !state.onboarded) {
+      view.innerHTML = !state.user ? viewAuth() : ui.connect ? viewConnect() : viewOnboarding();
+      document.title = !state.user ? 'Sign in · Leaky' : ui.connect ? 'Connect ' + PROVIDERS[ui.connect.provider].label + ' · Leaky' : 'Get started · Leaky';
       return;
     }
     const r = route();
@@ -458,8 +456,7 @@
      Sign in + onboarding
      ====================================================================== */
   const STEPS = ['name', 'goals', 'budget', 'source'];
-  const stepIndex = (s) => (s === 'scanning' || s === 'found' ? 3 : Math.max(0, STEPS.indexOf(s)));
-  const PHASES = ['Looking for receipts', 'Reading renewal notices', 'Checking trial confirmations', 'Spotting price changes'];
+  const stepIndex = (s) => Math.max(0, STEPS.indexOf(s));
 
   const GOALS = [
     { id: 'trials', icon: 'gift', title: 'Free trials', desc: 'Warn me before a trial turns into a paid plan.', setting: 'trialAlerts' },
@@ -513,8 +510,6 @@
       case 'goals': return wizard('goals', onbGoals());
       case 'budget': return wizard('budget', onbBudget());
       case 'source': return wizard('source', onbSource());
-      case 'scanning': return wizard('scanning', onbScanning(), { back: false });
-      case 'found': return wizard('found', onbFound());
       default: return wizard('name', onbName());
     }
   }
@@ -588,45 +583,15 @@
         : '<button type="button" class="link-btn" data-action="onb-finish">Skip for now, I’ll add them later</button>') + '</div>';
   }
 
-  function onbSubsTable() {
-    const rows = state.subs.map((s) =>
+  function onbSubsTable(list) {
+    list = list || state.subs;
+    const rows = list.map((s) =>
       '<tr data-open="' + s.id + '"><td><div class="name-cell"><button type="button" class="row-link" data-action="open-sub" data-id="' + s.id + '">' + esc(s.name) + '</button>' + tag(s.category) + '</div></td>' +
       '<td class="col-status">' + subStatus(s) + '</td>' +
       '<td class="num">' + money(s.amount) + '<span class="per">' + (s.cycle === 'yearly' ? '/yr' : '/mo') + '</span></td></tr>'
     ).join('');
     return '<div class="table-card"><table class="rtable"><thead><tr><th>Name</th><th>Status</th><th class="num">Price</th></tr></thead><tbody class="stagger">' + rows + '</tbody></table>' +
-      '<div class="pager"><span>' + plural(state.subs.length, 'subscription') + ' · ' + money(totals().avg) + ' a month</span></div></div>';
-  }
-
-  function onbScanning() {
-    const p = ui.scan.phase;
-    return '<h1 class="hero-title" tabindex="-1">Reading your inbox</h1>' +
-      '<p class="hero-sub">' + esc(ui.scan.account.address) + '. Only billing emails are read.</p>' +
-      '<div class="onb-narrow">' +
-        '<div class="progress" role="progressbar" aria-label="Scan progress" aria-valuemin="0" aria-valuemax="' + PHASES.length + '" aria-valuenow="' + p + '">' +
-          '<span style="transform:scaleX(' + (p / PHASES.length) + ')"></span></div>' +
-      '</div>' +
-      '<ul class="phases" aria-live="polite">' + PHASES.map((ph, i) => {
-        const cls = i < p ? 'done' : i === p ? 'now' : '';
-        const mark = i < p ? icon('check') : i === p ? '<span class="spinner" aria-hidden="true"></span>' : '<span class="pending-dot" aria-hidden="true"></span>';
-        return '<li class="' + cls + '"><span class="ph-icon">' + mark + '</span>' + ph +
-          (i < p ? '<span class="sr-only">, done</span>' : '') + '</li>';
-      }).join('') + '</ul>';
-  }
-
-  function onbFound() {
-    const n = state.subs.length;
-    const found = ui.lastFound == null ? n : ui.lastFound;
-    const review = state.subs.filter((s) => s.review).length;
-    return '<h1 class="hero-title" tabindex="-1">' + (found ? 'We found ' + plural(found, 'subscription') : 'No subscriptions found') + '</h1>' +
-      '<p class="hero-sub">' + (found
-        ? (review ? esc(plural(review, 'receipt')) + ' needed a second look, flagged below. ' : '') + 'Tap a row to edit it, or add anything we missed.'
-        : 'Nothing that looks like a subscription turned up. You can add them by hand.') + '</p>' +
-      (n ? onbSubsTable() : '') +
-      '<div class="onb-actions">' +
-        btn('Add one by hand', 'add-sub', { icon: 'plus', size: 'lg' }) +
-        btn('Finish', 'onb-finish', { variant: 'primary', size: 'lg' }) +
-      '</div>';
+      '<div class="pager"><span>' + plural(list.length, 'subscription') + ' · ' + money(round2(list.reduce((a, x) => a + perMonth(x), 0))) + ' a month</span></div></div>';
   }
 
   function parseMoney(v) {
@@ -663,49 +628,192 @@
       });
   }
 
-  function onboardingScan(account) {
-    state.step = 'scanning';
-    ui.scan = { account: account, phase: 0 };
+  /* ======================================================================
+     Connect flow: your email -> scanning -> results. A page, not a modal.
+     ====================================================================== */
+  const SCAN_TOTAL = 3184;
+  /* Emails that stream past while scanning. tag null = not a billing email. */
+  const SCAN_MAIL = [
+    { from: 'Netflix', subj: 'Your receipt for September', tag: 'Receipt' },
+    { from: 'Ana', subj: 'Weekend plans?', tag: null },
+    { from: 'Spotify', subj: 'Spotify Premium: payment confirmed', tag: 'Receipt' },
+    { from: 'Duolingo', subj: 'Your Super trial has started', tag: 'Trial' },
+    { from: 'Amazon', subj: 'Your order has shipped', tag: null },
+    { from: 'Adobe', subj: 'Invoice for Creative Cloud', tag: 'Receipt' },
+    { from: 'Netflix', subj: 'We’re updating our prices', tag: 'Price change' },
+    { from: 'The New York Times', subj: 'Payment received, thank you', tag: 'Receipt' },
+    { from: 'GitHub', subj: '[repo] Pull request merged', tag: null },
+    { from: 'Amazon Prime', subj: 'Your membership renews soon', tag: 'Renewal' },
+    { from: 'Strava', subj: 'Welcome to your free trial', tag: 'Trial' },
+    { from: 'Apple', subj: 'Your receipt from Apple', tag: 'Receipt' },
+    { from: 'Headspace', subj: 'Subscription renewed', tag: 'Receipt' },
+    { from: 'Mum', subj: 'Photos from Sunday', tag: null },
+    { from: 'Disney+', subj: 'Your monthly statement', tag: 'Receipt' },
+    { from: 'OpenAI', subj: 'Your ChatGPT Plus receipt', tag: 'Receipt' },
+  ];
+  const SCAN_TAG_TONE = { Receipt: 'sky', Renewal: 'amber', Trial: 'clay', 'Price change': 'rose' };
+
+  function startConnect(provider) {
+    ui.connect = { provider: provider, phase: 'email', account: null, emitted: [], count: 0, found: 0, results: [], rescan: false };
+    render();
+    focusTitle();
+  }
+
+  function startScan(account, rescan) {
+    ui.connect = { provider: account.provider, phase: 'scan', account: account, emitted: [], count: 0, found: 0, results: [], rescan: !!rescan };
     render();
     focusTitle();
     const fast = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const gap = fast ? 120 : 300;
+    const c = ui.connect;
     const tick = () => {
-      ui.scan.phase++;
-      if (ui.scan.phase <= PHASES.length) {
-        render();
-        setTimeout(ui.scan.phase === PHASES.length ? finish : tick, fast ? 250 : 750);
-      }
+      if (ui.connect !== c) return;
+      const i = c.emitted.length;
+      if (i >= SCAN_MAIL.length) return setTimeout(finish, fast ? 200 : 500);
+      const m = SCAN_MAIL[i];
+      c.emitted.push(m);
+      if (m.tag) c.found++;
+      c.count = Math.min(SCAN_TOTAL, Math.round(((i + 1) / SCAN_MAIL.length) * SCAN_TOTAL + (i < SCAN_MAIL.length - 1 ? (i * 37) % 90 : 0)));
+      paintScan(m, fast);
+      setTimeout(tick, gap);
     };
     const finish = () => {
-      account.lastScan = new Date().toISOString();
-      state.accounts.push(account);
-      const found = makeSubs(account.provider);
-      ui.lastFound = found.length;
+      if (ui.connect !== c) return;
+      const now = new Date().toISOString();
+      if (!c.rescan) state.accounts.push(c.account);
+      state.accounts.forEach((a) => { if (a.id === c.account.id || c.rescan) a.lastScan = now; });
+      const found = makeSubs(c.account.provider);
       state.subs = state.subs.concat(found);
-      state.step = 'found';
-      ui.scan = null;
+      c.results = found.map((x) => x.id);
+      c.phase = 'results';
       save();
       render();
       focusTitle();
     };
-    setTimeout(tick, fast ? 250 : 750);
+    setTimeout(tick, fast ? 200 : 600);
   }
 
-  function inlineScan(newAccount) {
-    ui.scanning = true;
-    render();
-    setTimeout(() => {
-      ui.scanning = false;
-      if (newAccount) state.accounts.push(newAccount);
-      const now = new Date().toISOString();
-      state.accounts.forEach((a) => { a.lastScan = now; });
-      const provider = newAccount ? newAccount.provider : state.accounts[0].provider;
-      const found = makeSubs(provider);
-      state.subs = state.subs.concat(found);
-      save();
-      render();
-      toast(found.length ? 'Found ' + plural(found.length, 'new subscription') : 'Scan complete. No new subscriptions found.');
-    }, 1600);
+  /* Update the scan screen in place so rows and bars animate instead of re-rendering. */
+  function paintScan(m, fast) {
+    const c = ui.connect;
+    const list = $('#mail-list');
+    const bar = $('#scan-bar');
+    const count = $('#scan-count');
+    const found = $('#scan-found');
+    if (bar) bar.style.transform = 'scaleX(' + (c.count / SCAN_TOTAL) + ')';
+    if (count) count.textContent = c.count.toLocaleString('en-US') + ' of ' + SCAN_TOTAL.toLocaleString('en-US') + ' emails';
+    if (found) found.textContent = plural(c.found, 'billing email');
+    if (!list || !m) return;
+    const li = document.createElement('li');
+    li.className = 'mail is-entering';
+    li.innerHTML = mailRow(m, false);
+    list.appendChild(li);
+    requestAnimationFrame(() => requestAnimationFrame(() => li.classList.remove('is-entering')));
+    setTimeout(() => { li.querySelector('.mail-tag').outerHTML = mailTag(m, true); }, fast ? 60 : 180);
+    while (list.children.length > 6) {
+      const first = list.firstElementChild;
+      first.classList.add('is-leaving');
+      setTimeout(() => first.remove(), 150);
+      if (list.children.length - 1 <= 6) break;
+    }
+  }
+
+  function mailTag(m, revealed) {
+    if (!revealed) return '<span class="mail-tag tag tag-neutral is-pending">Reading…</span>';
+    return m.tag
+      ? '<span class="mail-tag tag tag-' + SCAN_TAG_TONE[m.tag] + '">' + esc(m.tag) + '</span>'
+      : '<span class="mail-tag tag tag-neutral">Skipped</span>';
+  }
+  function mailRow(m, revealed) {
+    return '<span class="mail-icon">' + icon('mail') + '</span>' +
+      '<span class="mail-text"><span class="mail-from">' + esc(m.from) + '</span><span class="mail-subj">' + esc(m.subj) + '</span></span>' +
+      mailTag(m, revealed);
+  }
+
+  function stepper(phase) {
+    const steps = [['email', 'Your email'], ['scan', 'Scanning'], ['results', 'Results']];
+    const i = steps.findIndex((x) => x[0] === phase);
+    return '<ol class="stepper" aria-label="Progress">' + steps.map((st, k) =>
+      '<li class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"' + (k === i ? ' aria-current="step"' : '') + '>' +
+        '<span class="st-dot">' + (k < i ? icon('check') : (k + 1)) + '</span><span class="st-label">' + st[1] + '</span></li>'
+    ).join('') + '</ol>';
+  }
+
+  function viewConnect() {
+    const c = ui.connect;
+    const P = PROVIDERS[c.provider];
+    let inner = '';
+    if (c.phase === 'email') inner = connectEmail(c, P);
+    else if (c.phase === 'scan') inner = connectScan(c, P);
+    else inner = connectResults(c, P);
+    return '<div class="onb connect">' +
+      '<div class="wiz-head">' +
+        (c.phase === 'email' ? btn('Back', 'connect-back', { variant: 'ghost', icon: 'chevLeft' }) : '<span></span>') +
+        '<p class="label">' + esc(P.label) + '</p>' +
+      '</div>' +
+      stepper(c.phase) +
+      '<div class="step-enter wiz-body" data-phase="' + c.phase + '">' + inner + '</div>' +
+    '</div>';
+  }
+
+  function connectEmail(c, P) {
+    const icloud = c.provider === 'icloud';
+    return '<h1 class="hero-title" tabindex="-1">' + (icloud ? 'Connect iCloud Mail' : 'Connect Gmail') + '</h1>' +
+      '<p class="hero-sub">' + (icloud
+        ? 'Apple doesn’t offer a sign-in for mail apps, so Leaky connects with an app-specific password. It takes about a minute.'
+        : 'Enter the address of the inbox to read. Leaky only looks at billing emails, and you can disconnect any time.') + '</p>' +
+      '<form class="connect-card" data-form="connect-email" novalidate>' +
+        (icloud ? '<ol class="steps">' +
+          '<li><span>Sign in at <strong>account.apple.com</strong>.</span></li>' +
+          '<li><span>Open <strong>Sign-In and Security</strong>, then <strong>App-Specific Passwords</strong>.</span></li>' +
+          '<li><span>Create a password and name it “Leaky”.</span></li>' +
+          '<li><span>Paste it below with your iCloud email address.</span></li>' +
+        '</ol>' : '') +
+        '<div class="field"><label class="field-label" for="c-email">' + (icloud ? 'iCloud email' : 'Gmail address') + '</label>' +
+          '<input class="input" id="c-email" name="email" type="email" autocomplete="email" inputmode="email" required /></div>' +
+        (icloud ? '<div class="field"><label class="field-label" for="c-pass">App-specific password</label>' +
+          '<p class="field-desc">Four groups of four letters, like the ones Apple shows.</p>' +
+          '<input class="input" id="c-pass" name="password" type="password" autocomplete="off" spellcheck="false" required /></div>' : '') +
+        '<p class="field-error" id="c-error" hidden>' + icon('alert') + '<span></span></p>' +
+        btn(icloud ? 'Connect and scan' : 'Continue with Google', null, { variant: 'primary', size: 'lg', type: 'submit' }) +
+        '<p class="tertiary auth-note">Prototype: ' + (icloud ? 'the password isn’t stored or sent anywhere, and the scan uses sample data.' : 'this skips Google’s sign-in and runs a simulated scan with sample data.') + '</p>' +
+      '</form>';
+  }
+
+  function connectScan(c, P) {
+    const rows = c.emitted.slice(-6).map((m) => '<li class="mail">' + mailRow(m, true) + '</li>').join('');
+    return '<h1 class="hero-title" tabindex="-1">Reading your inbox</h1>' +
+      '<p class="hero-sub">' + esc(c.account.address) + ' · Only billing emails are read. Everything else is skipped without being stored.</p>' +
+      '<div class="scan" aria-live="polite">' +
+        '<div class="scan-counts"><span id="scan-count">' + c.count.toLocaleString('en-US') + ' of ' + SCAN_TOTAL.toLocaleString('en-US') + ' emails</span>' +
+          '<span id="scan-found" class="muted">' + plural(c.found, 'billing email') + '</span></div>' +
+        '<div class="progress" role="progressbar" aria-label="Emails scanned" aria-valuemin="0" aria-valuemax="' + SCAN_TOTAL + '" aria-valuenow="' + c.count + '">' +
+          '<span id="scan-bar" style="transform:scaleX(' + (c.count / SCAN_TOTAL) + ')"></span></div>' +
+        '<ul class="mail-list" id="mail-list">' + rows + '</ul>' +
+      '</div>';
+  }
+
+  function connectResults(c, P) {
+    const found = c.results.map(findSub).filter(Boolean);
+    const n = found.length;
+    const trials = found.filter((s) => s.status === 'trial').length;
+    const rises = found.filter((s) => priceChange(s)).length;
+    const review = found.filter((s) => s.review).length;
+    const chips = [SCAN_TOTAL.toLocaleString('en-US') + ' emails read', plural(n, 'subscription')]
+      .concat(trials ? [plural(trials, 'free trial')] : [])
+      .concat(rises ? [plural(rises, 'price rise')] : []);
+    const title = n ? (c.rescan ? 'We found ' + plural(n, 'new subscription') : 'We found ' + plural(n, 'subscription')) : (c.rescan ? 'Nothing new' : 'No subscriptions found');
+    const sub = n
+      ? (review ? plural(review, 'receipt') + ' needed a second look, flagged below. ' : '') + 'Tap a row to edit it, or add anything we missed.'
+      : (c.rescan ? 'Your list is up to date.' : 'Nothing that looks like a subscription turned up. You can add them by hand.');
+    return '<h1 class="hero-title" tabindex="-1">' + esc(title) + '</h1>' +
+      '<p class="hero-sub">' + esc(sub) + '</p>' +
+      '<ul class="chips stagger">' + chips.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' +
+      (n ? onbSubsTable(found) : '') +
+      '<div class="onb-actions">' +
+        btn('Add one by hand', 'add-sub', { icon: 'plus', size: 'lg' }) +
+        btn(state.onboarded ? 'Done' : 'Finish', 'connect-done', { variant: 'primary', size: 'lg' }) +
+      '</div>';
   }
 
   /* ======================================================================
@@ -718,7 +826,7 @@
     const month = MONTHS_LONG[new Date().getMonth()];
     const n = activeSubs().length;
     const action = state.accounts.length
-      ? btn('Add subscription', 'add-sub', { icon: 'plus' }) + btn(ui.scanning ? 'Scanning…' : 'Scan inbox', 'scan-all', { variant: 'primary', icon: 'refresh', disabled: ui.scanning })
+      ? btn('Add subscription', 'add-sub', { icon: 'plus' }) + btn('Scan inbox', 'scan-all', { variant: 'primary', icon: 'refresh' })
       : btn('Add subscription', 'add-sub', { variant: 'primary', icon: 'plus' });
 
     const header = pageHeader({
@@ -748,7 +856,11 @@
           (st ? '<div class="budget-line">' + statusHtml(st.tone, st.label) +
             '<span class="muted">' + (T.projected > b ? money(T.projected - b) + ' over' : money(b - T.projected) + ' left') + '</span></div>' : '') +
         '</div>' +
-        '<div class="chart" id="budget-chart" data-budget="' + (b || '') + '"></div>' +
+        '<div class="chart-bar"><div class="seg" role="group" aria-label="Chart range">' +
+          '<button type="button" class="seg-btn" data-action="chart-range" data-id="3m" aria-pressed="' + (ui.chartRange !== '12m') + '">3 months</button>' +
+          '<button type="button" class="seg-btn" data-action="chart-range" data-id="12m" aria-pressed="' + (ui.chartRange === '12m') + '">12 months</button>' +
+        '</div></div>' +
+        '<div class="chart" id="budget-chart"></div>' +
         '<p class="muted budget-note">' + esc(speech(md, T.projected, b)) + '</p>' +
         '<dl class="stats">' +
           '<div><dt>Already charged</dt><dd>' + money(T.charged) + '</dd></div>' +
@@ -861,84 +973,140 @@
   /* ======================================================================
      Budget chart: cumulative spend through the month against the limit
      ====================================================================== */
-  function chartData() {
+  /* Every charge date inside [start, end], projected from each subscription's billing cycle. */
+  function chargesInWindow(start, end) {
+    const out = {};
+    const amountAt = (s, d) => {
+      const h = s.priceHistory || [];
+      let a = h.length ? h[0].amount : s.amount;
+      h.forEach((x) => { if (x.date <= d) a = x.amount; });
+      return h.length ? a : s.amount;
+    };
+    activeSubs().forEach((s) => {
+      const anchor = s.status === 'trial' ? s.trialEnds : s.nextRenewal;
+      if (!anchor) return;
+      const cm = cycleMonths(s);
+      for (let k = -14; k <= 14; k++) {
+        const d = addMonths(anchor, k * cm);
+        if (d < start || d > end) continue;
+        if (s.status === 'trial' && d < s.trialEnds) continue;
+        (out[d] = out[d] || []).push({ s: s, amount: amountAt(s, d) });
+      }
+    });
+    return out;
+  }
+
+  function chartData(months) {
     const t = today();
     const [y, m] = t.split('-').map(Number);
-    const days = new Date(y, m, 0).getDate();
-    const byDay = Array.from({ length: days + 1 }, () => []);
-    state.subs.forEach((s) => { const d = chargeThisMonth(s); if (d) byDay[Number(d.slice(8))].push(s); });
-    const cum = [0];
-    for (let d = 1; d <= days; d++) cum[d] = round2(cum[d - 1] + byDay[d].reduce((a, s) => a + s.amount, 0));
-    return { days: days, todayD: Number(t.slice(8)), byDay: byDay, cum: cum, y: y, m: m };
+    const start = toISO(new Date(y, m - 2, 1));
+    const endD = new Date(y, m - 2 + months, 0);
+    const end = toISO(endD);
+    const n = daysBetween(start, end) + 1;
+    const charges = chargesInWindow(start, end);
+    const cum = []; const iso = []; const monthsOut = [];
+    let run = 0; let cur = null;
+    for (let i = 0; i < n; i++) {
+      const d = addDays(start, i);
+      iso[i] = d;
+      if (d.slice(0, 7) !== cur) {
+        cur = d.slice(0, 7);
+        run = 0;
+        monthsOut.push({ key: cur, from: i, to: i, label: MONTHS[Number(d.slice(5, 7)) - 1], year: Number(d.slice(0, 4)) });
+      }
+      run = round2(run + (charges[d] || []).reduce((a, c) => a + c.amount, 0));
+      cum[i] = run;
+      monthsOut[monthsOut.length - 1].to = i;
+      monthsOut[monthsOut.length - 1].total = run;
+    }
+    return { n: n, cum: cum, iso: iso, months: monthsOut, charges: charges, todayI: daysBetween(start, t), start: start };
   }
 
   function renderChart() {
     const el = $('#budget-chart');
     if (!el) return;
-    const D = chartData();
+    const months = ui.chartRange === '12m' ? 12 : 3;
+    const D = chartData(months);
     const b = state.budget;
     const W = Math.max(280, el.clientWidth);
-    const H = 200;
-    const padL = 44; const padR = 16; const padT = 20; const padB = 28;
-    const top = Math.max(D.cum[D.days], b || 0);
+    const H = 220;
+    const padL = 44; const padR = 16; const padT = 24; const padB = 28;
+    const top = Math.max.apply(null, D.months.map((mo) => mo.total).concat([b || 0]));
     const maxV = (top || 10) * 1.2;
-    const x = (d) => padL + (d / D.days) * (W - padL - padR);
+    const last = D.n - 1;
+    const x = (i) => padL + (i / last) * (W - padL - padR);
     const yv = (v) => padT + (1 - v / maxV) * (H - padT - padB);
-    const pt = (d) => x(d).toFixed(1) + ',' + yv(D.cum[d]).toFixed(1);
+    const pt = (i) => x(i).toFixed(1) + ',' + yv(D.cum[i]).toFixed(1);
     const range = (a, c) => Array.from({ length: c - a + 1 }, (_, i) => a + i);
     const baseY = yv(0);
+    const ti = Math.max(0, Math.min(last, D.todayI));
 
-    const solid = range(0, D.todayD).map(pt).join(' ');
-    const dashed = range(D.todayD, D.days).map(pt).join(' ');
-    const all = range(0, D.days).map(pt).join(' ');
-    const area = all + ' ' + x(D.days).toFixed(1) + ',' + baseY.toFixed(1) + ' ' + x(0).toFixed(1) + ',' + baseY.toFixed(1);
+    /* Each month starts again from zero, so the line steps down at the boundary. */
+    const linePts = (from, to) => range(from, to).map((i) => {
+      const reset = i > from && D.iso[i].slice(8) === '01';
+      return (reset ? x(i).toFixed(1) + ',' + baseY.toFixed(1) + ' ' : '') + pt(i);
+    }).join(' ');
+    const solid = linePts(0, ti);
+    const dashed = linePts(ti, last);
+    const area = linePts(0, last) + ' ' + x(last).toFixed(1) + ',' + baseY.toFixed(1) + ' ' + x(0).toFixed(1) + ',' + baseY.toFixed(1);
 
-    /* Recessive grid on round steps. */
     const step = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000].find((k) => maxV / k <= 4) || 10000;
     let grid = '';
     for (let v = step; v <= maxV; v += step) {
       grid += '<line class="grid" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yv(v).toFixed(1) + '" y2="' + yv(v).toFixed(1) + '"/>' +
         '<text class="axis" x="' + (padL - 8) + '" y="' + (yv(v) + 4).toFixed(1) + '" text-anchor="end">$' + v + '</text>';
     }
-    const xt = [1, 8, 15, 22, D.days].map((d) =>
-      '<text class="axis" x="' + x(d).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + (d === 1 ? MONTHS[D.m - 1] + ' 1' : d) + '</text>').join('');
 
-    /* Budget reference line. Its label sits at the left, where spend is still low. */
+    /* Month bands: boundary lines, a centred label, and each month's total above its peak. */
+    const segW = (W - padL - padR) / D.months.length;
+    const nowK = Math.max(0, D.months.findIndex((mo) => mo.from <= ti && ti <= mo.to));
+    const monthMarks = D.months.map((mo, k) => {
+      const cx = (x(mo.from) + x(mo.to)) / 2;
+      const label = mo.label + (months === 12 && mo.label === 'Jan' ? ' ’' + String(mo.year).slice(2) : '');
+      const every = segW >= 40 ? 1 : segW >= 22 ? 2 : 3;
+      const isNow = mo.from <= ti && ti <= mo.to;
+      return (k ? '<line class="band" x1="' + x(mo.from).toFixed(1) + '" x2="' + x(mo.from).toFixed(1) + '" y1="' + padT + '" y2="' + baseY.toFixed(1) + '"/>' : '') +
+        ((k - nowK) % every === 0 ? '<text class="axis' + (isNow ? ' axis-now' : '') + '" x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + label + '</text>' : '') +
+        (segW >= 64 && mo.total ? '<text class="end-label" x="' + x(mo.to).toFixed(1) + '" y="' + (yv(mo.total) - 8).toFixed(1) + '" text-anchor="end">' + money(mo.total) + '</text>' : '');
+    }).join('');
+
     let ref = '';
     if (b) {
       const by = yv(b);
+      /* Drop the label under the line when the first month's total label would sit on top of it. */
+      const f = D.months[0];
+      const collide = segW >= 64 && f.total && x(f.to) - 56 < padL + 100 && Math.abs(yv(f.total) - 8 - (by - 6)) < 16;
       ref = '<line class="ref" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + by.toFixed(1) + '" y2="' + by.toFixed(1) + '"/>' +
-        '<text class="ref-label" x="' + (padL + 4) + '" y="' + (by - 6).toFixed(1) + '">Budget ' + money(b) + '</text>';
+        '<text class="ref-label" x="' + (padL + 4) + '" y="' + (collide ? by + 14 : by - 6).toFixed(1) + '">Budget ' + money(b) + '</text>';
     }
     const overClip = b ? '<clipPath id="over-clip"><rect x="0" y="0" width="' + W + '" height="' + yv(b).toFixed(1) + '"/></clipPath>' : '';
     const over = b ? '<polygon class="over" points="' + area + '" clip-path="url(#over-clip)"/>' : '';
-    const endLabelY = yv(D.cum[D.days]);
-    const endLabel = '<text class="end-label" x="' + (x(D.days) - 10).toFixed(1) + '" y="' + (endLabelY - 8).toFixed(1) + '" text-anchor="end">' + money(D.cum[D.days]) + '</text>';
+    const cur = D.months.find((mo) => mo.from <= ti && ti <= mo.to) || D.months[0];
+    const first = D.months[0]; const lastM = D.months[D.months.length - 1];
 
     el.innerHTML =
       '<svg class="chart-svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" ' +
-        'aria-label="Subscription spend through the month. ' + money(D.cum[D.todayD]) + ' charged so far, ' + money(D.cum[D.days]) + ' projected by ' + MONTHS[D.m - 1] + ' ' + D.days +
-        (b ? ', against a ' + money(b) + ' budget.' : '.') + '">' +
+        'aria-label="Subscription spend by month, ' + first.label + ' to ' + lastM.label + '. ' + money(D.cum[ti]) + ' charged so far in ' + cur.label + ', ' + money(cur.total) + ' projected' +
+        (b ? ', against a ' + money(b) + ' monthly budget.' : '.') + '">' +
         '<defs>' + overClip + '</defs>' +
-        grid + xt +
+        grid + monthMarks +
         '<polygon class="area" points="' + area + '"/>' + over +
         '<line class="base" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + baseY.toFixed(1) + '" y2="' + baseY.toFixed(1) + '"/>' +
         ref +
         '<polyline class="line" points="' + solid + '"/>' +
         '<polyline class="line projected" points="' + dashed + '"/>' +
-        '<circle class="marker" cx="' + x(D.todayD).toFixed(1) + '" cy="' + yv(D.cum[D.todayD]).toFixed(1) + '" r="4"/>' +
-        endLabel +
+        '<circle class="marker" cx="' + x(ti).toFixed(1) + '" cy="' + yv(D.cum[ti]).toFixed(1) + '" r="4"/>' +
         '<g class="hover" hidden><line class="crosshair" y1="' + padT + '" y2="' + baseY.toFixed(1) + '"/><circle class="hover-dot" r="4"/></g>' +
         '<rect class="hit" x="' + padL + '" y="0" width="' + (W - padL - padR) + '" height="' + H + '" fill="transparent"/>' +
       '</svg>' +
       '<div class="tooltip" hidden></div>' +
       '<ul class="legend" aria-hidden="true">' +
-        '<li><span class="sw sw-solid"></span>Charged so far</li>' +
+        '<li><span class="sw sw-solid"></span>Charged</li>' +
         '<li><span class="sw sw-dashed"></span>Projected</li>' +
-        (b ? '<li><span class="sw sw-ref"></span>Budget</li>' : '') +
+        (b ? '<li><span class="sw sw-ref"></span>Monthly budget</li>' : '') +
       '</ul>';
 
-    el._geo = { D: D, x: x, yv: yv, padL: padL, padR: padR, W: W };
+    el._geo = { D: D, x: x, yv: yv, padL: padL, padR: padR, W: W, H: H, last: last, ti: ti };
   }
 
   function chartHover(el, clientX) {
@@ -947,27 +1115,28 @@
     const svg = el.querySelector('svg');
     const rect = svg.getBoundingClientRect();
     const px = clientX - rect.left;
-    const d = Math.max(0, Math.min(g.D.days, Math.round(((px - g.padL) / (g.W - g.padL - g.padR)) * g.D.days)));
+    const i = Math.max(0, Math.min(g.last, Math.round(((px - g.padL) / (g.W - g.padL - g.padR)) * g.last)));
     const hover = svg.querySelector('.hover');
-    const cx = g.x(d); const cy = g.yv(g.D.cum[d]);
+    const cx = g.x(i); const cy = g.yv(g.D.cum[i]);
     hover.hidden = false;
     hover.querySelector('.crosshair').setAttribute('x1', cx);
     hover.querySelector('.crosshair').setAttribute('x2', cx);
     hover.querySelector('.hover-dot').setAttribute('cx', cx);
     hover.querySelector('.hover-dot').setAttribute('cy', cy);
     const tip = el.querySelector('.tooltip');
-    const dateStr = d === 0 ? 'Start of month' : MONTHS[g.D.m - 1] + ' ' + d;
-    const kind = d <= g.D.todayD ? 'charged' : 'projected';
-    const items = g.D.byDay[d] || [];
-    tip.innerHTML = '<p class="tip-title">' + esc(dateStr) + '</p>' +
-      '<p><span class="tip-val">' + money(g.D.cum[d]) + '</span> <span class="muted">' + kind + ' so far</span></p>' +
-      (items.length ? '<ul class="tip-list">' + items.map((s) => '<li><span>' + esc(s.name) + '</span><span>' + money(s.amount) + '</span></li>').join('') + '</ul>' : '');
+    const d = g.D.iso[i];
+    const mo = MONTHS[Number(d.slice(5, 7)) - 1];
+    const kind = i <= g.ti ? 'charged' : 'projected';
+    const items = g.D.charges[d] || [];
+    tip.innerHTML = '<p class="tip-title">' + esc(fmtDate(d)) + '</p>' +
+      '<p><span class="tip-val">' + money(g.D.cum[i]) + '</span> <span class="muted">' + kind + ' so far in ' + mo + '</span></p>' +
+      (items.length ? '<ul class="tip-list">' + items.map((c) => '<li><span>' + esc(c.s.name) + '</span><span>' + money(c.amount) + '</span></li>').join('') + '</ul>' : '');
     tip.hidden = false;
     const tw = tip.offsetWidth;
     let left = cx + 12;
     if (left + tw > g.W) left = cx - tw - 12;
     tip.style.left = Math.max(0, left) + 'px';
-    tip.style.top = Math.max(0, Math.min(cy - 12, 200 - tip.offsetHeight)) + 'px';
+    tip.style.top = Math.max(0, Math.min(cy - 12, g.H - tip.offsetHeight)) + 'px';
   }
 
   function chartLeave(el) {
@@ -1157,7 +1326,7 @@
     const header = pageHeader({
       title: 'Inbox',
       subtitle: 'Leaky reads receipts, renewal notices, trial confirmations and price-change emails. Nothing else.',
-      action: has ? btn(ui.scanning ? 'Scanning…' : 'Scan now', 'scan-all', { variant: 'primary', icon: 'refresh', disabled: ui.scanning }) : '',
+      action: has ? btn('Scan now', 'scan-all', { variant: 'primary', icon: 'refresh' }) : '',
     });
 
     const accounts = has
@@ -1343,43 +1512,6 @@
     );
   }
 
-  function gmailModal() {
-    modal({
-      title: 'Connect Gmail',
-      form: 'gmail',
-      body:
-        '<p>You’ll sign in with Google and allow Leaky to read your email. We only look at billing emails, and you can disconnect any time.</p>' +
-        '<div class="field"><label class="field-label" for="g-email">Gmail address</label>' +
-          '<input class="input" id="g-email" name="email" type="email" autocomplete="email" required />' +
-          '<p class="field-error" id="g-error" hidden>' + icon('alert') + '<span>Enter a valid email address.</span></p></div>' +
-        '<div class="callout">' + icon('alert') + '<span>Prototype: this skips Google’s sign-in and runs a simulated scan with sample data.</span></div>',
-      primary: btn('Continue with Google', null, { variant: 'primary', type: 'submit' }),
-    });
-  }
-
-  function icloudModal() {
-    modal({
-      title: 'Connect iCloud Mail',
-      form: 'icloud',
-      body:
-        '<p>Apple doesn’t offer a sign-in for mail apps, so Leaky connects over IMAP with an app-specific password. It takes about a minute.</p>' +
-        '<ol class="steps">' +
-          '<li><span>Sign in at <strong>account.apple.com</strong>.</span></li>' +
-          '<li><span>Open <strong>Sign-In and Security</strong>, then <strong>App-Specific Passwords</strong>.</span></li>' +
-          '<li><span>Create a password and name it “Leaky”.</span></li>' +
-          '<li><span>Paste it below with your iCloud email address.</span></li>' +
-        '</ol>' +
-        '<div class="field"><label class="field-label" for="i-email">iCloud email</label>' +
-          '<input class="input" id="i-email" name="email" type="email" autocomplete="email" required /></div>' +
-        '<div class="field"><label class="field-label" for="i-pass">App-specific password</label>' +
-          '<p class="field-desc">Four groups of four letters, like the ones Apple shows.</p>' +
-          '<input class="input" id="i-pass" name="password" type="password" autocomplete="off" spellcheck="false" required />' +
-          '<p class="field-error" id="i-error" hidden>' + icon('alert') + '<span></span></p></div>' +
-        '<div class="callout">' + icon('alert') + '<span>Prototype: the password isn’t stored or sent anywhere, and the scan uses sample data.</span></div>',
-      primary: btn('Connect', null, { variant: 'primary', type: 'submit' }),
-    });
-  }
-
   function confirmModal(title, text, label, action) {
     modal({
       title: title,
@@ -1498,8 +1630,21 @@
 
   const ACTIONS = {
     close: closeOverlay,
-    'connect-gmail': gmailModal,
-    'connect-icloud': icloudModal,
+    'connect-gmail': () => startConnect('gmail'),
+    'connect-icloud': () => startConnect('icloud'),
+    'chart-range': (id) => {
+      ui.chartRange = id;
+      document.querySelectorAll('.seg-btn').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.id === id)));
+      renderChart();
+    },
+    'connect-back': () => { ui.connect = null; render(); focusTitle(); },
+    'connect-done': () => {
+      ui.connect = null;
+      if (!state.onboarded) return finishOnboarding();
+      location.hash = '#/overview';
+      render();
+      focusTitle();
+    },
     social: (id) => signIn({ method: id, email: null, name: '' }),
     'auth-mode': () => { ui.authMode = ui.authMode === 'signup' ? 'signin' : 'signup'; render(); focusTitle(); },
     'sign-out': () => { state.user = null; ui.authMode = 'signin'; save(); location.hash = ''; render(); focusTitle(); },
@@ -1516,7 +1661,7 @@
     'onb-goals-next': () => goStep('budget'),
     'onb-skip': () => { state.budget = null; goStep('source'); },
     'onb-finish': finishOnboarding,
-    'scan-all': () => { if (!ui.scanning && state.accounts.length) inlineScan(null); },
+    'scan-all': () => { if (state.accounts.length) startScan(state.accounts[0], true); },
     'add-sub': () => sheet(null),
     'open-sub': (id) => { const s = findSub(id); if (s) sheet(s); },
     'cancel-sub': cancelSub,
@@ -1643,29 +1788,21 @@
     return { id: uid(), provider: provider, address: address, connectedAt: new Date().toISOString(), lastScan: null };
   }
 
-  function connect(account) {
-    closeOverlay();
-    if (!state.onboarded) onboardingScan(account);
-    else inlineScan(account);
-  }
-
   const FORMS = {
-    gmail: (f) => {
+    'connect-email': (f) => {
+      const c = ui.connect;
       const email = f.email.value.trim();
-      if (!EMAIL_RE.test(email)) { showError('g-error'); f.email.setAttribute('aria-invalid', 'true'); f.email.focus(); return; }
-      connect(newAccount('gmail', email));
-    },
-    icloud: (f) => {
-      const email = f.email.value.trim();
-      const pass = f.password.value.trim();
-      if (!EMAIL_RE.test(email)) { showError('i-error', 'Enter your iCloud email address.'); f.email.focus(); return; }
-      if (!/^[a-z]{4}-?[a-z]{4}-?[a-z]{4}-?[a-z]{4}$/i.test(pass)) {
-        showError('i-error', 'That doesn’t look like an app-specific password. It should be 16 letters, like abcd-efgh-ijkl-mnop.');
-        f.password.setAttribute('aria-invalid', 'true');
-        f.password.focus();
-        return;
+      if (!EMAIL_RE.test(email)) { showError('c-error', 'Enter a valid email address.'); f.email.setAttribute('aria-invalid', 'true'); f.email.focus(); return; }
+      if (c.provider === 'icloud') {
+        const pass = f.password.value.trim();
+        if (!/^[a-z]{4}-?[a-z]{4}-?[a-z]{4}-?[a-z]{4}$/i.test(pass)) {
+          showError('c-error', 'That doesn’t look like an app-specific password. It should be 16 letters, like abcd-efgh-ijkl-mnop.');
+          f.password.setAttribute('aria-invalid', 'true');
+          f.password.focus();
+          return;
+        }
       }
-      connect(newAccount('icloud', email));
+      startScan(newAccount(c.provider, email), false);
     },
     confirm: () => {},
     auth: (f) => {
@@ -1917,6 +2054,7 @@
   window.addEventListener('hashchange', () => {
     setMenu(false);
     closeOverlay();
+    if (ui.connect && ui.connect.phase !== 'scan') ui.connect = null;
     render();
     window.scrollTo(0, 0);
     focusTitle();
