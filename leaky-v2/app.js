@@ -1095,10 +1095,10 @@
     const pennyCard =
       '<section class="card penny-card" aria-labelledby="penny-h">' +
         '<div class="card-head"><h2 class="section-title" id="penny-h">Penny</h2><span class="muted">' + FOX_LABEL[foxAct(md)] + '</span></div>' +
-        '<div class="penny">' + fox(md, { size: 3, caption: false }) + '<p class="penny-says">' + esc(speech(md, T.projected, b)) + '</p></div>' +
+        '<div class="penny">' + fox(md, { size: 4, caption: false }) + '<p class="penny-says">' + esc(speech(md, T.projected, b)) + '</p></div>' +
       '</section>';
 
-    return header + '<div class="overview">' + budgetCard + upcomingCard() + pennyCard + '</div>';
+    return header + '<div class="overview">' + pennyCard + budgetCard + upcomingCard() + '</div>';
   }
 
   function attentionItems(T) {
