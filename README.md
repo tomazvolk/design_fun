@@ -9,6 +9,7 @@ and a short description. Each prototype lives in its own folder.
 
 | Prototype | Folder | Deployed | What it is |
 | --- | --- | --- | --- |
+| Leaky | `leaky/` | 2026-09-21 | Subscription tracker PWA: inbox scanning, budget, mood mascot |
 | Halo | `pomodoro-v2/` | 2026-09-21 | Pomodoro v2: calm ring timer with rolling digits |
 | Pixeldoro | `pomodoro/` | 2026-09-21 | Pixel art pomodoro timer |
 

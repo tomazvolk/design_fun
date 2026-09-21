@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'leaky',
+    name: 'Leaky',
+    deployed: '2026-09-21',
+    status: 'wip',
+    description:
+      'A subscription tracker that finds your subscriptions in your inbox, keeps you on a monthly budget and has a droplet mascot that reacts to the month ahead. PWA.',
+    tags: ['pwa', 'fintech', 'mascot', 'vanilla js'],
+    accent: '#6a9b9a',
+    art: 'leaky',
+  },
+  {
     slug: 'pomodoro-v2',
     name: 'Halo',
     deployed: '2026-09-21',
@@ -65,6 +76,21 @@ const PIXEL_ART = {
       '.m......a.',
       '..m....a..',
       '...mmaa...',
+    ],
+  },
+  leaky: {
+    palette: { p: '#6a9b9a', d: '#005c59', w: '#f4f8f8', k: '#122121' },
+    rows: [
+      '....pp....',
+      '...pppp...',
+      '..pppppp..',
+      '.pwpppppp.',
+      '.pwkppkpp.',
+      'pppppppppp',
+      'ppkppppkpp',
+      'pppkkkkppp',
+      '.dppppppd.',
+      '..dddddd..',
     ],
   },
   /* Fallback for prototypes that have not been given art yet. */
