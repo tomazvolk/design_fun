@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'leaky-v2',
+    name: 'Leaky v2',
+    deployed: '2026-09-21',
+    status: 'wip',
+    description:
+      'Leaky redrawn as an 80s arcade game: bitmap fonts, notched pixel frames, a staircase spend chart, a health-bar budget meter and Drip, a droplet mascot whose face follows your budget.',
+    tags: ['pwa', 'pixel art', 'v2', 'vanilla js'],
+    accent: '#29adff',
+    art: 'leakyV2',
+  },
+  {
     slug: 'leaky',
     name: 'Leaky',
     deployed: '2026-09-21',
@@ -91,6 +102,21 @@ const PIXEL_ART = {
       '.pp.......',
       'p.........',
       'ssssssssss',
+    ],
+  },
+  leakyV2: {
+    palette: { o: '#0b4f8a', b: '#29adff', h: '#c7f0ff', e: '#0d0a1f' },
+    rows: [
+      '....oo....',
+      '...obbo...',
+      '..obbbbo..',
+      '.obhbbbbo.',
+      'obhbbbbbbo',
+      'obbebbebbo',
+      'obbebbebbo',
+      'obbbbbbbbo',
+      '.obeeeebo.',
+      '..oooooo..',
     ],
   },
   /* Fallback for prototypes that have not been given art yet. */
