@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'pomodoro-v2',
+    name: 'Halo',
+    deployed: '2026-09-21',
+    status: 'live',
+    description:
+      'Pomodoro v2. A calm take on the timer: a depleting ring, rolling digits, a soft chime and instant keyboard shortcuts.',
+    tags: ['timer', 'v2', 'motion', 'vanilla js'],
+    accent: '#f2553f',
+    art: 'halo',
+  },
+  {
     slug: 'pomodoro',
     name: 'Pixeldoro',
     deployed: '2026-09-21',
@@ -39,6 +50,21 @@ const PIXEL_ART = {
       'krrrrrrrrk',
       '.kdrrrrdk.',
       '..kkkkkk..',
+    ],
+  },
+  halo: {
+    palette: { a: '#f2553f', m: '#3f3f5c', w: '#f4f1e8' },
+    rows: [
+      '...aaaa...',
+      '..a....a..',
+      '.a......a.',
+      'a........a',
+      'a...ww...a',
+      'm...ww...a',
+      'm........a',
+      '.m......a.',
+      '..m....a..',
+      '...mmaa...',
     ],
   },
   /* Fallback for prototypes that have not been given art yet. */

@@ -9,6 +9,7 @@ and a short description. Each prototype lives in its own folder.
 
 | Prototype | Folder | Deployed | What it is |
 | --- | --- | --- | --- |
+| Halo | `pomodoro-v2/` | 2026-09-21 | Pomodoro v2: calm ring timer with rolling digits |
 | Pixeldoro | `pomodoro/` | 2026-09-21 | Pixel art pomodoro timer |
 
 ## Add a prototype

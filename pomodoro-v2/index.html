@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Halo</title>
+  <meta name="description" content="A calm pomodoro timer. Second take on Pixeldoro." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-mode="work">
+  <main class="app">
+    <header class="top">
+      <a class="back" href="/">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" /></svg>
+        All prototypes
+      </a>
+      <span class="wordmark">Halo</span>
+    </header>
+
+    <div class="seg" id="seg">
+      <div class="seg-list" role="tablist" aria-label="Timer mode">
+        <button class="seg-item" role="tab" type="button" data-mode="work" aria-selected="true">Focus</button>
+        <button class="seg-item" role="tab" type="button" data-mode="short" aria-selected="false">Short break</button>
+        <button class="seg-item" role="tab" type="button" data-mode="long" aria-selected="false">Long break</button>
+      </div>
+      <!-- Styled copy of the list, clipped to the active tab. Moving the clip gives a seamless color change. -->
+      <div class="seg-list seg-active" id="segActive" aria-hidden="true">
+        <span class="seg-item">Focus</span>
+        <span class="seg-item">Short break</span>
+        <span class="seg-item">Long break</span>
+      </div>
+    </div>
+
+    <section class="dial" id="dial">
+      <svg class="ring" viewBox="0 0 300 300" aria-hidden="true">
+        <circle class="track" cx="150" cy="150" r="138" />
+        <circle class="arc" id="arc" cx="150" cy="150" r="138" />
+        <g class="knob" id="knob"><circle cx="150" cy="12" r="6" /></g>
+      </svg>
+      <div class="readout">
+        <div class="time" id="time" role="timer" aria-live="off" aria-label="25 minutes remaining"></div>
+        <p class="status" id="status">Ready when you are</p>
+      </div>
+    </section>
+
+    <div class="controls">
+      <button class="icon-btn" id="resetBtn" type="button" aria-label="Reset (R)">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10a6 6 0 1 0 1.8-4.3" /><path d="M4 3.5v3.2h3.2" /></svg>
+      </button>
+      <button class="primary" id="startBtn" type="button">
+        <span class="primary-label" id="startLabel">Start</span>
+      </button>
+      <button class="icon-btn" id="soundBtn" type="button" aria-label="Sound (M)" aria-pressed="true">
+        <svg class="on" viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 8v4h3l4 3.5v-11L6.5 8z" /><path d="M13.5 7.5a3.5 3.5 0 0 1 0 5" /><path d="M15.5 5.5a6.4 6.4 0 0 1 0 9" /></svg>
+        <svg class="off" viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 8v4h3l4 3.5v-11L6.5 8z" /><path d="m13.5 8 4 4m0-4-4 4" /></svg>
+      </button>
+    </div>
+
+    <footer class="bottom">
+      <div class="sessions">
+        <span class="dots" id="dots" aria-hidden="true"></span>
+        <span class="sessions-text" id="sessionsText"></span>
+      </div>
+      <p class="keys">
+        <span><kbd>Space</kbd> start / pause</span>
+        <span><kbd>R</kbd> reset</span>
+        <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> mode</span>
+      </p>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span class="toast-dot" aria-hidden="true"></span>
+    <span id="toastText"></span>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
