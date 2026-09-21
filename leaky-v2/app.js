@@ -112,26 +112,71 @@
     return iconCache[key];
   }
 
-  /* Drip, the mascot. 12x14 sprite; the face changes with the budget mood. */
-  const DRIP_PAL = { o: '#0b4f8a', b: '#29adff', h: '#c7f0ff', e: '#0d0a1f', c: '#ff77a8' };
-  const DRIP_BODY = [
-    '.....oo.....', '....obbo....', '....obbo....', '...obbbbo...', '..obhbbbbo..', '.obhbbbbbbo.', '.obbbbbbbbo.',
-    null, null, null, null,
-    '.obbbbbbbbo.', '..obbbbbbo..', '...oooooo...',
+  /* Penny, the fox. Drawn as a left half and mirrored, plus a tail that moves on its own. 32x26. */
+  const FOX_PAL = { k: '#2b1a2e', o: '#f08a2e', d: '#c45a1e', l: '#ffb45e', w: '#fff1e8', p: '#ff77a8', t: '#29adff' };
+  const FOX_HEAD = [
+    '..kk........',
+    '..kok.......',
+    '..kpok......',
+    '..kppok.....',
+    '.kpppokkkkkk',
+    '.kooooolllll',
+    '.koooooooooo',
+    '.koooooooooo',
   ];
-  const DRIP_FACES = {
-    happy: ['obbebbbbebbo', 'obbebbbbebbo', 'obcbmbbmbcbo', 'obbbbmmbbbbo'],
-    content: ['obbebbbbebbo', 'obbebbbbebbo', 'obbbbbbbbbbo', 'obbbmmmmbbbo'],
-    neutral: ['obbebbbbebbo', 'obbebbbbebbo', 'obbbbbbbbbbo', 'obbbmmmmbbbo'],
-    worried: ['obbbebbebbbo', 'obbebbbbebbo', 'obbbbmmbbbbo', 'obbbbmmbbbbo'],
-    sad: ['obbbebbebbbo', 'obbebbbbebbo', 'obbhbmmbbbbo', 'obbmbbbbmbbo'],
-    relieved: ['obbbbbbbbbbo', 'obeebbbbeebo', 'obcbmbbmbcbo', 'obbbbmmbbbbo'],
+  /* Brow, eyes, nose and cheeks, mouth, chin. */
+  const FOX_FACES = {
+    happy: ['.koooooooooo', '.koooookoooo', '.kooookokooo', '.koppwwwwwwk', '.kowwwwwwkpp', '..kwwwwwwwkk', '...kkwwwwwww'],
+    content: ['.koooooooooo', '.kooooookwoo', '.kooooookkoo', '.koppwwwwwwk', '.kowwwwwkwww', '..kwwwwwwkkk', '...kkwwwwwww'],
+    neutral: ['.koooooooooo', '.kooooookwoo', '.kooooookkoo', '.koowwwwwwwk', '.kowwwwwwwkk', '..kwwwwwwwww', '...kkwwwwwww'],
+    worried: ['.kooooookooo', '.kooookkkwoo', '.kooooookkoo', '.koowwwwwwwk', '.kowwwwwwkwk', '..kwwwwwwwkw', '...kkwwwwwww'],
+    sad: ['.kooooookooo', '.kooookkkwoo', '.kooooookkoo', '.koowwwtwwwk', '.kowwwwtwkkk', '..kwwwwwkwww', '...kkwwwwwww'],
+    relieved: ['.koooooooooo', '.koooooooooo', '.koooookkkoo', '.koppwwwwwwk', '.kowwwwwkwww', '..kwwwwwwkkk', '...kkwwwwwww'],
   };
-  function drip(mood) {
-    const face = (DRIP_FACES[mood] || DRIP_FACES.neutral).map((r) => r.replace(/m/g, 'e'));
-    const rows = DRIP_BODY.slice(0, 7).concat(face, DRIP_BODY.slice(11));
-    return '<span class="drip drip-' + (mood || 'neutral') + '" aria-hidden="true"><svg viewBox="0 0 12 14" width="48" height="56" shape-rendering="crispEdges">' +
-      pixelRects(rows, DRIP_PAL) + '</svg></span>';
+  const FOX_BODY = [
+    '.....kkkkkkk',
+    '...kdoowwwww',
+    '...kdowwwppw',
+    '...kdowwpppp',
+    '...kdowwwppp',
+    '...kdowwwwpp',
+    '...kdowwwwwp',
+    '...kdooowwww',
+    '...kddoooooo',
+    '...kdddddk..',
+    '....kkkkk...',
+  ];
+  const FOX_TAIL = [
+    '.kkk......',
+    'kwwwk.....',
+    'kwwwwk....',
+    'kwwwwk....',
+    'kowwok....',
+    'koooook...',
+    'kooooook..',
+    'kdoooook..',
+    'kdooooook.',
+    '.kdoooook.',
+    '.kddooook.',
+    '..kddoook.',
+    '...kkdook.',
+    '.....kkk..',
+  ];
+
+  function fox(mood) {
+    mood = FOX_FACES[mood] ? mood : 'neutral';
+    const mirror = (r) => '......' + r + r.split('').reverse().join('') + '..';
+    const body = FOX_HEAD.concat(FOX_FACES[mood], FOX_BODY).map(mirror);
+    /* The tail tucks in behind the body, so only draw it where the body is empty. */
+    const tail = body.map((r, y) => {
+      const tr = FOX_TAIL[y - 9] || '';
+      return r.split('').map((c, x) => (c === '.' && tr[x] && tr[x] !== '.' ? tr[x] : '.')).join('');
+    });
+    return '<figure class="fox fox-' + mood + '" aria-hidden="true">' +
+      '<svg viewBox="0 0 32 26" width="128" height="104" shape-rendering="crispEdges">' +
+        '<g class="fox-tail">' + pixelRects(tail, FOX_PAL) + '</g>' +
+        '<g class="fox-body">' + pixelRects(body, FOX_PAL) + '</g>' +
+      '</svg><figcaption>Penny</figcaption></figure>';
   }
 
   /* ======================================================================
@@ -714,12 +759,12 @@
 
   function onbStatus(projected, budget) {
     const md = moodFor(projected, budget);
-    if (!budget || !state.subs.length) return '<div class="say">' + drip(budget ? md : 'neutral') + '<p class="speech">' + esc(speech(budget ? md : 'neutral', projected, budget)) + '</p></div>';
+    if (!budget || !state.subs.length) return '<div class="say">' + fox(budget ? md : 'neutral') + '<p class="speech">' + esc(speech(budget ? md : 'neutral', projected, budget)) + '</p></div>';
     const st = budgetStatus(projected, budget);
     return meter(projected, budget) +
       '<div class="budget-line" style="justify-content:space-between;margin:0">' + statusHtml(st.tone, st.label) +
       '<span class="muted">' + money(projected) + ' of ' + money(budget) + '</span></div>' +
-      '<div class="say">' + drip(md) + '<p class="speech">' + esc(speech(md, projected, budget)) + '</p></div>';
+      '<div class="say">' + fox(md) + '<p class="speech">' + esc(speech(md, projected, budget)) + '</p></div>';
   }
 
   function onbSource() {
@@ -1004,7 +1049,7 @@
           '<button type="button" class="seg-btn" data-action="chart-range" data-id="12m" aria-pressed="' + (ui.chartRange === '12m') + '">12 months</button>' +
         '</div></div>' +
         '<div class="chart" id="budget-chart"></div>' +
-        '<div class="say budget-note">' + drip(md) + '<p class="speech">' + esc(speech(md, T.projected, b)) + '</p></div>' +
+        '<div class="say budget-note">' + fox(md) + '<p class="speech">' + esc(speech(md, T.projected, b)) + '</p></div>' +
         '<dl class="stats">' +
           '<div><dt>Already charged</dt><dd>' + money(T.charged) + '</dd></div>' +
           '<div><dt>Still to come</dt><dd>' + money(T.toCome) + '</dd></div>' +

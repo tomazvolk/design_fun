@@ -732,11 +732,41 @@ svg { flex: none; }
 .num-xl { font: 32px/40px var(--font-px); color: var(--yellow); text-shadow: 4px 4px 0 var(--red-lo); }
 .budget-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; }
 
-/* Drip + speech bubble */
+/* Penny + speech bubble */
 .say { display: flex; align-items: flex-end; gap: 16px; }
-.drip { flex: none; display: block; line-height: 0; animation: bob 960ms var(--frames-2) infinite; }
-.drip svg { display: block; }
-.drip-sad, .drip-worried { animation-duration: 480ms; }
+.fox {
+  flex: none;
+  margin: 0;
+  padding: 8px 8px 0;
+  background: #8b6cf0 padding-box;
+  border: 4px solid var(--text);
+  border-image: var(--frame-cream) 4;
+  box-shadow: inset 0 -12px 0 #6e50d6;
+  line-height: 0;
+  text-align: center;
+}
+.fox svg { display: block; overflow: visible; width: 160px; height: 130px; }
+.fox figcaption {
+  margin: 0 -8px;
+  padding: 6px 0;
+  background: var(--bg-deep);
+  color: var(--yellow);
+  font: 8px/8px var(--font-px);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+/* Sprite units: 1px here is one sprite pixel. */
+.fox-body, .fox-tail { transform-box: view-box; }
+.fox-happy svg, .fox-relieved svg { animation: hop 640ms var(--frames-2) infinite; }
+.fox-happy .fox-tail, .fox-relieved .fox-tail { animation: wag 320ms var(--frames-2) infinite; }
+.fox-content svg { animation: bob 1200ms var(--frames-2) infinite; }
+.fox-content .fox-tail, .fox-neutral .fox-tail { animation: wag 900ms var(--frames-2) infinite; }
+.fox-worried svg { animation: shiver 180ms var(--frames-2) infinite; }
+.fox-sad .fox-tail { transform: translate(1px, 2px); }
+@keyframes hop { 50% { transform: translateY(-8px); } }
+@keyframes wag { 50% { transform: translate(-1px, -1px); } }
+@keyframes shiver { 50% { transform: translateX(2px); } }
+
 .speech {
   position: relative;
   display: inline-block;
@@ -748,7 +778,7 @@ svg { flex: none; }
   border: 4px solid var(--text);
   border-image: var(--frame-cream) 4;
 }
-/* A stepped pixel tail pointing down-left at Drip. */
+/* A stepped pixel tail pointing down-left at Penny. */
 .speech::before {
   content: '';
   position: absolute;
@@ -1354,7 +1384,7 @@ svg { flex: none; }
   .mail-icon { display: none; }
   .num-xl { font-size: 20px; line-height: 28px; }
   .stats dd { font-size: 12px; }
-  .drip svg { width: 36px; height: 42px; }
+  .fox svg { width: 96px; height: 78px; }
   .say { gap: 12px; }
 
   /* Tables become stacked list rows. */

@@ -1,7 +1,7 @@
 # Leaky v2
 
 Leaky restyled as 80s arcade pixel art: PICO-8 palette, Press Start 2P + VT323, notched pixel frames,
-stepped motion and Drip the droplet mascot. Same app and data model as [`../leaky`](../leaky); demo data is
+stepped motion and Penny, a pixel fox whose mood follows your budget. Same app and data model as [`../leaky`](../leaky); demo data is
 stored under its own key (`leaky-v2:v1`) so the two versions don't overwrite each other.
 
 Subscription tracker PWA. Plain HTML/CSS/JS, no build step.
