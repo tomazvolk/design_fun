@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pixeldoro</title>
+  <meta name="description" content="A simple pixel art pomodoro timer." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <a class="back" href="/">&lsaquo; ALL PROTOTYPES</a>
+      <h1 class="title">PIXELDORO</h1>
+      <p class="tagline">focus &middot; rest &middot; repeat</p>
+    </header>
+
+    <nav class="modes" aria-label="Timer mode">
+      <button class="mode-btn is-active" data-mode="work" type="button">WORK</button>
+      <button class="mode-btn" data-mode="short" type="button">SHORT</button>
+      <button class="mode-btn" data-mode="long" type="button">LONG</button>
+    </nav>
+
+    <section class="card" id="card">
+      <div class="tomato" id="tomato" aria-hidden="true"></div>
+      <div class="time" id="time" role="timer" aria-live="polite">25:00</div>
+      <div class="bar" id="bar" aria-hidden="true"></div>
+      <p class="status" id="status">READY?</p>
+    </section>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="startBtn" type="button">START</button>
+      <button class="btn" id="resetBtn" type="button">RESET</button>
+    </div>
+
+    <footer class="bottom">
+      <div class="sessions" aria-label="Completed pomodoros">
+        <span class="sessions-label">DONE</span>
+        <span class="dots" id="dots"></span>
+        <span class="count" id="count">0</span>
+      </div>
+      <p class="hint">[SPACE] start/pause &middot; [R] reset</p>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
