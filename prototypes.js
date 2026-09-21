@@ -38,7 +38,7 @@ const PROTOTYPES = [
 /* Pixel art for the tiles: each row is a string, each character a palette key. */
 const PIXEL_ART = {
   tomato: {
-    palette: { r: '#e94560', d: '#a52a3f', g: '#4ecca3', k: '#0d0d18' },
+    palette: { r: '#e94560', d: '#a52a3f', g: '#4ecca3', k: '#000000' },
     rows: [
       '....gg....',
       '...gggg...',
@@ -53,7 +53,7 @@ const PIXEL_ART = {
     ],
   },
   halo: {
-    palette: { a: '#f2553f', m: '#3f3f5c', w: '#f4f1e8' },
+    palette: { a: '#f2553f', m: '#4a3322', w: '#f7ecdf' },
     rows: [
       '...aaaa...',
       '..a....a..',
@@ -69,7 +69,7 @@ const PIXEL_ART = {
   },
   /* Fallback for prototypes that have not been given art yet. */
   blank: {
-    palette: { m: '#8f8fb0', k: '#0d0d18' },
+    palette: { m: '#a08a76', k: '#000000' },
     rows: [
       'kkkkkkkkkk',
       'k........k',
