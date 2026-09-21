@@ -144,8 +144,10 @@
   function defaultState() {
     return {
       v: 1,
+      user: null,
       onboarded: false,
-      step: 'start',
+      step: 'name',
+      goals: ['trials', 'renewals', 'prices', 'unused'],
       accounts: [],
       subs: [],
       ignored: [],
@@ -173,7 +175,7 @@
         const s = JSON.parse(raw);
         if (s && s.v === 1) {
           const out = Object.assign(base, s, { settings: Object.assign(base.settings, s.settings) });
-          if (out.step === 'scanning') out.step = 'start';
+          if (out.step === 'scanning') out.step = 'source';
           return out;
         }
       }
@@ -196,6 +198,8 @@
     openSection: 'budget',
     scanning: false,
     scan: null,
+    lastFound: null,
+    authMode: 'signup',
     relief: null,
     installEvent: null,
     toastTimer: null,
@@ -310,42 +314,48 @@
       : '';
     switch (mood) {
       case 'relieved': return 'Nice one. That frees up ' + money(ui.relief.amount) + ' this month.';
-      case 'happy': return 'Plenty of room. You’re set to finish ' + money(diff) + ' under budget.';
-      case 'content': return 'On track, with ' + money(diff) + ' to spare. Keep an eye on new sign-ups.';
+      case 'happy': return state.subs.length ? 'Plenty of room. You’re set to finish ' + money(diff) + ' under budget.' : 'Got it. I’ll compare that with what we find.';
+      case 'content': return state.subs.length ? 'On track, with ' + money(diff) + ' to spare. Keep an eye on new sign-ups.' : 'Got it. I’ll compare that with what we find.';
       case 'worried': return 'It’s a tight month. You’re set to go ' + money(diff) + ' over.' + unusedNote;
       case 'sad': return 'We’re leaking. You’re set to go ' + money(diff) + ' over budget.' + unusedNote;
-      default: return 'Set a monthly budget and I’ll keep an eye on it for you.';
+      default: return state.subs.length ? 'Set a monthly budget and I’ll keep an eye on it for you.' : 'Pick a number that feels right. You can change it later.';
     }
   }
 
+  /* Sal, a seal. Seals plug leaks. */
   function mascot(mood, size) {
     const w = size || 120;
     const h = Math.round(w * 140 / 120);
-    const dotEyes = '<circle class="eye" cx="46" cy="90" r="4"/><circle class="eye" cx="74" cy="90" r="4"/>';
-    const arcEyes = '<path d="M40 92q6-8 12 0M68 92q6-8 12 0"/>';
-    const worryBrows = '<path d="M38 80l12-4M82 80l-12-4"/>';
+    const dotEyes = '<circle class="eye" cx="46" cy="58" r="4"/><circle class="eye" cx="74" cy="58" r="4"/>';
+    const arcEyes = '<path d="M40 59q6-7 12 0M68 59q6-7 12 0"/>';
+    const brows = '<path d="M39 47l11 5M81 47l-11 5"/>';
+    const cheeks = '<circle class="cheek" cx="34" cy="70" r="5"/><circle class="cheek" cx="86" cy="70" r="5"/>';
+    const muzzle = '<ellipse class="muzzle" cx="60" cy="76" rx="15" ry="11"/>' +
+      '<path class="whisker" d="M44 76 29 73M44 81 30 85M76 76l15-3M76 81l14 4"/>' +
+      '<path class="nose" d="M54 70h12l-6 7z"/>';
+    const sweat = '<path class="sweat" d="M100 50c0 3-2 5-4.5 5S91 53 91 50c0-3 4.5-8 4.5-8s4.5 5 4.5 8Z"/>';
+    const tear = '<path class="tear" d="M43 74c0 2.5-1.6 4-3.5 4S36 76.5 36 74c0-2.5 3.5-7 3.5-7s3.5 4.5 3.5 7Z"/>';
+    const sparkles = '<path class="sparkle" d="M104 34l2.2 5.8 5.8 2.2-5.8 2.2-2.2 5.8-2.2-5.8-5.8-2.2 5.8-2.2Z"/>' +
+      '<path class="sparkle" d="M14 54l1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5Z"/>';
     const faces = {
-      neutral: dotEyes + '<path d="M52 107h16"/>',
-      happy: arcEyes + '<circle class="cheek" cx="36" cy="102" r="5"/><circle class="cheek" cx="84" cy="102" r="5"/><path d="M47 103q13 13 26 0"/>',
-      content: dotEyes + '<path d="M51 104q9 7 18 0"/>',
-      worried: worryBrows + dotEyes + '<path d="M48 109q4-4 8 0t8 0t8 0"/>' +
-        '<path class="sweat" d="M95 72c0 3-2 5-4.5 5S86 75 86 72c0-3 4.5-8 4.5-8s4.5 5 4.5 8Z"/>',
-      sad: worryBrows + dotEyes + '<path d="M49 112q11-10 22 0"/>' +
-        '<path class="tear" d="M46 104c0 2.5-1.6 4-3.5 4S39 106.5 39 104c0-2.5 3.5-7 3.5-7s3.5 4.5 3.5 7Z"/>',
-      relieved: arcEyes + '<circle class="cheek" cx="36" cy="102" r="5"/><circle class="cheek" cx="84" cy="102" r="5"/>' +
-        '<path class="mouth-open" d="M46 101q14 17 28 0Z"/>' +
-        '<path class="sparkle" d="M102 36l2.2 5.8 5.8 2.2-5.8 2.2-2.2 5.8-2.2-5.8-5.8-2.2 5.8-2.2Z"/>' +
-        '<path class="sparkle" d="M16 58l1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5Z"/>',
+      neutral: dotEyes + muzzle + '<path d="M56 85h8"/>',
+      content: dotEyes + muzzle + '<path d="M54 83q6 5 12 0"/>',
+      happy: arcEyes + cheeks + muzzle + '<path d="M52 82q8 9 16 0"/>',
+      worried: brows + dotEyes + muzzle + '<path d="M53 86q3.5-3 7 0t7 0"/>' + sweat,
+      sad: brows + dotEyes + muzzle + '<path d="M53 88q7-7 14 0"/>' + tear,
+      relieved: arcEyes + cheeks + muzzle + '<path class="mouth-open" d="M51 81q9 12 18 0Z"/>' + sparkles,
     };
     return (
       '<svg class="mascot mood-' + mood + '" width="' + w + '" height="' + h + '" viewBox="0 0 120 140" role="img" ' +
-      'aria-label="Leaky the droplet looks ' + MOOD_WORDS[mood] + '">' +
+      'aria-label="Sal the seal looks ' + MOOD_WORDS[mood] + '">' +
         '<g class="mascot-body">' +
-          '<path class="drop" d="M60 8C60 8 20 58 20 90a40 40 0 0 0 80 0C100 58 60 8 60 8Z"/>' +
-          '<ellipse class="shine" cx="38" cy="72" rx="4.5" ry="9" transform="rotate(24 38 72)"/>' +
+          '<path class="tail skin" d="M52 121c-4 8-11 12-9 15 6 0 13-6 17-10 4 4 11 10 17 10 2-3-5-7-9-15Z"/>' +
+          '<path class="flipper flipper-l skin" d="M31 92C17 96 8 108 14 116c6 6 18-2 25-12Z"/>' +
+          '<path class="flipper flipper-r skin" d="M89 92c14 4 23 16 17 24-6 6-18-2-25-12Z"/>' +
+          '<path class="skin" d="M60 18C36 18 24 44 24 72c0 32 16 52 36 52s36-20 36-52c0-28-12-54-36-54Z"/>' +
+          '<ellipse class="belly" cx="60" cy="99" rx="19" ry="16"/>' +
           '<g class="face">' + faces[mood] + '</g>' +
         '</g>' +
-        '<path class="drip" d="M60 138c-2.8 0-4.5-1.8-4.5-4.3 0-2.7 4.5-8 4.5-8s4.5 5.3 4.5 8c0 2.5-1.7 4.3-4.5 4.3Z"/>' +
       '</svg>'
     );
   }
@@ -433,7 +443,7 @@
     const inPct = (Math.min(projected, budget) / scale) * 100;
     const overPct = (Math.max(0, projected - budget) / scale) * 100;
     return '<div class="meter" role="img" aria-label="' + money(projected) + ' projected against a ' + money(budget) + ' budget">' +
-      '<span class="meter-fill" style="width:' + inPct + '%"></span>' +
+      '<span class="meter-fill" style="transform:scaleX(' + inPct / 100 + ')"></span>' +
       (overPct ? '<span class="meter-over" style="left:' + inPct + '%;width:' + overPct + '%"></span>' +
         '<span class="meter-mark" style="left:' + inPct + '%"></span>' : '') +
       '</div>';
@@ -457,7 +467,7 @@
   function renderNav() {
     const nav = $('#nav');
     const menu = $('#menu-btn');
-    if (!state.onboarded) {
+    if (!state.user || !state.onboarded) {
       nav.innerHTML = '';
       menu.hidden = true;
       return;
@@ -474,9 +484,9 @@
     renderNav();
     const view = $('#view');
     view.classList.toggle('narrow', state.onboarded && route() === 'settings');
-    if (!state.onboarded) {
-      view.innerHTML = viewOnboarding();
-      document.title = 'Leaky';
+    if (!state.user || !state.onboarded) {
+      view.innerHTML = state.user ? viewOnboarding() : viewAuth();
+      document.title = state.user ? 'Get started · Leaky' : 'Sign in · Leaky';
       return;
     }
     const r = route();
@@ -486,103 +496,185 @@
   }
 
   /* ======================================================================
-     Onboarding
+     Sign in + onboarding
      ====================================================================== */
+  const STEPS = ['name', 'goals', 'budget', 'source'];
+  const stepIndex = (s) => (s === 'scanning' || s === 'found' ? 3 : Math.max(0, STEPS.indexOf(s)));
   const PHASES = ['Looking for receipts', 'Reading renewal notices', 'Checking trial confirmations', 'Spotting price changes'];
 
-  function viewOnboarding() {
-    if (state.step === 'scanning' && ui.scan) return onbScanning();
-    if (state.step === 'found') return onbFound();
-    if (state.step === 'budget') return onbBudget();
-    return onbStart();
+  const GOALS = [
+    { id: 'trials', icon: 'gift', title: 'Free trials', desc: 'Warn me before a trial turns into a paid plan.', setting: 'trialAlerts' },
+    { id: 'renewals', icon: 'clock', title: 'Renewals', desc: 'Remind me a few days before something renews.', setting: 'renewalAlerts' },
+    { id: 'prices', icon: 'trend', title: 'Price increases', desc: 'Tell me when a merchant quietly charges more.', setting: 'priceAlerts' },
+    { id: 'unused', icon: 'pause', title: 'Unused subscriptions', desc: 'Flag things I haven’t touched in months.', setting: 'unusedFlag' },
+  ];
+
+  function viewAuth() {
+    const signup = ui.authMode === 'signup';
+    return '<div class="auth step-enter">' +
+      '<div class="onb-mascot">' + mascot('content', 88) + '</div>' +
+      '<h1 class="hero-title" tabindex="-1">' + (signup ? 'Create your account' : 'Welcome back') + '</h1>' +
+      '<p class="hero-sub">' + (signup ? 'Leaky finds the subscriptions hiding in your inbox and keeps them under budget.' : 'Sign in to pick up where you left off.') + '</p>' +
+      '<div class="auth-card">' +
+        '<div class="stack-xs">' +
+          btn('Continue with Google', 'social', { id: 'google', size: 'lg' }) +
+          btn('Continue with Apple', 'social', { id: 'apple', size: 'lg' }) +
+        '</div>' +
+        '<div class="divider" role="separator"><span>or</span></div>' +
+        '<form data-form="auth" class="stack-sm" novalidate>' +
+          '<div class="field"><label class="field-label" for="a-email">Email</label>' +
+            '<input class="input" id="a-email" name="email" type="email" autocomplete="email" required /></div>' +
+          '<div class="field"><label class="field-label" for="a-pass">Password</label>' +
+            (signup ? '<p class="field-desc">At least 8 characters.</p>' : '') +
+            '<input class="input" id="a-pass" name="password" type="password" autocomplete="' + (signup ? 'new-password' : 'current-password') + '" required />' +
+            '<p class="field-error" id="a-error" hidden>' + icon('alert') + '<span></span></p></div>' +
+          btn(signup ? 'Create account' : 'Sign in', null, { variant: 'primary', size: 'lg', type: 'submit' }) +
+        '</form>' +
+      '</div>' +
+      '<p class="auth-switch muted">' + (signup ? 'Already have an account?' : 'New to Leaky?') +
+        ' <button type="button" class="link-btn" data-action="auth-mode">' + (signup ? 'Sign in' : 'Create one') + '</button></p>' +
+      '<p class="tertiary auth-note">Prototype: sign-in is simulated and nothing is sent anywhere.</p>' +
+    '</div>';
   }
 
-  function onbStart() {
+  function wizard(step, inner, o) {
+    o = o || {};
+    const i = stepIndex(step);
     return '<div class="onb">' +
-      '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
-      '<h1 class="hero-title" tabindex="-1">Where should we look for subscriptions?</h1>' +
-      '<p class="hero-sub">Leaky reads the receipts and renewal emails in your inbox and builds the list for you. No bank account, no typing.</p>' +
-      '<div class="choice-grid">' +
-        choiceCard({
-          tone: 'clay', icon: 'mail', title: 'Gmail',
-          desc: 'Sign in with Google and allow read-only access. Takes a few seconds.',
-          actions: btn('Connect Gmail', 'connect-gmail', { variant: 'primary' }),
-        }) +
-        choiceCard({
-          tone: 'sky', icon: 'cloud', title: 'iCloud Mail',
-          desc: 'Connect with an app-specific password from your Apple Account. We’ll walk you through it.',
-          actions: btn('Connect iCloud Mail', 'connect-icloud'),
-        }) +
+      '<div class="wiz-head">' +
+        (i > 0 && o.back !== false ? btn('Back', 'onb-back', { variant: 'ghost', icon: 'chevLeft' }) : '<span></span>') +
+        '<p class="label">Step ' + (i + 1) + ' of ' + STEPS.length + '</p>' +
       '</div>' +
-      '<button type="button" class="link-btn" data-action="manual-start">Add subscriptions by hand instead</button>' +
+      '<div class="wiz-bar" aria-hidden="true">' + STEPS.map((s, k) => '<span' + (k <= i ? ' class="on"' : '') + '></span>').join('') + '</div>' +
+      '<div class="step-enter wiz-body">' + inner + '</div>' +
     '</div>';
+  }
+
+  function viewOnboarding() {
+    switch (state.step) {
+      case 'goals': return wizard('goals', onbGoals());
+      case 'budget': return wizard('budget', onbBudget());
+      case 'source': return wizard('source', onbSource());
+      case 'scanning': return wizard('scanning', onbScanning(), { back: false });
+      case 'found': return wizard('found', onbFound());
+      default: return wizard('name', onbName());
+    }
+  }
+
+  function onbName() {
+    return '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
+      '<h1 class="hero-title" tabindex="-1">What should we call you?</h1>' +
+      '<p class="hero-sub">This is Sal. Sal keeps watch on your subscriptions and would like to know who it’s working for.</p>' +
+      '<form class="onb-form" data-form="onb-name" novalidate>' +
+        '<div class="field"><label class="field-label" for="onb-name">Your name</label>' +
+          '<input class="input" id="onb-name" name="name" autocomplete="given-name" required value="' + esc(state.user.name || '') + '" />' +
+          '<p class="field-error" id="n-error" hidden>' + icon('alert') + '<span>Add a name, even a short one.</span></p></div>' +
+        '<div class="onb-actions">' + btn('Continue', null, { variant: 'primary', size: 'lg', type: 'submit' }) + '</div>' +
+      '</form>';
+  }
+
+  function onbGoals() {
+    return '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
+      '<h1 class="hero-title" tabindex="-1">What should Sal watch for?</h1>' +
+      '<p class="hero-sub">Pick as many as you like. You can change these in settings.</p>' +
+      '<div class="goal-grid stagger">' + GOALS.map((g) => {
+        const on = state.goals.includes(g.id);
+        return '<button type="button" class="goal" aria-pressed="' + on + '" data-action="onb-goal" data-id="' + g.id + '">' +
+          '<span class="goal-icon">' + icon(g.icon, 20) + '</span>' +
+          '<span class="goal-text"><span class="goal-title">' + esc(g.title) + '</span><span class="goal-desc">' + esc(g.desc) + '</span></span>' +
+          '<span class="goal-check">' + icon('check') + '</span></button>';
+      }).join('') + '</div>' +
+      '<div class="onb-actions">' + btn('Continue', 'onb-goals-next', { variant: 'primary', size: 'lg' }) + '</div>';
+  }
+
+  function onbBudget() {
+    const T = totals();
+    const b = state.budget;
+    return '<div class="onb-mascot" id="onb-mascot">' + mascot(moodFor(T.projected, b), 112) + '</div>' +
+      '<h1 class="hero-title" tabindex="-1">What’s your monthly budget for subscriptions?</h1>' +
+      '<p class="hero-sub">Subscriptions only, not your general spending.' +
+        (state.subs.length ? ' Yours come to ' + money(T.projected) + ' this month.' : ' Sal compares this with what we find next.') + '</p>' +
+      '<form class="onb-form" data-form="onb-budget" novalidate>' +
+        '<div class="field"><label class="field-label" for="onb-budget">Monthly budget</label>' +
+          '<div class="affix"><span>$</span><input class="input" id="onb-budget" name="budget" inputmode="decimal" autocomplete="off" value="' + (b ? esc(b) : '') + '" /></div></div>' +
+        '<div class="onb-status" id="onb-status" aria-live="polite">' + onbStatus(T.projected, b) + '</div>' +
+        '<div class="onb-actions">' +
+          btn('Skip for now', 'onb-skip', { variant: 'ghost', size: 'lg' }) +
+          btn('Continue', null, { variant: 'primary', size: 'lg', type: 'submit' }) +
+        '</div>' +
+      '</form>';
+  }
+
+  function onbStatus(projected, budget) {
+    const md = moodFor(projected, budget);
+    if (!budget || !state.subs.length) return '<p class="speech">' + esc(speech(budget ? md : 'neutral', projected, budget)) + '</p>';
+    const st = budgetStatus(projected, budget);
+    return meter(projected, budget) +
+      '<div class="budget-line" style="justify-content:space-between;margin:0">' + statusHtml(st.tone, st.label) +
+      '<span class="muted">' + money(projected) + ' of ' + money(budget) + '</span></div>' +
+      '<p class="speech">' + esc(speech(md, projected, budget)) + '</p>';
+  }
+
+  function onbSource() {
+    const has = state.subs.length > 0;
+    return '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
+      '<h1 class="hero-title" tabindex="-1">Where should we look for subscriptions?</h1>' +
+      '<p class="hero-sub">Connect an inbox and Leaky reads the receipts and renewal emails for you. Or add them by hand.</p>' +
+      '<div class="choice-grid stagger onb-choices">' +
+        choiceCard({ tone: 'clay', icon: 'mail', title: 'Gmail', desc: 'Sign in with Google and allow read-only access. Takes a few seconds.',
+          actions: btn('Connect Gmail', 'connect-gmail', { variant: has ? 'secondary' : 'primary' }) }) +
+        choiceCard({ tone: 'sky', icon: 'cloud', title: 'iCloud Mail', desc: 'Connect with an app-specific password from your Apple Account. We’ll walk you through it.',
+          actions: btn('Connect iCloud Mail', 'connect-icloud') }) +
+        choiceCard({ tone: 'amber', icon: 'edit', title: 'By hand', desc: 'Type them in yourself. You can always connect an inbox later.',
+          actions: btn('Add a subscription', 'add-sub', { icon: 'plus' }) }) +
+      '</div>' +
+      (has ? onbSubsTable() : '') +
+      '<div class="onb-actions">' + (has
+        ? btn('Finish', 'onb-finish', { variant: 'primary', size: 'lg' })
+        : '<button type="button" class="link-btn" data-action="onb-finish">Skip for now, I’ll add them later</button>') + '</div>';
+  }
+
+  function onbSubsTable() {
+    const rows = state.subs.map((s) =>
+      '<tr data-open="' + s.id + '"><td><div class="name-cell"><button type="button" class="row-link" data-action="open-sub" data-id="' + s.id + '">' + esc(s.name) + '</button>' + tag(s.category) + '</div></td>' +
+      '<td class="col-status">' + subStatus(s) + '</td>' +
+      '<td class="num">' + money(s.amount) + '<span class="per">' + (s.cycle === 'yearly' ? '/yr' : '/mo') + '</span></td></tr>'
+    ).join('');
+    return '<div class="table-card"><table class="rtable"><thead><tr><th>Name</th><th>Status</th><th class="num">Price</th></tr></thead><tbody class="stagger">' + rows + '</tbody></table>' +
+      '<div class="pager"><span>' + plural(state.subs.length, 'subscription') + ' · ' + money(totals().avg) + ' a month</span></div></div>';
   }
 
   function onbScanning() {
     const p = ui.scan.phase;
-    return '<div class="onb">' +
-      '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
+    return '<div class="onb-mascot">' + mascot('content', 96) + '</div>' +
       '<h1 class="hero-title" tabindex="-1">Reading your inbox</h1>' +
       '<p class="hero-sub">' + esc(ui.scan.account.address) + '. Only billing emails are read.</p>' +
-      '<div class="onb-narrow" style="margin-top:32px">' +
+      '<div class="onb-narrow">' +
         '<div class="progress" role="progressbar" aria-label="Scan progress" aria-valuemin="0" aria-valuemax="' + PHASES.length + '" aria-valuenow="' + p + '">' +
-          '<span style="width:' + (p / PHASES.length) * 100 + '%"></span></div>' +
+          '<span style="transform:scaleX(' + (p / PHASES.length) + ')"></span></div>' +
       '</div>' +
       '<ul class="phases" aria-live="polite">' + PHASES.map((ph, i) => {
         const cls = i < p ? 'done' : i === p ? 'now' : '';
         const mark = i < p ? icon('check') : i === p ? '<span class="spinner" aria-hidden="true"></span>' : '<span class="pending-dot" aria-hidden="true"></span>';
         return '<li class="' + cls + '"><span class="ph-icon">' + mark + '</span>' + ph +
           (i < p ? '<span class="sr-only">, done</span>' : '') + '</li>';
-      }).join('') + '</ul>' +
-    '</div>';
+      }).join('') + '</ul>';
   }
 
   function onbFound() {
     const n = state.subs.length;
+    const found = ui.lastFound == null ? n : ui.lastFound;
     const review = state.subs.filter((s) => s.review).length;
-    const rows = state.subs.map((s) =>
-      '<tr><td><div class="name-cell"><span class="row-link" style="cursor:default">' + esc(s.name) + '</span>' + tag(s.category) + '</div></td>' +
-      '<td class="col-status">' + subStatus(s) + '</td>' +
-      '<td class="num">' + money(s.amount) + '<span class="per">' + (s.cycle === 'yearly' ? '/yr' : '/mo') + '</span></td></tr>'
-    ).join('');
-    return '<div class="onb">' +
-      '<div class="onb-mascot">' + mascot('happy', 96) + '</div>' +
-      '<h1 class="hero-title" tabindex="-1">' + (n ? 'We found ' + plural(n, 'subscription') : 'No subscriptions found') + '</h1>' +
-      '<p class="hero-sub">' + (n
-        ? (review ? esc(plural(review, 'receipt')) + ' needed a second look, flagged below. ' : '') + 'You can edit, add or remove anything later.'
+    return '<div class="onb-mascot">' + mascot(found ? 'happy' : 'content', 96) + '</div>' +
+      '<h1 class="hero-title" tabindex="-1">' + (found ? 'We found ' + plural(found, 'subscription') : 'No subscriptions found') + '</h1>' +
+      '<p class="hero-sub">' + (found
+        ? (review ? esc(plural(review, 'receipt')) + ' needed a second look, flagged below. ' : '') + 'Tap a row to edit it, or add anything we missed.'
         : 'Nothing that looks like a subscription turned up. You can add them by hand.') + '</p>' +
-      (n ? '<div class="table-card"><table class="rtable"><thead><tr><th>Name</th><th>Status</th><th class="num">Price</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
-      '<div class="onb-actions">' + btn('Continue', 'onb-to-budget', { variant: 'primary', size: 'lg' }) + '</div>' +
-    '</div>';
-  }
-
-  function onbBudget() {
-    const T = totals();
-    const b = state.budget;
-    return '<div class="onb">' +
-      '<div class="onb-mascot" id="onb-mascot">' + mascot(moodFor(T.projected, b), 112) + '</div>' +
-      '<h1 class="hero-title" tabindex="-1">What’s your monthly budget for subscriptions?</h1>' +
-      '<p class="hero-sub">Only subscriptions, not your general spending.' +
-        (state.subs.length ? ' Yours come to ' + money(T.projected) + ' this month.' : '') + '</p>' +
-      '<form class="onb-form" data-form="onb-budget" novalidate>' +
-        '<div class="field"><label class="field-label" for="onb-budget">Monthly budget</label>' +
-          '<div class="affix"><span>$</span><input class="input" id="onb-budget" name="budget" inputmode="decimal" autocomplete="off" value="' + (b ? esc(b) : '') + '" /></div></div>' +
-        '<div class="onb-status" id="onb-status" aria-live="polite">' + onbStatus(T.projected, b) + '</div>' +
-        '<div class="onb-actions" style="margin-top:8px">' +
-          btn('Skip for now', 'onb-skip', { variant: 'ghost', size: 'lg' }) +
-          btn('Finish', null, { variant: 'primary', size: 'lg', type: 'submit' }) +
-        '</div>' +
-      '</form>' +
-    '</div>';
-  }
-
-  function onbStatus(projected, budget) {
-    if (!budget) return '<p class="speech">' + esc(speech('neutral', projected, budget)) + '</p>';
-    const st = budgetStatus(projected, budget);
-    return meter(projected, budget) +
-      '<div class="budget-line" style="justify-content:space-between;margin:0">' + statusHtml(st.tone, st.label) +
-      '<span class="muted">' + money(projected) + ' of ' + money(budget) + '</span></div>' +
-      '<p class="speech">' + esc(speech(moodFor(projected, budget), projected, budget)) + '</p>';
+      (n ? onbSubsTable() : '') +
+      '<div class="onb-actions">' +
+        btn('Add one by hand', 'add-sub', { icon: 'plus', size: 'lg' }) +
+        btn('Finish', 'onb-finish', { variant: 'primary', size: 'lg' }) +
+      '</div>';
   }
 
   function parseMoney(v) {
@@ -635,7 +727,9 @@
     const finish = () => {
       account.lastScan = new Date().toISOString();
       state.accounts.push(account);
-      state.subs = state.subs.concat(makeSubs(account.provider));
+      const found = makeSubs(account.provider);
+      ui.lastFound = found.length;
+      state.subs = state.subs.concat(found);
       state.step = 'found';
       ui.scan = null;
       save();
@@ -672,7 +766,7 @@
     const month = MONTHS_LONG[new Date().getMonth()];
     const n = activeSubs().length;
     const action = state.accounts.length
-      ? btn(ui.scanning ? 'Scanning…' : 'Scan inbox', 'scan-all', { variant: 'primary', icon: 'refresh', disabled: ui.scanning })
+      ? btn('Add subscription', 'add-sub', { icon: 'plus' }) + btn(ui.scanning ? 'Scanning…' : 'Scan inbox', 'scan-all', { variant: 'primary', icon: 'refresh', disabled: ui.scanning })
       : btn('Add subscription', 'add-sub', { variant: 'primary', icon: 'plus' });
 
     const header = pageHeader({
@@ -776,7 +870,7 @@
   function attentionCard(T) {
     const items = attentionItems(T);
     const body = items.length
-      ? '<ul class="attn">' + items.map((it) =>
+      ? '<ul class="attn stagger">' + items.map((it) =>
           '<li class="attn-item tone-' + it.tone + '"><span class="attn-icon">' + icon(it.icon) + '</span>' +
           '<p class="attn-title">' + (it.tone === 'critical' || it.tone === 'warning' ? '<span class="sr-only">Warning: </span>' : '') + esc(it.title) + '</p>' +
           '<p class="attn-desc">' + esc(it.desc) + '</p>' +
@@ -807,7 +901,7 @@
       '</div>';
     }).join('');
     return '<section class="card" aria-labelledby="up-h"><div class="card-head"><h2 class="section-title" id="up-h">Coming up</h2><span class="muted">Next 14 days</span></div>' +
-      (rows ? '<div class="upcoming">' + rows + '</div>' : emptyState({ small: true, icon: 'clock', title: 'No renewals in the next two weeks' })) +
+      (rows ? '<div class="upcoming stagger">' + rows + '</div>' : emptyState({ small: true, icon: 'clock', title: 'No renewals in the next two weeks' })) +
       '</section>';
   }
 
@@ -1095,7 +1189,17 @@
         '<div class="acc-body" id="acc-body-' + id + '"' + (open ? '' : ' hidden') + '>' + body + '</div></section>';
     };
 
+    const u = state.user;
+    const method = u.method === 'google' ? 'Signed in with Google' : u.method === 'apple' ? 'Signed in with Apple' : 'Signed in with email';
+    const accountBody =
+      '<div class="field"><label class="field-label" for="name-input">Your name</label>' +
+        '<input class="input" id="name-input" autocomplete="given-name" style="max-width:240px" value="' + esc(u.name || '') + '" /></div>' +
+      '<div class="setting"><div class="setting-text"><p class="setting-label">' + esc(method) + '</p>' +
+        '<p class="setting-desc">' + (u.email ? esc(u.email) : 'Leaky only stores what it needs to keep your list on this device.') + '</p></div>' +
+        btn('Sign out', 'sign-out') + '</div>';
+
     return pageHeader({ title: 'Settings', subtitle: 'Changes save automatically.' }) +
+      section('account', 'Account', (u.name || 'No name') + (u.email ? ' · ' + u.email : ''), accountBody) +
       section('budget', 'Budget', b ? money(b) + ' a month' : 'Not set', budgetBody, !b) +
       section('alerts', 'Alerts', alertsSummary, alertsBody) +
       section('device', 'This device', (S.notifications && canNotify && !blocked ? 'Notifications on' : 'Notifications off'), deviceBody) +
@@ -1126,10 +1230,18 @@
   }
 
   function closeOverlay() {
-    if (!$('#overlay').innerHTML) return;
-    $('#overlay').innerHTML = '';
-    document.body.classList.remove('no-scroll');
-    if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+    const ov = $('#overlay');
+    if (!ov.innerHTML || ov.classList.contains('is-closing')) return;
+    const restore = lastFocus;
+    const done = () => {
+      ov.innerHTML = '';
+      ov.classList.remove('is-closing');
+      document.body.classList.remove('no-scroll');
+      if (restore && document.contains(restore)) restore.focus();
+    };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
+    ov.classList.add('is-closing');
+    setTimeout(done, 150);
   }
 
   function modal(o) {
@@ -1242,8 +1354,10 @@
   function toast(msg, undo) {
     const region = $('#toasts');
     clearTimeout(ui.toastTimer);
-    region.innerHTML = '<div class="toast" role="status">' + icon('check') + '<span>' + esc(msg) + '</span>' +
+    region.innerHTML = '<div class="toast is-entering" role="status">' + icon('check') + '<span>' + esc(msg) + '</span>' +
       (undo ? '<button type="button" data-action="undo">Undo</button>' : '') + '</div>';
+    const el = region.firstElementChild;
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('is-entering')));
     ui.undo = undo || null;
     ui.toastTimer = setTimeout(() => {
       const el = region.firstElementChild;
@@ -1300,9 +1414,22 @@
     close: closeOverlay,
     'connect-gmail': gmailModal,
     'connect-icloud': icloudModal,
-    'manual-start': () => { state.step = 'budget'; save(); render(); focusTitle(); },
-    'onb-to-budget': () => { state.step = 'budget'; save(); render(); focusTitle(); },
-    'onb-skip': () => finishOnboarding(null),
+    social: (id) => signIn({ method: id, email: null, name: '' }),
+    'auth-mode': () => { ui.authMode = ui.authMode === 'signup' ? 'signin' : 'signup'; render(); focusTitle(); },
+    'sign-out': () => { state.user = null; ui.authMode = 'signin'; save(); location.hash = ''; render(); focusTitle(); },
+    'onb-back': () => {
+      const i = stepIndex(state.step);
+      goStep(STEPS[Math.max(0, i - 1)]);
+    },
+    'onb-goal': (id) => {
+      state.goals = state.goals.includes(id) ? state.goals.filter((g) => g !== id) : state.goals.concat(id);
+      save();
+      const b = $('.goal[data-id="' + id + '"]');
+      if (b) b.setAttribute('aria-pressed', String(state.goals.includes(id)));
+    },
+    'onb-goals-next': () => goStep('budget'),
+    'onb-skip': () => { state.budget = null; goStep('source'); },
+    'onb-finish': finishOnboarding,
     'scan-all': () => { if (!ui.scanning && state.accounts.length) inlineScan(null); },
     'add-sub': () => sheet(null),
     'open-sub': (id) => { const s = findSub(id); if (s) sheet(s); },
@@ -1336,6 +1463,7 @@
       const fresh = defaultState();
       Object.keys(state).forEach((k) => delete state[k]);
       Object.assign(state, fresh);
+      ui.authMode = 'signup';
       save();
       closeOverlay();
       location.hash = '';
@@ -1387,8 +1515,24 @@
     },
   };
 
-  function finishOnboarding(budget) {
-    state.budget = budget;
+  function signIn(user) {
+    state.user = user;
+    state.step = 'name';
+    save();
+    render();
+    focusTitle();
+  }
+
+  function goStep(step) {
+    state.step = step;
+    save();
+    render();
+    window.scrollTo(0, 0);
+    focusTitle();
+  }
+
+  function finishOnboarding() {
+    GOALS.forEach((g) => { state.settings[g.setting] = state.goals.includes(g.id); });
     state.onboarded = true;
     state.step = 'done';
     save();
@@ -1438,7 +1582,31 @@
       connect(newAccount('icloud', email));
     },
     confirm: () => {},
-    'onb-budget': (f) => finishOnboarding(parseMoney(f.budget.value)),
+    auth: (f) => {
+      const email = f.email.value.trim();
+      const pass = f.password.value;
+      if (!EMAIL_RE.test(email)) { showError('a-error', 'Enter a valid email address.'); f.email.setAttribute('aria-invalid', 'true'); f.email.focus(); return; }
+      if (ui.authMode === 'signup' ? pass.length < 8 : !pass) {
+        showError('a-error', ui.authMode === 'signup' ? 'Use at least 8 characters.' : 'Enter your password.');
+        f.password.setAttribute('aria-invalid', 'true');
+        f.password.focus();
+        return;
+      }
+      signIn({ method: 'email', email: email, name: '' });
+    },
+    'onb-name': (f) => {
+      const name = f.name.value.trim();
+      if (!name) { showError('n-error'); f.name.setAttribute('aria-invalid', 'true'); f.name.focus(); return; }
+      state.user.name = name;
+      goStep('goals');
+    },
+    'onb-budget': (f) => {
+      const raw = f.budget.value.trim();
+      const v = parseMoney(raw);
+      if (raw && v == null) { f.budget.focus(); return; }
+      state.budget = v;
+      goStep('source');
+    },
     sub: (f) => {
       const name = f.name.value.trim();
       const amount = parseFloat(String(f.amount.value).replace(/[^0-9.]/g, ''));
@@ -1497,6 +1665,20 @@
       const sum = $('[data-summary="budget"]');
       if (sum) sum.innerHTML = v ? esc(money(v) + ' a month') : '<span class="flag">' + icon('alert') + 'Not set</span>';
       toast(v ? 'Budget updated to ' + money(v) + ' a month' : 'Budget cleared');
+    }, 700);
+  }
+
+  let nameTimer = null;
+  function onNameInput(el) {
+    clearTimeout(nameTimer);
+    nameTimer = setTimeout(() => {
+      const v = el.value.trim();
+      if (!v || v === state.user.name) return;
+      state.user.name = v;
+      save();
+      const sum = $('[data-summary="account"]');
+      if (sum) sum.textContent = v + (state.user.email ? ' · ' + state.user.email : '');
+      settingsSaved();
     }, 700);
   }
 
@@ -1587,6 +1769,7 @@
     const t = e.target;
     if (t.id === 'search') { ui.search = t.value; ui.page = 1; refreshRows(); }
     else if (t.id === 'budget-input') onBudgetInput(t);
+    else if (t.id === 'name-input') onNameInput(t);
     else if (t.id === 'onb-budget') {
       const v = parseMoney(t.value);
       const T = totals();
