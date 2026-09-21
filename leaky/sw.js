@@ -1,5 +1,5 @@
 /* Offline shell for the Leaky PWA. Network first for our files, cache as fallback. */
-const CACHE = 'leaky-v2';
+const CACHE = 'leaky-v3';
 const ASSETS = ['./', './style.css', './app.js', './favicon.svg', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

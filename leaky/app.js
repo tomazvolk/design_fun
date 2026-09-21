@@ -80,6 +80,7 @@
     drop: '<path d="M8 2s-4.5 5-4.5 8a4.5 4.5 0 0 0 9 0C12.5 7 8 2 8 2Z"/>',
     device: '<rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M7.5 12h1"/>',
     edit: '<path d="M10 3.5 12.5 6 6 12.5H3.5V10L10 3.5Z"/>',
+    logout: '<path d="M6.5 13.5h-3v-11h3"/><path d="M10 11l3-3-3-3M13 8H6.5"/>',
   };
   function icon(name, size) {
     const s = size || 16;
@@ -109,7 +110,6 @@
 
   const PROVIDERS = {
     gmail: { label: 'Gmail', how: 'Connected with Google, read-only', icon: 'mail' },
-    icloud: { label: 'iCloud Mail', how: 'IMAP with an app-specific password', icon: 'cloud' },
     manual: { label: 'Added by hand', icon: 'edit' },
   };
 
@@ -163,6 +163,8 @@
         unusedFlag: true,
         unusedMonths: 2,
         notifications: false,
+        emailAlerts: false,
+        emailFreq: 'daily',
       },
     };
   }
@@ -176,6 +178,9 @@
         if (s && s.v === 1) {
           const out = Object.assign(base, s, { settings: Object.assign(base.settings, s.settings) });
           if (out.step === 'scanning' || out.step === 'found') out.step = 'source';
+          out.accounts = (out.accounts || []).filter((a) => a.provider === 'gmail');
+          out.subs.forEach((x) => { if (x.source !== 'gmail' && x.source !== 'manual') x.source = 'manual'; });
+          if (out.user && out.user.method === 'apple') out.user.method = 'email';
           return out;
         }
       }
@@ -348,14 +353,8 @@
     return statusHtml('success', 'Active');
   }
 
-  function crumbs(current) {
-    return '<nav class="crumbs" aria-label="Breadcrumb"><ol>' +
-      '<li><a href="#/overview">Leaky</a></li>' +
-      '<li aria-current="page">' + esc(current) + '</li></ol></nav>';
-  }
-
   function pageHeader(o) {
-    return '<header class="page-head"><div>' + crumbs(o.crumb || o.title) +
+    return '<header class="page-head"><div>' +
       '<h1 class="page-title" tabindex="-1">' + esc(o.title) + '</h1>' +
       (o.subtitle ? '<p class="page-sub">' + o.subtitle + '</p>' : '') + '</div>' +
       (o.action ? '<div class="page-actions">' + o.action + '</div>' : '') + '</header>';
@@ -410,15 +409,51 @@
      Routing
      ====================================================================== */
   const ROUTES = [
-    { id: 'overview', label: 'Overview', icon: 'home' },
-    { id: 'subscriptions', label: 'Subscriptions', icon: 'list' },
-    { id: 'inbox', label: 'Inbox', icon: 'inbox' },
+    { id: 'overview', label: 'Overview', icon: 'home', nav: true },
+    { id: 'subscriptions', label: 'Subscriptions', icon: 'list', nav: true },
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
 
   function route() {
     const r = location.hash.replace(/^#\/?/, '');
+    if (r === 'inbox') { ui.openSection = 'inbox'; history.replaceState(null, '', '#/settings'); return 'settings'; }
     return ROUTES.some((x) => x.id === r) ? r : 'overview';
+  }
+
+  const initials = (u) => {
+    const src = (u.name || u.email || '?').trim();
+    const parts = src.split(/[\s@._-]+/).filter(Boolean);
+    return ((parts[0] || '?')[0] + (u.name && parts[1] ? parts[1][0] : '')).toUpperCase();
+  };
+
+  function renderUserMenu() {
+    const wrap = $('#user-menu');
+    const u = state.user;
+    wrap.hidden = !u;
+    if (!u) return;
+    $('#avatar-btn').textContent = initials(u);
+    $('#avatar-btn').setAttribute('aria-label', 'Account menu for ' + (u.name || u.email || 'you'));
+    $('#user-pop').innerHTML =
+      '<div class="user-pop-head"><p class="user-pop-name">' + esc(u.name || 'Your account') + '</p>' +
+        (u.email ? '<p class="user-pop-mail">' + esc(u.email) + '</p>' : '') + '</div>' +
+      (state.onboarded ? '<a class="user-pop-item" role="menuitem" href="#/settings">' + icon('settings') + 'Settings</a>' : '') +
+      '<button type="button" class="user-pop-item" role="menuitem" data-action="sign-out">' + icon('logout') + 'Log out</button>';
+  }
+
+  function setUserMenu(open) {
+    const pop = $('#user-pop');
+    const b = $('#avatar-btn');
+    if (!pop) return;
+    b.setAttribute('aria-expanded', String(open));
+    if (open) {
+      pop.hidden = false;
+      requestAnimationFrame(() => pop.classList.add('is-open'));
+      const first = pop.querySelector('.user-pop-item');
+      if (first) first.focus();
+    } else if (!pop.hidden) {
+      pop.classList.remove('is-open');
+      setTimeout(() => { if (!pop.classList.contains('is-open')) pop.hidden = true; }, 120);
+    }
   }
 
   function renderNav() {
@@ -431,7 +466,7 @@
     }
     menu.hidden = false;
     const r = route();
-    nav.innerHTML = ROUTES.map((x) =>
+    nav.innerHTML = ROUTES.filter((x) => x.nav).map((x) =>
       '<a href="#/' + x.id + '"' + (x.id === r ? ' aria-current="page"' : '') + '>' + icon(x.icon) + x.label + '</a>'
     ).join('');
   }
@@ -439,6 +474,7 @@
   function render() {
     state.subs.forEach(rollForward);
     renderNav();
+    renderUserMenu();
     const view = $('#view');
     if (!state.user || ui.connect || !state.onboarded) {
       view.innerHTML = !state.user ? viewAuth() : ui.connect ? viewConnect() : viewOnboarding();
@@ -446,7 +482,7 @@
       return;
     }
     const r = route();
-    const views = { overview: viewOverview, subscriptions: viewSubs, inbox: viewInbox, settings: viewSettings };
+    const views = { overview: viewOverview, subscriptions: viewSubs, settings: viewSettings };
     view.innerHTML = views[r]();
     document.title = (ROUTES.find((x) => x.id === r).label) + ' · Leaky';
     renderChart();
@@ -473,7 +509,6 @@
       '<div class="auth-card">' +
         '<div class="stack-xs">' +
           btn('Continue with Google', 'social', { id: 'google', size: 'lg' }) +
-          btn('Continue with Apple', 'social', { id: 'apple', size: 'lg' }) +
         '</div>' +
         '<div class="divider" role="separator"><span>or</span></div>' +
         '<form data-form="auth" class="stack-sm" novalidate>' +
@@ -572,8 +607,6 @@
       '<div class="choice-grid stagger onb-choices">' +
         choiceCard({ tone: 'clay', icon: 'mail', title: 'Gmail', desc: 'Sign in with Google and allow read-only access. Takes a few seconds.',
           actions: btn('Connect Gmail', 'connect-gmail', { variant: has ? 'secondary' : 'primary' }) }) +
-        choiceCard({ tone: 'sky', icon: 'cloud', title: 'iCloud Mail', desc: 'Connect with an app-specific password from your Apple Account. We’ll walk you through it.',
-          actions: btn('Connect iCloud Mail', 'connect-icloud') }) +
         choiceCard({ tone: 'amber', icon: 'edit', title: 'By hand', desc: 'Type them in yourself. You can always connect an inbox later.',
           actions: btn('Add a subscription', 'add-sub', { icon: 'plus' }) }) +
       '</div>' +
@@ -757,26 +790,14 @@
   }
 
   function connectEmail(c, P) {
-    const icloud = c.provider === 'icloud';
-    return '<h1 class="hero-title" tabindex="-1">' + (icloud ? 'Connect iCloud Mail' : 'Connect Gmail') + '</h1>' +
-      '<p class="hero-sub">' + (icloud
-        ? 'Apple doesn’t offer a sign-in for mail apps, so Leaky connects with an app-specific password. It takes about a minute.'
-        : 'Enter the address of the inbox to read. Leaky only looks at billing emails, and you can disconnect any time.') + '</p>' +
+    return '<h1 class="hero-title" tabindex="-1">Connect Gmail</h1>' +
+      '<p class="hero-sub">Enter the address of the inbox to read. Leaky only looks at billing emails, and you can disconnect any time.</p>' +
       '<form class="connect-card" data-form="connect-email" novalidate>' +
-        (icloud ? '<ol class="steps">' +
-          '<li><span>Sign in at <strong>account.apple.com</strong>.</span></li>' +
-          '<li><span>Open <strong>Sign-In and Security</strong>, then <strong>App-Specific Passwords</strong>.</span></li>' +
-          '<li><span>Create a password and name it “Leaky”.</span></li>' +
-          '<li><span>Paste it below with your iCloud email address.</span></li>' +
-        '</ol>' : '') +
-        '<div class="field"><label class="field-label" for="c-email">' + (icloud ? 'iCloud email' : 'Gmail address') + '</label>' +
-          '<input class="input" id="c-email" name="email" type="email" autocomplete="email" inputmode="email" required /></div>' +
-        (icloud ? '<div class="field"><label class="field-label" for="c-pass">App-specific password</label>' +
-          '<p class="field-desc">Four groups of four letters, like the ones Apple shows.</p>' +
-          '<input class="input" id="c-pass" name="password" type="password" autocomplete="off" spellcheck="false" required /></div>' : '') +
+        '<div class="field"><label class="field-label" for="c-email">Gmail address</label>' +
+          '<input class="input" id="c-email" name="email" type="email" autocomplete="email" inputmode="email" required value="' + esc((state.user && state.user.email) || '') + '" /></div>' +
         '<p class="field-error" id="c-error" hidden>' + icon('alert') + '<span></span></p>' +
-        btn(icloud ? 'Connect and scan' : 'Continue with Google', null, { variant: 'primary', size: 'lg', type: 'submit' }) +
-        '<p class="tertiary auth-note">Prototype: ' + (icloud ? 'the password isn’t stored or sent anywhere, and the scan uses sample data.' : 'this skips Google’s sign-in and runs a simulated scan with sample data.') + '</p>' +
+        btn('Continue with Google', null, { variant: 'primary', size: 'lg', type: 'submit' }) +
+        '<p class="tertiary auth-note">Prototype: this skips Google’s sign-in and runs a simulated scan with sample data.</p>' +
       '</form>';
   }
 
@@ -1088,7 +1109,12 @@
       '<svg class="chart-svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" ' +
         'aria-label="Subscription spend by month, ' + first.label + ' to ' + lastM.label + '. ' + money(D.cum[ti]) + ' charged so far in ' + cur.label + ', ' + money(cur.total) + ' projected' +
         (b ? ', against a ' + money(b) + ' monthly budget.' : '.') + '">' +
-        '<defs>' + overClip + '</defs>' +
+        '<defs>' + overClip +
+          '<linearGradient id="area-grad" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="' + padT + '" y2="' + baseY.toFixed(1) + '">' +
+            '<stop offset="0" class="g-area-top"/><stop offset="1" class="g-area-bottom"/></linearGradient>' +
+          '<linearGradient id="over-grad" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="' + padT + '" y2="' + baseY.toFixed(1) + '">' +
+            '<stop offset="0" class="g-over-top"/><stop offset="1" class="g-over-bottom"/></linearGradient>' +
+        '</defs>' +
         grid + monthMarks +
         '<polygon class="area" points="' + area + '"/>' + over +
         '<line class="base" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + baseY.toFixed(1) + '" y2="' + baseY.toFixed(1) + '"/>' +
@@ -1321,52 +1347,32 @@
     return out.filter((e) => e.date <= t).sort((a, b) => b.date.localeCompare(a.date));
   }
 
-  function viewInbox() {
-    const has = state.accounts.length > 0;
-    const header = pageHeader({
-      title: 'Inbox',
-      subtitle: 'Leaky reads receipts, renewal notices, trial confirmations and price-change emails. Nothing else.',
-      action: has ? btn('Scan now', 'scan-all', { variant: 'primary', icon: 'refresh' }) : '',
-    });
-
-    const accounts = has
-      ? '<section class="card" aria-labelledby="acc-h"><div class="card-head"><h2 class="section-title" id="acc-h">Connected inboxes</h2></div>' +
-        state.accounts.map((a) => {
-          const p = PROVIDERS[a.provider];
-          return '<div class="account"><span class="account-icon">' + icon(p.icon, 20) + '</span>' +
-            '<div><p class="account-name">' + esc(a.address) + '</p>' +
-            '<p class="account-meta"><span>' + esc(p.label) + ' · ' + esc(p.how) + '</span>' +
-            statusHtml('success', 'Connected') + '<span>Last scan ' + esc(a.lastScan ? relTime(a.lastScan) : 'never') + '</span></p></div>' +
-            btn('Disconnect', 'disconnect', { id: a.id, variant: 'ghost' }) + '</div>';
-        }).join('') + '</section>'
-      : emptyState({ icon: 'inbox', title: 'Connect an inbox', text: 'Leaky finds subscriptions in your billing emails, so there’s nothing to type in.' });
-
-    const missing = Object.keys(PROVIDERS).filter((k) => k !== 'manual' && !state.accounts.some((a) => a.provider === k));
-    const add = missing.length
-      ? '<section class="stack-sm" aria-labelledby="add-h"><h2 class="overline" id="add-h">Add an inbox</h2><div class="choice-grid">' +
-        missing.map((k) => k === 'gmail'
-          ? choiceCard({ tone: 'clay', icon: 'mail', title: 'Gmail', desc: 'Sign in with Google and allow read-only access. Takes a few seconds.', actions: btn('Connect Gmail', 'connect-gmail') })
-          : choiceCard({ tone: 'sky', icon: 'cloud', title: 'iCloud Mail', desc: 'Connect with an app-specific password from your Apple Account. We’ll walk you through it.', actions: btn('Connect iCloud Mail', 'connect-icloud') })
-        ).join('') + '</div></section>'
-      : '';
-
+  function inboxBody() {
+    const a = state.accounts[0];
+    if (!a) {
+      return '<div class="setting"><div class="setting-text"><p class="setting-label">Gmail</p>' +
+        '<p class="setting-desc">Leaky reads receipts, renewal notices, trial confirmations and price-change emails. Nothing else.</p></div>' +
+        btn('Connect Gmail', 'connect-gmail', { icon: 'mail' }) + '</div>';
+    }
     const events = inboxEvents();
-    const log = has && events.length
-      ? '<section class="stack-sm" aria-labelledby="log-h"><h2 class="section-title" id="log-h">Billing emails found</h2>' +
-        '<div class="table-card"><div class="table-scroll"><table class="rtable"><thead><tr><th>From</th><th class="col-mid">Email</th><th class="col-mid">Received</th><th class="col-low">Inbox</th><th>Read as</th><th class="num">Amount</th></tr></thead><tbody>' +
-        events.map((e) =>
-          '<tr data-open="' + e.s.id + '"><td><div class="name-cell"><button type="button" class="row-link" data-action="open-sub" data-id="' + e.s.id + '">' + esc(e.s.name) + '</button></div>' +
-          '<div class="sub-meta"><span class="m-1024">' + esc(e.type) + ' · ' + esc(fmtDate(e.date)) + '</span><span class="m-640">' + esc(e.type) + ' · ' + esc(fmtDate(e.date)) + '</span></div></td>' +
-          '<td class="col-mid">' + esc(e.type) + '</td>' +
-          '<td class="col-mid muted">' + esc(fmtDate(e.date)) + '</td>' +
-          '<td class="col-low muted">' + esc(e.account) + '</td>' +
-          '<td class="col-status">' + (e.s.review && e.type === 'Receipt' ? statusHtml('warning', 'Needs a check') : statusHtml('success', 'Parsed')) + '</td>' +
-          '<td class="num">' + (e.amount ? money(e.amount) : '<span class="muted">Free</span>') + '</td></tr>'
-        ).join('') + '</tbody></table></div>' +
-        '<div class="pager"><span>' + plural(events.length, 'email') + '</span></div></div></section>'
-      : '';
-
-    return header + '<div class="stack">' + accounts + log + add + '</div>';
+    return '<div class="account"><span class="account-icon">' + icon('mail', 20) + '</span>' +
+        '<div><p class="account-name">' + esc(a.address) + '</p>' +
+        '<p class="account-meta"><span>' + esc(PROVIDERS.gmail.how) + '</span>' +
+        statusHtml('success', 'Connected') + '<span>Last scan ' + esc(a.lastScan ? relTime(a.lastScan) : 'never') + '</span></p></div>' +
+        '<div class="account-actions">' + btn('Scan now', 'scan-all', { icon: 'refresh' }) + btn('Disconnect', 'disconnect', { id: a.id, variant: 'ghost' }) + '</div>' +
+      '</div>' +
+      (events.length
+        ? '<div class="table-card"><div class="table-scroll"><table class="rtable"><thead><tr><th>From</th><th class="col-mid">Email</th><th class="col-mid">Received</th><th>Read as</th><th class="num">Amount</th></tr></thead><tbody>' +
+          events.map((e) =>
+            '<tr data-open="' + e.s.id + '"><td><div class="name-cell"><button type="button" class="row-link" data-action="open-sub" data-id="' + e.s.id + '">' + esc(e.s.name) + '</button></div>' +
+            '<div class="sub-meta"><span class="m-1024">' + esc(e.type) + ' · ' + esc(fmtDate(e.date)) + '</span><span class="m-640">' + esc(e.type) + ' · ' + esc(fmtDate(e.date)) + '</span></div></td>' +
+            '<td class="col-mid">' + esc(e.type) + '</td>' +
+            '<td class="col-mid muted">' + esc(fmtDate(e.date)) + '</td>' +
+            '<td class="col-status">' + (e.s.review && e.type === 'Receipt' ? statusHtml('warning', 'Needs a check') : statusHtml('success', 'Parsed')) + '</td>' +
+            '<td class="num">' + (e.amount ? money(e.amount) : '<span class="muted">Free</span>') + '</td></tr>'
+          ).join('') + '</tbody></table></div>' +
+          '<div class="pager"><span>' + plural(events.length, 'billing email') + ' found</span></div></div>'
+        : '');
   }
 
   function relTime(iso) {
@@ -1398,7 +1404,22 @@
       '<div class="setting"><div class="setting-text"><p class="setting-label" id="lbl-' + key + '">' + label + '</p><p class="setting-desc">' + desc + '</p>' +
       (S[key] && extra ? '<div class="setting-control">' + extra + '</div>' : '') + '</div>' + toggle(key, S[key], label) + '</div>';
 
+    const canNotify = 'Notification' in window;
+    const blocked = canNotify && Notification.permission === 'denied';
+    const pushOn = S.notifications && canNotify && !blocked;
+    const channelRow = (key, label, desc, on, extra, disabled) =>
+      '<div class="setting"><div class="setting-text"><p class="setting-label">' + label + '</p><p class="setting-desc">' + desc + '</p>' +
+      (on && extra ? '<div class="setting-control">' + extra + '</div>' : '') + '</div>' + toggle(key, on, label, { disabled: disabled }) + '</div>';
     const alertsBody =
+      '<p class="overline">How to reach you</p>' +
+      channelRow('notifications', 'Push notifications',
+        !canNotify ? 'This browser doesn’t support notifications.' : blocked ? 'Notifications are blocked for this site in your browser settings.' : 'Alerts on this device, even when Leaky is closed.',
+        pushOn, btn('Send a test notification', 'test-notify', { icon: 'bell' }), !canNotify || blocked) +
+      channelRow('emailAlerts', 'Email alerts', 'Alerts sent to ' + esc((state.user && state.user.email) || 'your account email') + '.',
+        S.emailAlerts,
+        '<label class="field-label" for="s-email-freq">Send</label>' + selectField('emailFreq', S.emailFreq, [['instant', 'As they happen'], ['daily', 'Daily summary'], ['weekly', 'Weekly summary']], { id: 's-email-freq', setting: 'emailFreq' }) +
+        '<p class="field-desc">Email delivery switches on once Leaky’s email service is connected.</p>') +
+      '<p class="overline">What to alert you about</p>' +
       alertRow('renewalAlerts', 'Renewal alerts', 'A reminder before a subscription renews, so there’s time to cancel.',
         '<label class="field-label" for="s-renewal">Remind me</label>' + selectField('renewalDays', S.renewalDays, days, { id: 's-renewal', setting: 'renewalDays' })) +
       alertRow('trialAlerts', 'Free trial warnings', 'A warning before a free trial turns into a paid subscription.',
@@ -1407,20 +1428,15 @@
       alertRow('unusedFlag', 'Unused subscription flagging', 'Highlights subscriptions with no activity emails for a while.',
         '<label class="field-label" for="s-unused">Flag after</label>' + selectField('unusedMonths', S.unusedMonths, [[1, '1 month'], [2, '2 months'], [3, '3 months'], [6, '6 months']], { id: 's-unused', setting: 'unusedMonths' }));
 
-    const alertsSummary = [
+    const channels = [pushOn ? 'push' : null, S.emailAlerts ? 'email' : null].filter(Boolean);
+    const alertsSummary = (channels.length ? channels.join(' + ') : 'No delivery') + ' · ' + [
       S.renewalAlerts ? 'Renewals ' + S.renewalDays + (S.renewalDays === 1 ? ' day' : ' days') + ' before' : null,
       S.trialAlerts ? 'trials' : null,
       S.priceAlerts ? 'price rises' : null,
       S.unusedFlag ? 'unused after ' + plural(S.unusedMonths, 'month') : null,
-    ].filter(Boolean).join(', ') || 'All alerts off';
+    ].filter(Boolean).join(', ');
 
-    const canNotify = 'Notification' in window;
-    const blocked = canNotify && Notification.permission === 'denied';
     const deviceBody =
-      '<div class="setting"><div class="setting-text"><p class="setting-label">Browser notifications</p>' +
-        '<p class="setting-desc">' + (!canNotify ? 'This browser doesn’t support notifications.' : blocked ? 'Notifications are blocked for this site in your browser settings.' : 'Show alerts as notifications on this device.') + '</p>' +
-        (S.notifications && canNotify && !blocked ? '<div class="setting-control">' + btn('Send a test notification', 'test-notify', { icon: 'bell' }) + '</div>' : '') +
-      '</div>' + toggle('notifications', S.notifications && canNotify && !blocked, 'Browser notifications', { disabled: !canNotify || blocked }) + '</div>' +
       '<div class="setting"><div class="setting-text"><p class="setting-label">Install Leaky</p>' +
         '<p class="setting-desc">' + (isStandalone() ? 'Leaky is installed on this device.' : ui.installEvent ? 'Add Leaky to your home screen or dock, like an app.' : 'Use your browser’s “Add to Home Screen” or install option to keep Leaky one tap away.') + '</p>' +
         (ui.installEvent && !isStandalone() ? '<div class="setting-control">' + btn('Install', 'install', { icon: 'device' }) + '</div>' : '') +
@@ -1445,7 +1461,7 @@
     };
 
     const u = state.user;
-    const method = u.method === 'google' ? 'Signed in with Google' : u.method === 'apple' ? 'Signed in with Apple' : 'Signed in with email';
+    const method = u.method === 'google' ? 'Signed in with Google' : 'Signed in with email';
     const accountBody =
       '<div class="field"><label class="field-label" for="name-input">Your name</label>' +
         '<input class="input" id="name-input" autocomplete="given-name" style="max-width:240px" value="' + esc(u.name || '') + '" /></div>' +
@@ -1455,15 +1471,14 @@
 
     return pageHeader({ title: 'Settings', subtitle: 'Changes save automatically.' }) +
       section('account', 'Account', (u.name || 'No name') + (u.email ? ' · ' + u.email : ''), accountBody) +
+      section('inbox', 'Inbox', state.accounts[0] ? state.accounts[0].address + ' · last scan ' + (state.accounts[0].lastScan ? relTime(state.accounts[0].lastScan) : 'never') : 'Not connected', inboxBody(), !state.accounts.length) +
       section('budget', 'Budget', b ? money(b) + ' a month' : 'Not set', budgetBody, !b) +
       section('alerts', 'Alerts', alertsSummary, alertsBody) +
-      section('device', 'This device', (S.notifications && canNotify && !blocked ? 'Notifications on' : 'Notifications off'), deviceBody) +
+      section('device', 'This device', isStandalone() ? 'Installed' : 'Not installed', deviceBody) +
       section('plan', 'Plan', plan.name + (plan.id === 'free' ? ' · up to ' + FREE_LIMIT + ' subscriptions' : ' · ' + plan.price), planBody,
         state.plan === 'free' && activeSubs().length > FREE_LIMIT) +
       '<h2 class="danger-title">Danger zone</h2>' +
       '<div class="card danger-card">' +
-        '<div class="setting"><div class="setting-text"><p class="setting-label">Disconnect all inboxes</p><p class="setting-desc">Stops scanning. Your subscription list stays.</p></div>' +
-          btn('Disconnect all', 'disconnect-all', { variant: 'danger-outline', disabled: !state.accounts.length }) + '</div>' +
         '<div class="setting"><div class="setting-text"><p class="setting-label">Delete all data</p><p class="setting-desc">Removes inboxes, subscriptions and settings from this device and starts over.</p></div>' +
           btn('Delete all data', 'delete-all', { variant: 'danger-outline' }) + '</div>' +
       '</div>';
@@ -1631,7 +1646,6 @@
   const ACTIONS = {
     close: closeOverlay,
     'connect-gmail': () => startConnect('gmail'),
-    'connect-icloud': () => startConnect('icloud'),
     'chart-range': (id) => {
       ui.chartRange = id;
       document.querySelectorAll('.seg-btn').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.id === id)));
@@ -1647,7 +1661,7 @@
     },
     social: (id) => signIn({ method: id, email: null, name: '' }),
     'auth-mode': () => { ui.authMode = ui.authMode === 'signup' ? 'signin' : 'signup'; render(); focusTitle(); },
-    'sign-out': () => { state.user = null; ui.authMode = 'signin'; save(); location.hash = ''; render(); focusTitle(); },
+    'sign-out': () => { setUserMenu(false); state.user = null; ui.authMode = 'signin'; save(); location.hash = ''; render(); focusTitle(); },
     'onb-back': () => {
       const i = stepIndex(state.step);
       goStep(STEPS[Math.max(0, i - 1)]);
@@ -1669,7 +1683,7 @@
     'ack-price': (id) => { const s = findSub(id); if (s) { s.priceAck = true; save(); render(); } },
     'ack-unused': (id) => { const s = findSub(id); if (s) { s.lastUsed = today(); save(); render(); toast('Got it. ' + s.name + ' won’t be flagged for now.'); } },
     'go-subs': () => { location.hash = '#/subscriptions'; },
-    'go-inbox': () => { location.hash = '#/inbox'; },
+    'go-inbox': () => { ui.openSection = 'inbox'; location.hash = '#/settings'; },
     'go-budget': () => { ui.openSection = 'budget'; location.hash = '#/settings'; },
     'go-plan': () => { ui.openSection = 'plan'; location.hash = '#/settings'; },
     tab: (id) => { ui.tab = id; ui.page = 1; render(); const t = $('#tab-' + id); if (t) t.focus(); },
@@ -1687,8 +1701,6 @@
       save(); render();
       toast('Disconnected ' + (a ? a.address : 'inbox'));
     },
-    'disconnect-all': () => confirmModal('Disconnect all inboxes?', 'Leaky will stop scanning. Your subscription list and settings stay as they are.', 'Disconnect all', 'confirm-disconnect-all'),
-    'confirm-disconnect-all': () => { state.accounts = []; save(); closeOverlay(); render(); toast('All inboxes disconnected'); },
     'delete-all': () => confirmModal('Delete all data?', 'This removes your inboxes, subscriptions and settings from this device. It can’t be undone.', 'Delete everything', 'confirm-delete-all'),
     'confirm-delete-all': () => {
       const fresh = defaultState();
@@ -1793,15 +1805,6 @@
       const c = ui.connect;
       const email = f.email.value.trim();
       if (!EMAIL_RE.test(email)) { showError('c-error', 'Enter a valid email address.'); f.email.setAttribute('aria-invalid', 'true'); f.email.focus(); return; }
-      if (c.provider === 'icloud') {
-        const pass = f.password.value.trim();
-        if (!/^[a-z]{4}-?[a-z]{4}-?[a-z]{4}-?[a-z]{4}$/i.test(pass)) {
-          showError('c-error', 'That doesn’t look like an app-specific password. It should be 16 letters, like abcd-efgh-ijkl-mnop.');
-          f.password.setAttribute('aria-invalid', 'true');
-          f.password.focus();
-          return;
-        }
-      }
       startScan(newAccount(c.provider, email), false);
     },
     confirm: () => {},
@@ -2009,7 +2012,7 @@
       if (val) val.textContent = t.options[t.selectedIndex].text;
       refreshRows();
     } else if (t.dataset.setting) {
-      state.settings[t.dataset.setting] = Number(t.value);
+      state.settings[t.dataset.setting] = isNaN(Number(t.value)) ? t.value : Number(t.value);
       save();
       const id = t.id;
       render();
@@ -2023,6 +2026,7 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      if ($('#avatar-btn').getAttribute('aria-expanded') === 'true') { setUserMenu(false); $('#avatar-btn').focus(); return; }
       if ($('#overlay').innerHTML) closeOverlay();
       else if ($('#nav').classList.contains('is-open')) { setMenu(false); $('#menu-btn').focus(); }
       return;
@@ -2050,6 +2054,9 @@
     $('#menu-btn').setAttribute('aria-expanded', String(open));
   }
   $('#menu-btn').addEventListener('click', () => setMenu(!$('#nav').classList.contains('is-open')));
+  $('#avatar-btn').addEventListener('click', (e) => { e.stopPropagation(); setUserMenu($('#avatar-btn').getAttribute('aria-expanded') !== 'true'); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#user-menu')) setUserMenu(false); });
+  $('#user-pop').addEventListener('click', (e) => { if (e.target.closest('a')) setUserMenu(false); });
 
   window.addEventListener('hashchange', () => {
     setMenu(false);
