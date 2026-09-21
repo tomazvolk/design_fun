@@ -1154,6 +1154,7 @@
     const step = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000].find((k) => maxV / k <= 4) || 10000;
     let grid = '';
     for (let v = step; v <= maxV; v += step) {
+      if (b && Math.abs(yv(v) - yv(b)) < 14) continue;
       grid += '<line class="grid" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yv(v).toFixed(1) + '" y2="' + yv(v).toFixed(1) + '"/>' +
         '<text class="axis" x="' + (padL - 8) + '" y="' + (yv(v) + 4).toFixed(1) + '" text-anchor="end">$' + v + '</text>';
     }
@@ -1168,17 +1169,15 @@
       const isNow = mo.from <= ti && ti <= mo.to;
       return (k ? '<line class="band" x1="' + x(mo.from).toFixed(1) + '" x2="' + x(mo.from).toFixed(1) + '" y1="' + padT + '" y2="' + baseY.toFixed(1) + '"/>' : '') +
         ((k - nowK) % every === 0 ? '<text class="axis' + (isNow ? ' axis-now' : '') + '" x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + label + '</text>' : '') +
-        (segW >= 64 && mo.total ? '<text class="end-label" x="' + x(mo.to).toFixed(1) + '" y="' + (yv(mo.total) - 8).toFixed(1) + '" text-anchor="end">' + money(mo.total) + '</text>' : '');
+        (segW >= 64 && mo.total ? '<text class="end-label' + (b && mo.total > b ? ' is-over' : '') + '" x="' + x(mo.to).toFixed(1) + '" y="' + (yv(mo.total) - 8).toFixed(1) + '" text-anchor="end">' + money(mo.total) + '</text>' : '');
     }).join('');
 
+    /* Budget sits on the y-axis as its own tick, so it never collides with the data. */
     let ref = '';
     if (b) {
       const by = yv(b);
-      /* Drop the label under the line when the first month's total label would sit on top of it. */
-      const f = D.months[0];
-      const collide = segW >= 64 && f.total && x(f.to) - 56 < padL + 100 && Math.abs(yv(f.total) - 8 - (by - 6)) < 16;
       ref = '<line class="ref" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + by.toFixed(1) + '" y2="' + by.toFixed(1) + '"/>' +
-        '<text class="ref-label" x="' + (padL + 4) + '" y="' + (collide ? by + 14 : by - 6).toFixed(1) + '">Budget ' + money(b) + '</text>';
+        '<text class="ref-label" x="' + (padL - 8) + '" y="' + (by + 4).toFixed(1) + '" text-anchor="end">$' + Math.round(b) + '</text>';
     }
     const overClip = b ? '<clipPath id="over-clip"><rect x="0" y="0" width="' + W + '" height="' + yv(b).toFixed(1) + '"/></clipPath>' : '';
     const over = b ? '<polygon class="over" points="' + area + '" clip-path="url(#over-clip)"/>' : '';
@@ -1201,6 +1200,8 @@
         ref +
         '<polyline class="line" points="' + solid + '"/>' +
         '<polyline class="line projected" points="' + dashed + '"/>' +
+        (b ? '<g clip-path="url(#over-clip)"><polyline class="line line-over" points="' + solid + '"/>' +
+          '<polyline class="line line-over projected" points="' + dashed + '"/></g>' : '') +
         '<circle class="marker" cx="' + x(ti).toFixed(1) + '" cy="' + yv(D.cum[ti]).toFixed(1) + '" r="4"/>' +
         '<g class="hover" hidden><line class="crosshair" y1="' + padT + '" y2="' + baseY.toFixed(1) + '"/><circle class="hover-dot" r="4"/></g>' +
         '<rect class="hit" x="' + padL + '" y="0" width="' + (W - padL - padR) + '" height="' + H + '" fill="transparent"/>' +
@@ -1210,6 +1211,7 @@
         '<li><span class="sw sw-solid"></span>Charged</li>' +
         '<li><span class="sw sw-dashed"></span>Projected</li>' +
         (b ? '<li><span class="sw sw-ref"></span>Monthly budget</li>' : '') +
+        (b && D.months.some((mo) => mo.total > b) ? '<li><span class="sw sw-over"></span>Over budget</li>' : '') +
       '</ul>';
 
     el._geo = { D: D, x: x, yv: yv, padL: padL, padR: padR, W: W, H: H, last: last, ti: ti };
@@ -2351,6 +2353,10 @@
     $('#menu-btn').setAttribute('aria-expanded', String(open));
   }
   $('#menu-btn').addEventListener('click', () => setMenu(!$('#nav').classList.contains('is-open')));
+  /* The logo always goes to the overview; if already there, back to the top. */
+  $('.brand').addEventListener('click', (e) => {
+    if (state.onboarded && route() === 'overview' && !ui.connect) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  });
   $('#avatar-btn').addEventListener('click', (e) => { e.stopPropagation(); setUserMenu($('#avatar-btn').getAttribute('aria-expanded') !== 'true'); });
   document.addEventListener('click', (e) => { if (!e.target.closest('#user-menu')) setUserMenu(false); });
   $('#user-pop').addEventListener('click', (e) => { if (e.target.closest('a')) setUserMenu(false); });

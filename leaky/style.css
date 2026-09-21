@@ -150,7 +150,10 @@ svg { flex: none; }
   font: 500 20px/28px var(--font-serif);
   border-radius: var(--r-md);
 }
-.brand svg { width: 20px; height: 20px; fill: var(--plum-80); }
+.brand:hover { color: var(--plum-100); }
+.brand svg { width: 22px; height: 22px; color: var(--plum-80); fill: currentColor; stroke: currentColor; stroke-width: 4; transition: transform var(--dur) var(--ease-out); }
+@media (hover: hover) and (pointer: fine) { .brand:hover svg { transform: rotate(-12deg); } }
+.brand:active svg { transform: rotate(-12deg) scale(0.92); }
 
 .nav { display: flex; gap: 4px; }
 .nav a {
@@ -837,8 +840,10 @@ svg { flex: none; }
 .chart .over { fill: url(#over-grad); }
 .chart .g-area-top { stop-color: var(--plum-80); stop-opacity: 0.2; }
 .chart .g-area-bottom { stop-color: var(--plum-80); stop-opacity: 0; }
-.chart .g-over-top { stop-color: var(--danger); stop-opacity: 0.28; }
-.chart .g-over-bottom { stop-color: var(--danger); stop-opacity: 0.04; }
+.chart .g-over-top { stop-color: var(--danger); stop-opacity: 0.6; }
+.chart .g-over-bottom { stop-color: var(--danger); stop-opacity: 0.25; }
+.chart .line.line-over { stroke: var(--danger); stroke-width: 2.5; }
+.chart .end-label.is-over { fill: var(--danger-text); }
 .chart .line { fill: none; stroke: var(--plum-80); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .chart .projected { stroke-dasharray: 4 4; }
 .chart .ref { stroke: var(--plum-70); stroke-width: 1.5; stroke-dasharray: 2 4; stroke-linecap: round; }
@@ -870,6 +875,8 @@ svg { flex: none; }
 .sw { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--plum-80); }
 .sw-dashed { border-top-style: dashed; }
 .sw-ref { border-top: 1.5px dotted var(--plum-70); }
+.chart .ref-label { fill: var(--plum-100); }
+.sw-over { height: 10px; border: 0; border-radius: 2px; background: var(--danger); }
 
 /* ==========================================================================
    Sign in + onboarding
