@@ -26,8 +26,12 @@
     <nav class="nav" id="nav" aria-label="Main"></nav>
     <div class="topbar-end">
       <button class="btn btn-ghost menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="nav" aria-label="Menu">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" /></svg>
+        <svg viewBox="0 0 8 8" width="16" height="16" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="1" width="8" height="1"/><rect x="0" y="3" width="8" height="1"/><rect x="0" y="5" width="8" height="1"/></svg>
       </button>
+      <a class="notif-btn" id="notif-btn" href="#/notifications" aria-label="Notifications" hidden>
+        <svg viewBox="0 0 8 8" width="16" height="16" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true"><rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="3"/><rect x="0" y="5" width="8" height="1"/><rect x="3" y="7" width="2" height="1"/></svg>
+        <span class="notif-count" hidden></span>
+      </a>
       <div class="user-menu" id="user-menu" hidden>
         <button class="avatar" id="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="user-pop"></button>
         <div class="user-pop" id="user-pop" role="menu" hidden></div>

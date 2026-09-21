@@ -1,5 +1,5 @@
 /* Offline shell for the Leaky v2 PWA. Network first for our files, cache as fallback. */
-const CACHE = 'leaky-v2-2';
+const CACHE = 'leaky-v2-4';
 const ASSETS = ['./', './style.css', './app.js', './config.js', './favicon.svg', './manifest.webmanifest'];
 /* Only static third-party assets are cached. API calls (Supabase) always go to the network. */
 const CACHEABLE_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net'];

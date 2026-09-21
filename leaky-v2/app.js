@@ -129,8 +129,7 @@
     happy: ['.koooooooooo', '.koooookoooo', '.kooookokooo', '.koppwwwwwwk', '.kowwwwwwkpp', '..kwwwwwwwkk', '...kkwwwwwww'],
     content: ['.koooooooooo', '.kooooookwoo', '.kooooookkoo', '.koppwwwwwwk', '.kowwwwwkwww', '..kwwwwwwkkk', '...kkwwwwwww'],
     neutral: ['.koooooooooo', '.kooooookwoo', '.kooooookkoo', '.koowwwwwwwk', '.kowwwwwwwkk', '..kwwwwwwwww', '...kkwwwwwww'],
-    worried: ['.kooooookooo', '.kooookkkwoo', '.kooooookkoo', '.koowwwwwwwk', '.kowwwwwwkwk', '..kwwwwwwwkw', '...kkwwwwwww'],
-    sad: ['.kooooookooo', '.kooookkkwoo', '.kooooookkoo', '.koowwwtwwwk', '.kowwwwtwkkk', '..kwwwwwkwww', '...kkwwwwwww'],
+    sad: ['.kooooookooo', '.kooookkkwoo', '.kooooookkoo', '.koowwwtwwwk', '.kowwwwwwkkk', '..kwwwwwkwww', '...kkwwwwwww'],
     relieved: ['.koooooooooo', '.koooooooooo', '.koooookkkoo', '.koppwwwwwwk', '.kowwwwwkwww', '..kwwwwwwkkk', '...kkwwwwwww'],
   };
   const FOX_BODY = [
@@ -163,20 +162,40 @@
     '.....kkk..',
   ];
 
-  function fox(mood) {
-    mood = FOX_FACES[mood] ? mood : 'neutral';
+  /* Three behaviours: giggle when under budget, cry when over, idle and blink in between. */
+  const foxAct = (mood) => (mood === 'happy' || mood === 'relieved' ? 'giggle' : mood === 'sad' || mood === 'worried' ? 'cry' : 'idle');
+  const FOX_LABEL = { giggle: 'Giggling', idle: 'Keeping watch', cry: 'Crying' };
+  const px = (x, y, w, h, c, cls) => '<rect' + (cls ? ' class="' + cls + '"' : '') + ' x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + c + '"/>';
+  const pxHeart = (x, y, cls) => '<g class="' + cls + '">' + px(x, y, 1, 1, FOX_PAL.p) + px(x + 2, y, 1, 1, FOX_PAL.p) +
+    px(x, y + 1, 3, 1, FOX_PAL.p) + px(x + 1, y + 2, 1, 1, FOX_PAL.p) + '</g>';
+
+  function fox(mood, o) {
+    o = o || {};
+    const act = foxAct(mood);
+    const face = act === 'cry' ? 'sad' : FOX_FACES[mood] ? mood : 'neutral';
     const mirror = (r) => '......' + r + r.split('').reverse().join('') + '..';
-    const body = FOX_HEAD.concat(FOX_FACES[mood], FOX_BODY).map(mirror);
+    const body = FOX_HEAD.concat(FOX_FACES[face], FOX_BODY).map(mirror);
     /* The tail tucks in behind the body, so only draw it where the body is empty. */
     const tail = body.map((r, y) => {
       const tr = FOX_TAIL[y - 9] || '';
       return r.split('').map((c, x) => (c === '.' && tr[x] && tr[x] !== '.' ? tr[x] : '.')).join('');
     });
-    return '<figure class="fox fox-' + mood + '" aria-hidden="true">' +
-      '<svg viewBox="0 0 32 26" width="128" height="104" shape-rendering="crispEdges">' +
+    let extra = '';
+    if (act === 'cry') {
+      extra = px(13, 12, 1, 2, FOX_PAL.t, 'fox-tear') + px(22, 12, 1, 2, FOX_PAL.t, 'fox-tear fox-tear-2');
+    } else if (act === 'giggle') {
+      extra = pxHeart(1, 5, 'fox-heart') + pxHeart(28, 3, 'fox-heart fox-heart-2');
+    } else {
+      /* Eyelids, shown for a moment every few seconds. */
+      extra = '<g class="fox-lids">' + px(14, 9, 2, 1, FOX_PAL.o) + px(20, 9, 2, 1, FOX_PAL.o) +
+        px(14, 10, 2, 1, FOX_PAL.k) + px(20, 10, 2, 1, FOX_PAL.k) + '</g>';
+    }
+    const s = o.size || 4;
+    return '<figure class="fox fox-' + act + '" aria-hidden="true">' +
+      '<svg viewBox="0 0 32 26" width="' + 32 * s + '" height="' + 26 * s + '" shape-rendering="crispEdges"><g class="fox-sprite">' +
         '<g class="fox-tail">' + pixelRects(tail, FOX_PAL) + '</g>' +
-        '<g class="fox-body">' + pixelRects(body, FOX_PAL) + '</g>' +
-      '</svg><figcaption>Penny</figcaption></figure>';
+        pixelRects(body, FOX_PAL) + extra +
+      '</g></svg>' + (o.caption === false ? '' : '<figcaption>Penny</figcaption>') + '</figure>';
   }
 
   /* ======================================================================
@@ -526,6 +545,7 @@
     { id: 'overview', label: 'Overview', icon: 'home', nav: true },
     { id: 'subscriptions', label: 'Subscriptions', icon: 'list', nav: true },
     { id: 'settings', label: 'Settings', icon: 'settings' },
+    { id: 'notifications', label: 'Notifications', icon: 'bell' },
   ];
 
   function route() {
@@ -539,6 +559,20 @@
     const parts = src.split(/[\s@._-]+/).filter(Boolean);
     return ((parts[0] || '?')[0] + (u.name && parts[1] ? parts[1][0] : '')).toUpperCase();
   };
+
+  /* The bell next to the avatar: opens the notifications page, badge counts what needs a look. */
+  function renderNotifBtn() {
+    const b = $('#notif-btn');
+    const show = !ui.booting && !!state.user && state.onboarded;
+    b.hidden = !show;
+    if (!show) return;
+    const n = attentionItems(totals()).length;
+    const badge = b.querySelector('.notif-count');
+    badge.textContent = n > 9 ? '9+' : String(n);
+    badge.hidden = !n;
+    b.setAttribute('aria-label', n ? 'Notifications, ' + plural(n, 'item') + ' need a look' : 'Notifications, all clear');
+    if (route() === 'notifications') b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  }
 
   function renderUserMenu() {
     const wrap = $('#user-menu');
@@ -589,6 +623,7 @@
     state.subs.forEach(rollForward);
     renderNav();
     renderUserMenu();
+    renderNotifBtn();
     const view = $('#view');
     if (ui.booting) {
       view.innerHTML = '<div class="boot" aria-busy="true" aria-label="Loading"><span class="spinner"></span></div>';
@@ -605,7 +640,7 @@
       return;
     }
     const r = route();
-    const views = { overview: viewOverview, subscriptions: viewSubs, settings: viewSettings };
+    const views = { overview: viewOverview, subscriptions: viewSubs, settings: viewSettings, notifications: viewNotifications };
     view.innerHTML = views[r]();
     document.title = (ROUTES.find((x) => x.id === r).label) + ' · Leaky';
     renderChart();
@@ -1049,7 +1084,6 @@
           '<button type="button" class="seg-btn" data-action="chart-range" data-id="12m" aria-pressed="' + (ui.chartRange === '12m') + '">12 months</button>' +
         '</div></div>' +
         '<div class="chart" id="budget-chart"></div>' +
-        '<div class="say budget-note">' + fox(md) + '<p class="speech">' + esc(speech(md, T.projected, b)) + '</p></div>' +
         '<dl class="stats">' +
           '<div><dt>Already charged</dt><dd>' + money(T.charged) + '</dd></div>' +
           '<div><dt>Still to come</dt><dd>' + money(T.toCome) + '</dd></div>' +
@@ -1058,7 +1092,13 @@
         '</dl>' +
       '</section>';
 
-    return header + '<div class="overview">' + budgetCard + attentionCard(T) + upcomingCard() + '</div>';
+    const pennyCard =
+      '<section class="card penny-card" aria-labelledby="penny-h">' +
+        '<div class="card-head"><h2 class="section-title" id="penny-h">Penny</h2><span class="muted">' + FOX_LABEL[foxAct(md)] + '</span></div>' +
+        '<div class="penny">' + fox(md, { size: 3, caption: false }) + '<p class="penny-says">' + esc(speech(md, T.projected, b)) + '</p></div>' +
+      '</section>';
+
+    return header + '<div class="overview">' + budgetCard + upcomingCard() + pennyCard + '</div>';
   }
 
   function attentionItems(T) {
@@ -1120,18 +1160,21 @@
     return items;
   }
 
-  function attentionCard(T) {
-    const items = attentionItems(T);
-    const body = items.length
-      ? '<ul class="attn stagger">' + items.map((it) =>
-          '<li class="attn-item tone-' + it.tone + '"><span class="attn-icon">' + icon(it.icon) + '</span>' +
-          '<p class="attn-title">' + (it.tone === 'critical' || it.tone === 'warning' ? '<span class="sr-only">Warning: </span>' : '') + esc(it.title) + '</p>' +
-          '<p class="attn-desc">' + esc(it.desc) + '</p>' +
-          '<div class="attn-actions">' + it.actions + '</div></li>'
-        ).join('') + '</ul>'
-      : emptyState({ small: true, icon: 'check', title: 'Nothing needs your attention', text: 'Leaky will flag trials, price rises and unused subscriptions here.' });
-    return '<section class="card" aria-labelledby="attn-h"><div class="card-head"><h2 class="section-title" id="attn-h">Needs attention</h2>' +
-      (items.length ? '<span class="muted">' + items.length + '</span>' : '') + '</div>' + body + '</section>';
+  function viewNotifications() {
+    const items = attentionItems(totals());
+    const header = pageHeader({
+      title: 'Notifications',
+      subtitle: items.length ? plural(items.length, 'thing') + ' to look at' : 'You’re all caught up',
+    });
+    if (!items.length) {
+      return header + emptyState({ icon: 'bell', title: 'All clear', text: 'Leaky will let you know here about trials ending, price rises, unused subscriptions and your budget.' });
+    }
+    return header + '<section class="card notif-card" aria-label="Notifications"><ul class="attn stagger">' + items.map((it) =>
+      '<li class="attn-item tone-' + it.tone + '"><span class="attn-icon">' + icon(it.icon) + '</span>' +
+      '<p class="attn-title">' + (it.tone === 'critical' || it.tone === 'warning' ? '<span class="sr-only">Warning: </span>' : '') + esc(it.title) + '</p>' +
+      '<p class="attn-desc">' + esc(it.desc) + '</p>' +
+      '<div class="attn-actions">' + it.actions + '</div></li>'
+    ).join('') + '</ul></section>';
   }
 
   function upcomingCard() {
