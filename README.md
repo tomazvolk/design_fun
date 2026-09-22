@@ -9,7 +9,7 @@ and a short description. Each prototype lives in its own folder.
 
 | Prototype | Folder | Deployed | What it is |
 | --- | --- | --- | --- |
-| Warranty tracker | `warranty-tracker/` | 2026-09-22 | Receipt vault PWA: inbox scanning, warranty and return reminders, claim PDFs |
+| Warranty tracker | `warranty-tracker/` | 2026-09-22 | Receipt vault PWA: accounts, warranty and return reminders, claim PDFs |
 | Leaky v2 | `leaky-v2/` | 2026-09-21 | Leaky restyled as 80s arcade pixel art |
 | Leaky | `leaky/` | 2026-09-21 | Subscription tracker PWA: inbox scanning, budget, projection chart |
 | Halo | `pomodoro-v2/` | 2026-09-21 | Pomodoro v2: calm ring timer with rolling digits |

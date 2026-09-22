@@ -4,29 +4,38 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Warranty tracker</title>
-  <meta name="description" content="Finds your receipts in your inbox and reminds you before a warranty or return window runs out." />
-  <meta name="theme-color" content="#f4f2ec" />
+  <meta name="description" content="Keep every receipt and get reminded before a warranty or return window runs out." />
+  <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b0c0e" media="(prefers-color-scheme: dark)" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Warranties" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <script>
+    /* Set the theme before first paint so dark mode doesn't flash. */
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem('warranty-tracker-v2') || '{}');
+        var t = (s.settings && s.settings.theme) || 'system';
+        if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <a class="skip" href="#view">Skip to content</a>
 
-  <header class="topbar" id="topbar" hidden>
-    <a class="brand" href="#/vault" aria-label="Warranty tracker, go to vault">
-      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M7 3.5h18a1.5 1.5 0 0 1 1.5 1.5v23.2l-3-2-3 2-3.5-2-3.5 2-3-2-3 2V5A1.5 1.5 0 0 1 7 3.5Z" /><path class="logo-mark" d="m11 15.5 3.4 3.4L21.5 11.8" /></svg>
-      <span>Warranty tracker</span>
-    </a>
-    <nav class="nav" id="nav" aria-label="Main"></nav>
-  </header>
+  <aside class="rail" id="rail" hidden></aside>
 
-  <main class="main" id="view" tabindex="-1"></main>
+  <div class="frame">
+    <div id="banner"></div>
+    <header class="topbar" id="topbar" hidden></header>
+    <main class="main" id="view" tabindex="-1"></main>
+  </div>
 
   <nav class="tabbar" id="tabbar" aria-label="Main" hidden></nav>
 

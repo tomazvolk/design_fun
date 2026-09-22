@@ -17,8 +17,8 @@ const PROTOTYPES = [
     deployed: '2026-09-22',
     status: 'wip',
     description:
-      'Finds receipts in your inbox, tracks each warranty and return window, and reminds you before they run out. Photo receipts and claim-ready PDFs. PWA.',
-    tags: ['pwa', 'inbox scanning', 'utility', 'vanilla js'],
+      'Keeps your receipts, tracks each warranty and return window, and reminds you before they run out. Sign up, photo receipts, claim-ready PDFs, dark mode. PWA.',
+    tags: ['pwa', 'auth', 'quiet saas', 'vanilla js'],
     accent: '#2f7a59',
     art: 'receipt',
   },

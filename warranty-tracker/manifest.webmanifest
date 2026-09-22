@@ -1,12 +1,12 @@
 {
   "name": "Warranty tracker",
   "short_name": "Warranties",
-  "description": "Finds your receipts in your inbox and reminds you before a warranty or return window runs out.",
+  "description": "Keep every receipt and get reminded before a warranty or return window runs out.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f4f2ec",
-  "theme_color": "#f4f2ec",
+  "background_color": "#fafaf9",
+  "theme_color": "#fafaf9",
   "icons": [
     { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
