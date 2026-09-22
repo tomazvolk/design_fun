@@ -449,7 +449,7 @@
         '<label class="search">' + icon('search') + '<span class="sr-only">Search receipts</span>' +
           '<input type="search" id="q" placeholder="Search" value="' + esc(ui.q) + '" autocomplete="off" />' +
           '<kbd>' + (isMac ? '⌘' : 'Ctrl ') + 'K</kbd></label>' +
-        (name === 'add' ? '' : '<a class="btn btn-primary topbar-add" href="#/add">' + icon('plus') + '<span>Add receipt</span></a>') +
+        (name === 'add' || name === 'vault' ? '' : '<a class="btn btn-primary topbar-add" href="#/add">' + icon('plus') + '<span>Add receipt</span></a>') +
         avatarBtn('menu-top') +
       '</div></div>';
 
@@ -672,30 +672,48 @@
     { key: 'expired', label: 'Expired' },
   ];
 
+  function greeting() {
+    const h = new Date().getHours();
+    return (h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening') + ', ' + esc(state.account.first);
+  }
+
+  /* The greeting: one sentence about right now, and the actions that follow from it. */
+  function greetingBlock(list) {
+    const action = list.filter((x) => x.next.group === 'action');
+    const first = action[0];
+    let line, cta = '';
+    if (!list.length) {
+      line = 'Add your first receipt and we’ll track its warranty and return window for you.';
+      cta = btn('Try with sample items', 'load-samples', { icon: 'sparkle' });
+    } else if (first) {
+      const f = first.next;
+      const what = f.group === 'action' && f.tone === 'info' ? 'the return window for ' + esc(first.it.name) + ' closes'
+        : f.main.indexOf('Check') === 0 ? esc(first.it.name) + ' has a detail to check'
+        : 'the warranty on ' + esc(first.it.name) + ' ends';
+      const when = f.tone === 'warning' && f.main.indexOf('Check') === 0 ? '' : ' ' + f.sub.toLowerCase().replace(' left', '').replace('last day', 'today').replace(/^(\d)/, 'in $1');
+      line = (action.length === 1 ? 'One thing needs your attention: ' : plural(action.length, 'thing') + ' need your attention. First, ') + what + when + '.';
+      cta = '<a class="btn btn-secondary" href="#/item/' + first.it.id + '">' + icon('receipt') + '<span>Open ' + esc(first.it.name) + '</span></a>';
+    } else {
+      const soonest = list.filter((x) => x.next.group === 'covered').sort((a, b) => a.i.left - b.i.left)[0];
+      line = 'Everything is covered.' + (soonest ? ' Nothing to do until ' + fmtDate(soonest.i.end) + ', when the warranty on ' + esc(soonest.it.name) + ' ends.' : '');
+    }
+    return '<header class="page-head greet">' +
+      '<div><h1>' + greeting() + '</h1><p>' + line + '</p></div>' +
+      '<div class="page-actions">' + cta + '<a class="btn btn-primary" href="#/add">' + icon('plus') + '<span>Add receipt</span></a></div>' +
+    '</header>';
+  }
+
   function viewVault() {
     const items = state.items;
-    const head = (sub) => '<header class="page-head"><h1>Vault</h1>' + (sub ? '<p>' + sub + '</p>' : '') + '</header>';
+    if (!items.length) return { html: greetingBlock([]) };
 
-    if (!items.length) {
-      return {
-        html: head('') +
-          '<section class="empty">' +
-            '<p>No receipts yet. Add your first one and we’ll track its warranty and return window.</p>' +
-            '<div class="empty-actions">' +
-              '<a class="btn btn-primary" href="#/add">' + icon('plus') + '<span>Add receipt</span></a>' +
-              btn('Try with sample items', 'load-samples', { icon: 'sparkle' }) +
-            '</div>' +
-          '</section>',
-      };
-    }
-
-    const infos = items.map(info);
-    const covered = items.filter((it, n) => infos[n].status !== 'expired').reduce((a, it) => a + Number(it.price || 0), 0);
-    const expired = infos.filter((i) => i.status === 'expired').length;
+    const list = state.items.map((it) => { const i = info(it); return { it, i, next: nextStep(it, i) }; }).sort((a, b) => a.next.urgency - b.next.urgency);
+    const covered = list.filter((x) => x.i.status !== 'expired').reduce((a, x) => a + Number(x.it.price || 0), 0);
     const merchants = Array.from(new Set(items.map((it) => it.merchant))).sort((a, b) => a.localeCompare(b));
     const cats = CATS.filter((c) => items.some((it) => it.category === c.key));
 
-    const html = head(plural(items.length, 'item') + ' · <span class="num">' + money(covered) + '</span> still under warranty' + (expired ? ' · ' + expired + ' expired' : '')) +
+    const html = greetingBlock(list) +
+      '<div class="section-head"><h2>Vault <span class="weak">· ' + plural(items.length, 'item') + ' · <span class="num">' + money(covered) + '</span> covered</span></h2></div>' +
       '<div class="toolbar">' +
         '<div class="select select-sm"><label class="sr-only" for="flt-cat">Category</label><select id="flt-cat"><option value="all">All categories</option>' +
           cats.map((c) => '<option value="' + c.key + '"' + (ui.cat === c.key ? ' selected' : '') + '>' + c.label + '</option>').join('') + '</select>' + icon('updown', 14) + '</div>' +
@@ -806,21 +824,37 @@
 
   function refreshDrawer() { if (ui.drawerId && findItem(ui.drawerId)) openDrawer(ui.drawerId); }
 
+  /* Returns and warranty as two aligned spans from the purchase date, with today marked on each. */
   function timeline(i) {
     const t = today();
-    const pct = (d) => Math.max(0, Math.min(100, (daysFrom(i.bought, d) / i.total) * 100));
+    const pct = (d) => Math.max(0, Math.min(100, (daysFrom(i.bought, d) / i.total) * 100)).toFixed(2);
     const todayPct = pct(t);
-    const retPct = i.rDays > 0 ? Math.max(1.2, pct(i.rEnd)) : 0;
     const align = todayPct < 12 ? 'start' : todayPct > 88 ? 'end' : 'mid';
-    return '<div class="tl tl-' + i.status + '">' +
-      '<div class="tl-track">' +
-        '<span class="tl-used" style="width:' + todayPct + '%"></span>' +
-        (retPct ? '<span class="tl-return' + (i.returnOpen ? ' is-open' : '') + '" style="width:' + retPct + '%"></span>' : '') +
-        '<span class="tl-today tl-today-' + align + '" style="left:' + todayPct + '%"><span aria-hidden="true">Today</span></span>' +
-      '</div>' +
-      '<div class="tl-labels"><span><b>Bought</b>' + fmtDate(i.bought) + '</span>' +
-        '<span class="tl-end"><b>' + (i.status === 'expired' ? 'Ended' : 'Ends') + '</b>' + fmtDate(i.end) + '</span></div>' +
-    '</div>';
+    const r = state.settings.remind;
+    const ticks = [r.w30 && addDays(i.end, -30), r.w7 && addDays(i.end, -7)].filter((d) => d && d > t)
+      .map((d) => '<span class="g-tick" style="left:' + pct(d) + '%" title="Reminder ' + fmtDate(d) + '"></span>').join('');
+
+    let rows = '';
+    if (i.rDays > 0) {
+      const text = i.returnOpen
+        ? 'until ' + fmtDate(i.rEnd, { short: true, weekday: true }) + ' · ' + (i.rLeft === 0 ? 'last day' : plural(i.rLeft, 'day') + ' left')
+        : 'closed ' + fmtDate(i.rEnd, { short: true });
+      rows += '<div class="g-row' + (i.returnOpen ? '' : ' is-past') + '">' +
+        '<p class="g-head"><span>Returns</span><span class="' + (i.returnOpen ? 'tone-info' : '') + '">' + text + '</span></p>' +
+        '<div class="g-track"><span class="g-bar g-bar-return" style="width:' + Math.max(1.5, pct(i.rEnd)) + '%"></span>' +
+          '<span class="g-mark" style="left:' + todayPct + '%"></span></div></div>';
+    }
+    const wText = i.status === 'expired'
+      ? 'ended ' + fmtDate(i.end, { short: true }) + ' · ' + span(i.left) + ' ago'
+      : 'until ' + fmtDate(i.end, { short: true }) + ' · ' + (i.left === 0 ? 'last day' : span(i.left, true) + ' left');
+    rows += '<div class="g-row' + (i.status === 'expired' ? ' is-past' : '') + '">' +
+      '<p class="g-head"><span>Warranty</span><span class="' + (i.status === 'expiring' ? 'tone-warning' : '') + '">' + wText + '</span></p>' +
+      '<div class="g-track"><span class="g-bar g-bar-used" style="width:' + todayPct + '%"></span>' +
+        '<span class="g-bar g-bar-left" style="left:' + todayPct + '%;width:' + (100 - todayPct).toFixed(2) + '%"></span>' + ticks +
+        '<span class="g-mark" style="left:' + todayPct + '%"></span></div></div>';
+
+    return '<div class="gantt gantt-' + i.status + '">' + rows +
+      '<div class="g-axis"><span class="g-today g-today-' + align + '" style="left:' + todayPct + '%">Today</span></div></div>';
   }
 
   /* One sentence about reminders, instead of a list of dates. */
@@ -838,20 +872,11 @@
   function drawerDetail(it) {
     const i = info(it);
     const flags = Object.keys(it.review || {});
-    let lead, sub;
-    if (i.returnOpen && (i.rLeft <= 7 || i.left > 30)) {
-      lead = i.rLeft === 0 ? 'Last day to return it' : 'Return window closes in ' + plural(i.rLeft, 'day');
-      sub = 'You can return it to ' + esc(it.merchant) + ' until ' + fmtDate(i.rEnd, { weekday: true }) + '. The warranty runs until ' + fmtDate(i.end) + '.';
-    } else if (i.status === 'expired') {
-      lead = 'Warranty ended ' + span(i.left) + ' ago';
-      sub = 'It ended on ' + fmtDate(i.end, { weekday: true }) + '. The maker may still repair it for a fee.';
-    } else if (i.left <= 30) {
-      lead = i.left === 0 ? 'Warranty ends today' : 'Warranty ends in ' + plural(i.left, 'day');
-      sub = 'Covered until ' + fmtDate(i.end, { weekday: true }) + '. If anything’s wrong, claim before then.';
-    } else {
-      lead = 'Covered for ' + span(i.left) + ' more';
-      sub = 'Warranty until ' + fmtDate(i.end, { weekday: true }) + '.';
-    }
+    const lead = i.returnOpen && (i.rLeft <= 7 || i.left > 30)
+      ? (i.rLeft === 0 ? 'Last day to return it' : 'Return window closes in ' + plural(i.rLeft, 'day'))
+      : i.status === 'expired' ? 'Warranty ended ' + span(i.left) + ' ago'
+      : i.left <= 30 ? (i.left === 0 ? 'Warranty ends today' : 'Warranty ends in ' + plural(i.left, 'day') + ', claim before then if anything’s wrong')
+      : 'Covered for ' + span(i.left) + ' more';
     const warrantySource = it.warrantyNote ? esc(it.warrantyNote) : !it.warrantyMonths ? 'default for ' + catLabel(it.category).toLowerCase() : 'set by you';
 
     return '<header class="d-head">' +
@@ -869,7 +894,7 @@
 
         '<section class="d-status">' +
           '<p class="d-big">' + lead + '</p>' +
-          '<p class="d-muted">' + sub + '</p>' +
+          (i.status === 'expired' ? '<p class="d-muted">The maker may still repair it for a fee.</p>' : '') +
           timeline(i) +
         '</section>' +
 

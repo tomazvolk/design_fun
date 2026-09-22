@@ -14,7 +14,7 @@ simulated with sample data. There's no inbox scanning.
 - **Vault:** one list, grouped by what needs doing: *Needs action* (return windows closing,
   warranties ending within 30 days, details to check), *Covered* and *Expired*. Each row has
   one status line, coloured only when urgent. Search (⌘K), category and shop filters.
-- **Item panel:** one headline fact, a bought → today → ends timeline, details, reminders in
+- **Item panel:** one headline fact, Returns and Warranty drawn as two aligned spans with today marked, details, reminders in
   a sentence, the receipt drawn as a paper document, edit and delete (with undo), claim PDF.
 - **Add a receipt:** take a photo, upload a file, or type it in. Unsure fields are
   flagged "Check this".
