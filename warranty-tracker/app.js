@@ -322,11 +322,6 @@
 
   function catIcon(key) { return '<span class="cat-ic" aria-hidden="true">' + icon(key) + '</span>'; }
 
-  function coverage(i) {
-    const frac = i.status === 'expired' ? 0 : Math.max(0.02, Math.min(1, i.left / i.total));
-    return '<span class="cover cover-' + i.status + '" aria-hidden="true"><span style="transform:scaleX(' + frac.toFixed(3) + ')"></span></span>';
-  }
-
   function statusPill(i) {
     const o = { active: ['success', 'Active', 'checkCircle'], expiring: ['warning', 'Ending soon', 'clock'], expired: ['neutral', 'Expired', ''] }[i.status];
     return '<span class="pill pill-' + o[0] + '">' + (o[2] ? icon(o[2], 12) : '') + o[1] + '</span>';
@@ -463,11 +458,15 @@
     const railLink = (n) => '<a href="#/' + n.key + '" class="rail-link"' + (n.key === name ? ' aria-current="page"' : '') +
       ' aria-label="' + n.label + (n.key === 'reminders' && soon ? ', ' + plural(soon, 'reminder') + ' this week' : '') + '" data-tip="' + n.label + '">' + icon(n.icon, 20) + dot(n.key) + '</a>';
 
+    const avatarBtn = (cls) => '<div class="menu-wrap ' + cls + '">' +
+      '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button></div>';
+
     $('#rail').innerHTML =
       '<a class="rail-logo" href="#/home" aria-label="Warranty tracker, home">' + logo(28) + '</a>' +
       '<nav class="rail-group" aria-label="Main">' + NAV.map(railLink).join('') + '</nav>' +
       '<span class="rail-sep" aria-hidden="true"></span>' +
-      '<nav class="rail-group" aria-label="Account">' + railLink({ key: 'settings', label: 'Settings', icon: 'sliders' }) + '</nav>';
+      '<nav class="rail-group" aria-label="Account">' + railLink({ key: 'settings', label: 'Settings', icon: 'sliders' }) + '</nav>' +
+      '<span class="rail-spacer"></span>' + avatarBtn('menu-rail');
 
     const crumbs = {
       reminders: ['Reminders'],
@@ -479,7 +478,7 @@
           n < crumbs.length - 1 ? '<a href="#/' + name + '">' + c + '</a>' + icon('chevron', 14) : '<span aria-current="page">' + c + '</span>').join('') + '</nav>'
       : '';
 
-    $('#topbar').innerHTML =
+    $('#topbar').innerHTML = '<div class="container topbar-inner">' +
       '<a class="topbar-logo" href="#/home" aria-label="Warranty tracker, home">' + logo(24) + '</a>' +
       crumbHtml +
       '<div class="topbar-end">' +
@@ -487,10 +486,8 @@
           '<input type="search" id="q" placeholder="Search" value="' + esc(ui.q) + '" autocomplete="off" />' +
           '<kbd>' + (isMac ? '⌘' : 'Ctrl ') + 'K</kbd></label>' +
         (name === 'add' ? '' : '<a class="btn btn-primary topbar-add" href="#/add">' + icon('plus') + '<span>Add receipt</span></a>') +
-        '<div class="menu-wrap">' +
-          '<button type="button" class="avatar" id="avatar-btn" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button>' +
-        '</div>' +
-      '</div>';
+        avatarBtn('menu-top') +
+      '</div></div>';
 
     const tabs = [NAV[0], NAV[1], { key: 'add', label: 'Add', icon: 'plusCircle' }, { key: 'settings', label: 'Settings', icon: 'sliders' }];
     $('#tabbar').innerHTML = tabs.map((n) =>
@@ -504,8 +501,7 @@
       : '';
   }
 
-  function openUserMenu() {
-    const b = $('#avatar-btn');
+  function openUserMenu(b) {
     if ($('.user-pop')) return closeUserMenu();
     const a = state.account;
     const pop = document.createElement('div');
@@ -525,9 +521,10 @@
   function closeUserMenu(focusBack) {
     const pop = $('.user-pop');
     if (!pop) return;
+    const b = $('.avatar', pop.parentElement);
     pop.remove();
-    const b = $('#avatar-btn');
-    if (b) { b.setAttribute('aria-expanded', 'false'); if (focusBack) b.focus(); }
+    $$('.avatar').forEach((x) => x.setAttribute('aria-expanded', 'false'));
+    if (focusBack && b) b.focus();
   }
 
   /* ==========================================================================
@@ -554,7 +551,7 @@
   function viewWelcome() {
     return {
       html: publicNav() +
-        '<section class="hero">' +
+        '<div class="hero-wrap">' + heroLines() + '<section class="hero">' +
           '<div class="hero-copy">' +
             '<p class="eyebrow"><span>EU warranties</span><span class="mono">2 years minimum</span></p>' +
             '<h1 class="serif">Every receipt kept. Every warranty remembered.</h1>' +
@@ -569,13 +566,22 @@
               '<div class="pv-table">' + previewRows() + '</div>' +
             '</div>' +
           '</div>' +
-        '</section>' +
+        '</section></div>' +
         '<section class="features">' +
           '<div><span class="feat-ic">' + icon('camera') + '</span><h2>Snap the receipt</h2><p>Take a photo or upload the PDF. We read the shop, item, price and date.</p></div>' +
           '<div><span class="feat-ic">' + icon('bell') + '</span><h2>Get reminded in time</h2><p>30 and 7 days before a warranty ends, 2 days before a return window closes.</p></div>' +
           '<div><span class="feat-ic">' + icon('download') + '</span><h2>Ready for a claim</h2><p>The original receipt stays with each item. Export a PDF when you need it.</p></div>' +
         '</section>',
     };
+  }
+
+  function heroLines() {
+    let p = '';
+    for (let n = 0; n < 18; n++) {
+      const o = n * 13;
+      p += '<path d="M-60 ' + (560 - o * 1.4) + ' C 320 ' + (560 - o) + ', 640 ' + (260 - o * 0.5) + ', 1300 ' + (-120 - o * 0.8) + '"/>';
+    }
+    return '<svg class="hero-lines" viewBox="0 0 1200 520" preserveAspectRatio="none" aria-hidden="true">' + p + '</svg>';
   }
 
   function authShell(o) {
@@ -689,20 +695,16 @@
     }
 
     const infos = items.map(info);
-    const covered = items.filter((it, n) => infos[n].status !== 'expired').reduce((a, it) => a + Number(it.price || 0), 0);
+    const coveredItems = items.filter((it, n) => infos[n].status !== 'expired');
+    const covered = coveredItems.reduce((a, it) => a + Number(it.price || 0), 0);
     const ending = infos.filter((i) => i.status === 'expiring').length;
-    const returns = infos.filter((i) => i.returnOpen).length;
     const att = attention();
+    const next = upNext();
     const merchants = Array.from(new Set(items.map((it) => it.merchant))).sort((a, b) => a.localeCompare(b));
     const cats = CATS.filter((c) => items.some((it) => it.category === c.key));
 
     const html = head +
-      '<section class="stats" aria-label="Summary">' +
-        '<div><span>Items</span><b>' + items.length + '</b></div>' +
-        '<div><span>Still under warranty</span><b class="num">' + money(covered) + '</b></div>' +
-        '<div><span>Ending in 60 days</span><b>' + ending + '</b></div>' +
-        '<div><span>Return windows open</span><b>' + returns + '</b></div>' +
-      '</section>' +
+      upNextHtml(next, covered, coveredItems.length, ending) +
 
       (att.length ? '<section class="section" aria-labelledby="att-title"><div class="section-head"><h2 id="att-title">Needs attention</h2></div>' +
         '<ul class="list">' + att.slice(0, 5).map(attRow).join('') + '</ul></section>' : '') +
@@ -729,6 +731,52 @@
       (state.plan === 'free' ? '<p class="plan-note">' + items.length + ' of ' + FREE_LIMIT + ' items on the free plan. <a href="#/settings/plan">See Plus</a></p>' : '');
 
     return { html, after: renderList };
+  }
+
+  /* The nearest deadline: a return window closing or a warranty ending. */
+  function upNext() {
+    const c = [];
+    state.items.forEach((it) => {
+      const i = info(it);
+      if (i.returnOpen) c.push({ it, i, kind: 'return', days: i.rLeft });
+      if (i.left >= 0) c.push({ it, i, kind: 'warranty', days: i.left });
+    });
+    return c.sort((a, b) => a.days - b.days)[0] || null;
+  }
+
+  function upNextHtml(n, covered, count, ending) {
+    const cov = '<p class="section-label">Coverage</p>' +
+      '<p class="upnext-cov"><b class="num">' + money(covered) + '</b> across ' + plural(count, 'item') + ' still under warranty' +
+      (ending ? '<span class="weak"> · ' + ending + ' ending within 60 days</span>' : '') + '</p>';
+    if (!n) return '<section class="upnext upnext-plain">' + cov + '</section>';
+    const it = n.it, i = n.i;
+    const when = n.kind === 'return'
+      ? 'Return window closes <b>' + fmtDate(i.rEnd, { weekday: true }) + '</b>' + (i.rLeft === 0 ? ', today' : ', in ' + plural(i.rLeft, 'day'))
+      : 'Warranty ends <b>' + fmtDate(i.end, { weekday: true }) + '</b>' + (i.left === 0 ? ', today' : ', in ' + span(i.left));
+    return '<section class="upnext" aria-labelledby="upnext-title">' +
+      '<a class="rc-frame" href="#/item/' + it.id + '" aria-label="Open ' + esc(it.name) + '">' + receiptPreview(it, i) + '</a>' +
+      '<div class="upnext-body">' +
+        '<p class="section-label">Up next</p>' +
+        '<div class="upnext-title"><h2 id="upnext-title">' + esc(it.name) + '</h2>' + (n.kind === 'return' ? returnPill(i) : statusPill(i)) + '</div>' +
+        '<p class="upnext-line">' + when + '</p>' +
+        '<div class="upnext-actions"><a class="btn btn-secondary" href="#/item/' + it.id + '">' + icon('receipt') + '<span>Open item</span></a>' +
+          btn('Export PDF', 'export-one', { kind: 'ghost', icon: 'download', data: { id: it.id } }) + '</div>' +
+        cov +
+      '</div></section>';
+  }
+
+  /* A small paper receipt, drawn from the item's details. */
+  function receiptPreview(it, i) {
+    return '<div class="rc" aria-hidden="true">' +
+      '<p class="rc-shop">' + esc(it.merchant) + '</p>' +
+      '<p class="rc-meta mono">' + fmtDate(it.purchased) + (it.orderNo ? ' · ' + esc(it.orderNo) : '') + '</p>' +
+      '<span class="rc-rule"></span>' +
+      '<p class="rc-line"><span>' + esc(it.name) + '</span><span class="mono">' + money(it.price) + '</span></p>' +
+      '<p class="rc-line rc-total"><span>Total</span><span class="mono">' + money(it.price) + '</span></p>' +
+      '<span class="rc-rule"></span>' +
+      '<p class="rc-line rc-foot"><span>Warranty</span><span>' + (i.status === 'expired' ? 'Ended ' : 'Until ') + fmtDate(i.end) + '</span></p>' +
+      (i.rDays ? '<p class="rc-line rc-foot"><span>Returns</span><span>' + (i.returnOpen ? 'Until ' : 'Closed ') + fmtDate(i.rEnd) + '</span></p>' : '') +
+    '</div>';
   }
 
   function attRow(a) {
@@ -796,8 +844,8 @@
           '<span class="t-text"><b>' + esc(it.name) + (it.review && Object.keys(it.review).length ? '<span class="flag-dot" title="Has details to check"></span>' : '') + '</b>' +
           '<span>' + esc(it.merchant) + ' · ' + fmtDate(it.purchased, { short: true }) + '</span></span></span>' +
         '<span class="t-status" role="cell">' + statusPill(i) + returnPill(i) + '</span>' +
-        '<span class="t-cover" role="cell"><span class="t-cover-text status-' + i.status + '">' + statusText(i, true) + '</span>' + coverage(i) +
-          '<span class="t-until mono">' + (i.status === 'expired' ? 'ended ' : 'until ') + fmtDate(i.end, { short: true }) + '</span></span>' +
+        '<span class="t-warranty" role="cell"><b>' + (i.status === 'expired' ? 'Ended ' : 'Until ') + fmtDate(i.end) + '</b>' +
+          '<span>' + (i.status === 'expired' ? span(i.left) + ' ago' : i.left === 0 ? 'Ends today' : span(i.left) + ' left') + '</span></span>' +
         '<span class="t-price num" role="cell">' + money(it.price) + '</span>' +
         '<span class="t-go" aria-hidden="true">' + icon('chevron') + '</span>' +
       '</a>').join('');
@@ -1204,9 +1252,10 @@
     groups += '</div>';
 
     return {
-      html: '<div class="settings">' +
+      html: '<header class="page-head"><h1>Settings</h1></header>' +
+        '<div class="settings">' +
         '<nav class="snav" aria-label="Settings sections">' + groups + '</nav>' +
-        '<div class="settings-body"><h1 class="sr-only">Settings</h1>' + SETTINGS_BODY[key]() + '</div>' +
+        '<div class="settings-body">' + SETTINGS_BODY[key]() + '</div>' +
       '</div>',
     };
   }
@@ -1415,7 +1464,7 @@
       el.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
       el.innerHTML = icon(show ? 'eye' : 'eyeOff');
     },
-    'user-menu': () => openUserMenu(),
+    'user-menu': (el) => openUserMenu(el),
     'logout': () => {
       closeUserMenu();
       closeDrawer();
