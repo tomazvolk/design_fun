@@ -381,7 +381,7 @@
   }
 
   function pageHeader(o) {
-    return '<header class="page-head"><div>' +
+    return '<header class="page-head' + (o.greeting ? ' page-head-greeting' : '') + '"><div>' +
       '<h1 class="page-title" tabindex="-1">' + esc(o.title) + '</h1>' +
       (o.subtitle ? '<p class="page-sub">' + o.subtitle + '</p>' : '') + '</div>' +
       (o.action ? '<div class="page-actions">' + o.action + '</div>' : '') + '</header>';
@@ -925,15 +925,15 @@
     const b = state.budget;
     const md = moodFor(T.projected, b);
     const month = MONTHS_LONG[new Date().getMonth()];
-    const n = activeSubs().length;
     const action = state.accounts.length
       ? btn('Add subscription', 'add-sub', { icon: 'plus' }) + btn('Scan inbox', 'scan-all', { variant: 'primary', icon: 'refresh' })
       : btn('Add subscription', 'add-sub', { variant: 'primary', icon: 'plus' });
 
     const header = pageHeader({
-      title: 'Overview',
-      subtitle: esc(month) + ' · ' + plural(n, 'active subscription'),
+      title: greetingTitle(),
+      subtitle: greetingLine(T, b, month),
       action: action,
+      greeting: true,
     });
 
     if (!state.subs.length) {
@@ -972,6 +972,41 @@
       '</section>';
 
     return header + '<div class="overview">' + budgetCard + attentionCard(T) + upcomingCard() + '</div>';
+  }
+
+  /* The personal header: a greeting and one sentence on how the month is going. */
+  function greetingTitle() {
+    const h = new Date().getHours();
+    const part = h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+    const first = String((state.user && state.user.name) || '').trim().split(/\s+/)[0];
+    return first ? part + ', ' + first : part;
+  }
+
+  function greetingLine(T, b, month) {
+    const hl = (v) => '<strong class="hl">' + esc(v) + '</strong>';
+    const hlOver = (v) => '<strong class="hl hl-over">' + esc(v) + '</strong>';
+    if (!state.subs.length) {
+      return state.accounts.length
+        ? 'Nothing tracked yet. Scan your inbox again or add a subscription by hand.'
+        : 'Let’s find your subscriptions. Connect Gmail or add one by hand to get started.';
+    }
+    let line = 'You’ve spent ' + hl(money(T.charged)) + ' on subscriptions so far this ' + esc(month);
+    if (!b) {
+      line += (T.toCome ? ', with ' + hl(money(T.toCome)) + ' still to come.' : ', and nothing else is due this month.');
+    } else if (T.projected > b) {
+      line += ', and you’re set to go ' + hlOver(money(T.projected - b)) + ' over your ' + esc(money(b)) + ' budget.';
+    } else if (T.projected / b > 0.85) {
+      line += '. You’re on track, with only ' + hl(money(b - T.projected)) + ' of room left in your budget.';
+    } else {
+      line += ', and you’re set to finish ' + hl(money(b - T.projected)) + ' under budget.';
+    }
+    const t = today();
+    const next = activeSubs().map((x) => ({ s: x, d: nextCharge(x) })).filter((x) => x.d && x.d >= t)
+      .sort((a, c) => a.d.localeCompare(c.d))[0];
+    if (next && daysBetween(t, next.d) <= 7) {
+      line += ' Next up: ' + esc(next.s.name) + ', ' + esc(money(next.s.amount)) + ' ' + esc(fmtRel(next.d)) + '.';
+    }
+    return line;
   }
 
   function attentionItems(T) {

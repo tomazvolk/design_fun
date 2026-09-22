@@ -286,6 +286,9 @@ svg { flex: none; }
 }
 .page-title:focus { outline: none; }
 .page-sub { margin-top: 4px; color: var(--plum-70); }
+.page-head-greeting .page-sub { margin-top: 8px; max-width: 640px; font-size: 16px; line-height: 24px; }
+.page-head-greeting .hl { font-weight: 500; color: var(--plum-100); font-variant-numeric: tabular-nums; }
+.page-head-greeting .hl-over { color: var(--danger-text); }
 .page-actions { display: flex; gap: 8px; flex: none; }
 
 .hero-title {
