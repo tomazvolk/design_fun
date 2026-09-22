@@ -122,7 +122,7 @@
 
   const PROVIDERS = {
     gmail: { label: 'Gmail', how: 'Connected with Google, read-only', icon: 'mail' },
-    manual: { label: 'Added by hand', icon: 'edit' },
+    manual: { label: 'Added manually', icon: 'edit' },
   };
 
   const PLANS = [
@@ -695,11 +695,11 @@
   function onbSource() {
     const has = state.subs.length > 0;
     return '<h1 class="hero-title" tabindex="-1">Where should we look for subscriptions?</h1>' +
-      '<p class="hero-sub">Connect an inbox and Leaky reads the receipts and renewal emails for you. Or add them by hand.</p>' +
+      '<p class="hero-sub">Connect an inbox and Leaky reads the receipts and renewal emails for you. Or add them manually.</p>' +
       '<div class="choice-grid stagger onb-choices">' +
         choiceCard({ tone: 'clay', icon: 'mail', title: 'Gmail', desc: 'Sign in with Google and allow read-only access. Takes a few seconds.',
           actions: btn('Connect Gmail', 'connect-gmail', { variant: has ? 'secondary' : 'primary' }) }) +
-        choiceCard({ tone: 'amber', icon: 'edit', title: 'By hand', desc: 'Type them in yourself. You can always connect an inbox later.',
+        choiceCard({ tone: 'amber', icon: 'edit', title: 'Manually', desc: 'Type them in yourself. You can always connect an inbox later.',
           actions: btn('Add a subscription', 'add-sub', { icon: 'plus' }) }) +
       '</div>' +
       (has ? onbSubsTable() : '') +
@@ -918,13 +918,13 @@
     const title = n ? (c.rescan ? 'We found ' + plural(n, 'new subscription') : 'We found ' + plural(n, 'subscription')) : (c.rescan ? 'Nothing new' : 'No subscriptions found');
     const sub = n
       ? (review ? plural(review, 'receipt') + ' needed a second look, flagged below. ' : '') + 'Tap a row to edit it, or add anything we missed.'
-      : (c.rescan ? 'Your list is up to date.' : 'Nothing that looks like a subscription turned up. You can add them by hand.');
+      : (c.rescan ? 'Your list is up to date.' : 'Nothing that looks like a subscription turned up. You can add them manually.');
     return '<h1 class="hero-title" tabindex="-1">' + esc(title) + '</h1>' +
       '<p class="hero-sub">' + esc(sub) + '</p>' +
       '<ul class="chips stagger">' + chips.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' +
       (n ? onbSubsTable(found) : '') +
       '<div class="onb-actions">' +
-        btn('Add one by hand', 'add-sub', { icon: 'plus', size: 'lg' }) +
+        btn('Add manually', 'add-sub', { icon: 'plus', size: 'lg' }) +
         btn(state.onboarded ? 'Done' : 'Finish', 'connect-done', { variant: 'primary', size: 'lg' }) +
       '</div>';
   }
@@ -1001,8 +1001,8 @@
     const hlOver = (v) => '<strong class="hl hl-over">' + esc(v) + '</strong>';
     if (!state.subs.length) {
       return state.accounts.length
-        ? 'Nothing tracked yet. Scan your inbox again or add a subscription by hand.'
-        : 'Let’s find your subscriptions. Connect Gmail or add one by hand to get started.';
+        ? 'Nothing tracked yet. Scan your inbox again or add a subscription manually.'
+        : 'Let’s find your subscriptions. Connect Gmail or add one manually to get started.';
     }
     let line = 'You’ve spent ' + hl(money(T.charged)) + ' on subscriptions so far this ' + esc(month);
     if (!b) {
@@ -1382,7 +1382,7 @@
       return header + emptyState({
         icon: 'list',
         title: 'No subscriptions yet',
-        text: state.accounts.length ? 'Nothing turned up in your inbox. Add one by hand.' : 'Connect your inbox and Leaky will find them, or add one by hand.',
+        text: state.accounts.length ? 'Nothing turned up in your inbox. Add one manually.' : 'Connect your inbox and Leaky will find them, or add one manually.',
         action: state.accounts.length ? '' : btn('Connect an inbox', 'go-inbox'),
       });
     }
@@ -1459,7 +1459,7 @@
       const pc = state.settings.priceAlerts ? priceChange(s) : null;
       const used = s.lastUsed ? fmtRel(s.lastUsed) : 'No data';
       const cycle = s.cycle === 'yearly' ? 'Yearly' : 'Monthly';
-      const src = PROVIDERS[s.source] ? PROVIDERS[s.source].label : 'Added by hand';
+      const src = PROVIDERS[s.source] ? PROVIDERS[s.source].label : 'Added manually';
       return '<tr data-open="' + s.id + '" class="' + (s.status === 'cancelled' ? 'is-cancelled' : '') + '">' +
         '<td><div class="name-cell"><button type="button" class="row-link" data-action="open-sub" data-id="' + s.id + '">' + esc(s.name) + '</button>' + tag(s.category) + '</div>' +
           '<div class="sub-meta"><span class="m-1024">' + esc(src) + ' · last activity ' + esc(used) + '</span>' +
@@ -1722,7 +1722,7 @@
     const dateVal = s.status === 'trial' ? s.trialEnds : s.nextRenewal;
     const catOpts = Object.keys(CATS).map((k) => [k, CATS[k].label]);
     const src = s.source === 'manual'
-      ? icon('edit') + '<span>Added by hand</span>'
+      ? icon('edit') + '<span>Added manually</span>'
       : icon(PROVIDERS[s.source].icon) + '<span>Found in ' + esc(PROVIDERS[s.source].label) + (s.detectedAt ? ' on ' + esc(fmtDate(s.detectedAt)) : '') + '</span>';
     openOverlay(
       '<div class="sheet-backdrop" data-action="close"></div>' +
