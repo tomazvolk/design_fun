@@ -81,6 +81,7 @@
     device: '<rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M7.5 12h1"/>',
     edit: '<path d="M10 3.5 12.5 6 6 12.5H3.5V10L10 3.5Z"/>',
     google: '<path d="M14 8.2c0-.5 0-.9-.1-1.3H8v2.5h3.4a2.9 2.9 0 0 1-1.3 1.9v1.6h2.1C13.4 11.8 14 10.1 14 8.2Z"/><path d="M8 14.5c1.8 0 3.3-.6 4.3-1.6l-2.1-1.6c-.6.4-1.3.6-2.2.6a3.8 3.8 0 0 1-3.6-2.6H2.2v1.7A6.5 6.5 0 0 0 8 14.5Z"/><path d="M4.4 9.3a3.9 3.9 0 0 1 0-2.6V5H2.2a6.5 6.5 0 0 0 0 5.9Z"/><path d="M8 4.1c1 0 1.8.3 2.5 1l1.9-1.9A6.5 6.5 0 0 0 2.2 5l2.2 1.7A3.8 3.8 0 0 1 8 4.1Z"/>',
+    user: '<circle cx="8" cy="5.5" r="2.75"/><path d="M2.75 13.5c.6-2.6 2.7-4 5.25-4s4.65 1.4 5.25 4"/>',
     logout: '<path d="M6.5 13.5h-3v-11h3"/><path d="M10 11l3-3-3-3M13 8H6.5"/>',
   };
   const FILLED = ['google'];
@@ -227,11 +228,12 @@
     source: 'all',
     sort: { key: 'next', dir: 'asc' },
     page: 1,
-    openSection: 'budget',
+    openSection: 'account',
     connect: null,
     chartRange: '3m',
     authMode: 'signup',
     authBusy: false,
+    pwBusy: false,
     authEmail: '',
     booting: LIVE,
     relief: null,
@@ -499,7 +501,12 @@
 
   function route() {
     const r = location.hash.replace(/^#\/?/, '');
-    if (r === 'inbox') { ui.openSection = 'inbox'; history.replaceState(null, '', '#/settings'); return 'settings'; }
+    if (r === 'inbox') { ui.openSection = 'inbox'; history.replaceState(null, '', '#/settings/inbox'); return 'settings'; }
+    if (r === 'settings' || r.indexOf('settings/') === 0) {
+      const sec = r.split('/')[1];
+      ui.openSection = SETTINGS_SECTIONS.some((x) => x.id === sec) ? sec : 'account';
+      return 'settings';
+    }
     return ROUTES.some((x) => x.id === r) ? r : 'overview';
   }
 
@@ -579,6 +586,9 @@
     view.innerHTML = views[r]();
     document.title = (ROUTES.find((x) => x.id === r).label) + ' · Leaky';
     renderChart();
+    /* On phones the section menu scrolls sideways; keep the current section in view. */
+    const cur = r === 'settings' && $('.snav a[aria-current="page"]');
+    if (cur) { const nav = cur.parentElement; nav.scrollLeft = cur.offsetLeft - (nav.clientWidth - cur.offsetWidth) / 2; }
   }
 
   /* ======================================================================
@@ -831,8 +841,8 @@
     focusTitle();
   }
 
-  function startScan(account, rescan) {
-    ui.connect = { provider: account.provider, phase: 'scan', account: account, emitted: [], count: 0, found: 0, results: [], rescan: !!rescan };
+  function startScan(account, rescan, only) {
+    ui.connect = { provider: account.provider, phase: 'scan', account: account, emitted: [], count: 0, found: 0, results: [], rescan: !!rescan, only: !!only };
     render();
     focusTitle();
     const fast = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -853,7 +863,7 @@
       if (ui.connect !== c) return;
       const now = new Date().toISOString();
       if (!c.rescan) state.accounts.push(c.account);
-      state.accounts.forEach((a) => { if (a.id === c.account.id || c.rescan) a.lastScan = now; });
+      state.accounts.forEach((a) => { if (a.id === c.account.id || (c.rescan && !c.only)) a.lastScan = now; });
       const found = makeSubs(c.account.provider);
       state.subs = state.subs.concat(found);
       c.results = found.map((x) => x.id);
@@ -929,11 +939,11 @@
   }
 
   function connectEmail(c, P) {
-    return '<h1 class="hero-title" tabindex="-1">Connect Gmail</h1>' +
+    return '<h1 class="hero-title" tabindex="-1">' + (state.accounts.length ? 'Add another Gmail account' : 'Connect Gmail') + '</h1>' +
       '<p class="hero-sub">Enter the address of the inbox to read. Leaky only looks at billing emails, and you can disconnect any time.</p>' +
       '<form class="connect-card" data-form="connect-email" novalidate>' +
         '<div class="field"><label class="field-label" for="c-email">Gmail address</label>' +
-          '<input class="input" id="c-email" name="email" type="email" autocomplete="email" inputmode="email" required value="' + esc((state.user && state.user.email) || '') + '" /></div>' +
+          '<input class="input" id="c-email" name="email" type="email" autocomplete="email" inputmode="email" required value="' + esc(state.user && state.user.email && !state.accounts.some((a) => a.address === state.user.email) ? state.user.email : '') + '" /></div>' +
         '<p class="field-error" id="c-error" hidden>' + icon('alert') + '<span></span></p>' +
         btn('Continue with Google', null, { variant: 'primary', size: 'lg', type: 'submit' }) +
         '<p class="tertiary auth-note">Prototype: this skips Google’s sign-in and runs a simulated scan with sample data.</p>' +
@@ -943,7 +953,7 @@
   function connectScan(c, P) {
     const rows = c.emitted.slice(-6).map((m) => '<li class="mail">' + mailRow(m, true) + '</li>').join('');
     return '<h1 class="hero-title" tabindex="-1">Reading your inbox</h1>' +
-      '<p class="hero-sub">' + esc(c.account.address) + ' · Only billing emails are read. Everything else is skipped without being stored.</p>' +
+      '<p class="hero-sub">' + esc(c.rescan && !c.only && state.accounts.length > 1 ? plural(state.accounts.length, 'inbox', 'inboxes') : c.account.address) + ' · Only billing emails are read. Everything else is skipped without being stored.</p>' +
       '<div class="scan" aria-live="polite">' +
         '<div class="scan-counts"><span id="scan-count">' + c.count.toLocaleString('en-US') + ' of ' + SCAN_TOTAL.toLocaleString('en-US') + ' emails</span>' +
           '<span id="scan-found" class="muted">' + plural(c.found, 'billing email') + '</span></div>' +
@@ -1567,34 +1577,6 @@
     return out.filter((e) => e.date <= t).sort((a, b) => b.date.localeCompare(a.date));
   }
 
-  function inboxBody() {
-    const a = state.accounts[0];
-    if (!a) {
-      return '<div class="setting"><div class="setting-text"><p class="setting-label">Gmail</p>' +
-        '<p class="setting-desc">Leaky reads receipts, renewal notices, trial confirmations and price-change emails. Nothing else.</p></div>' +
-        btn('Connect Gmail', 'connect-gmail', { icon: 'mail' }) + '</div>';
-    }
-    const events = inboxEvents();
-    return '<div class="account"><span class="account-icon">' + icon('mail', 20) + '</span>' +
-        '<div><p class="account-name">' + esc(a.address) + '</p>' +
-        '<p class="account-meta"><span>' + esc(PROVIDERS.gmail.how) + '</span>' +
-        statusHtml('success', 'Connected') + '<span>Last scan ' + esc(a.lastScan ? relTime(a.lastScan) : 'never') + '</span></p></div>' +
-        '<div class="account-actions">' + btn('Scan now', 'scan-all', { icon: 'refresh' }) + btn('Disconnect', 'disconnect', { id: a.id, variant: 'ghost' }) + '</div>' +
-      '</div>' +
-      (events.length
-        ? '<div class="table-card"><div class="table-scroll"><table class="rtable"><thead><tr><th>From</th><th class="col-mid">Email</th><th class="col-mid">Received</th><th>Read as</th><th class="num">Amount</th></tr></thead><tbody>' +
-          events.map((e) =>
-            '<tr data-open="' + e.s.id + '"><td><div class="name-cell"><button type="button" class="row-link" data-action="open-sub" data-id="' + e.s.id + '">' + esc(e.s.name) + '</button></div>' +
-            '<div class="sub-meta"><span class="m-1024">' + esc(e.type) + ' · ' + esc(fmtDate(e.date)) + '</span><span class="m-640">' + esc(e.type) + ' · ' + esc(fmtDate(e.date)) + '</span></div></td>' +
-            '<td class="col-mid">' + esc(e.type) + '</td>' +
-            '<td class="col-mid muted">' + esc(fmtDate(e.date)) + '</td>' +
-            '<td class="col-status">' + (e.s.review && e.type === 'Receipt' ? statusHtml('warning', 'Needs a check') : statusHtml('success', 'Parsed')) + '</td>' +
-            '<td class="num">' + (e.amount ? money(e.amount) : '<span class="muted">Free</span>') + '</td></tr>'
-          ).join('') + '</tbody></table></div>' +
-          '<div class="pager"><span>' + plural(events.length, 'billing email') + ' found</span></div></div>'
-        : '');
-  }
-
   function relTime(iso) {
     const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
     if (mins < 1) return 'just now';
@@ -1607,106 +1589,179 @@
   /* ======================================================================
      Settings
      ====================================================================== */
+  const SETTINGS_SECTIONS = [
+    { id: 'account', label: 'Account', icon: 'user', desc: 'Your profile and how you sign in.' },
+    { id: 'inbox', label: 'Inbox', icon: 'mail', desc: 'The inboxes Leaky reads to find your subscriptions.' },
+    { id: 'budget', label: 'Budget', icon: 'wallet', desc: 'What you want to spend on subscriptions each month.' },
+    { id: 'alerts', label: 'Alerts', icon: 'bell', desc: 'How Leaky reaches you, and what it tells you about.' },
+    { id: 'plan', label: 'Plan', icon: 'sparkle', desc: 'Your Leaky plan.' },
+  ];
+
+  /* One row: label and description on the left, its control on the right, a divider between rows. */
+  function srow(o) {
+    return '<div class="srow' + (o.danger ? ' srow-danger' : '') + '"><div class="srow-text">' +
+        '<p class="srow-label"' + (o.id ? ' id="' + o.id + '"' : '') + '>' + o.label + '</p>' +
+        (o.desc ? '<p class="srow-desc">' + o.desc + '</p>' : '') +
+        (o.sub ? '<div class="srow-sub">' + o.sub + '</div>' : '') +
+      '</div>' + (o.control ? '<div class="srow-control">' + o.control + '</div>' : '') + '</div>';
+  }
+
+  function sgroup(title, rows, o) {
+    o = o || {};
+    return '<section class="card sgroup' + (o.danger ? ' sgroup-danger' : '') + '">' +
+      '<header class="sgroup-head"><h3 class="sgroup-title">' + title + '</h3>' + (o.desc ? '<p class="sgroup-desc">' + o.desc + '</p>' : '') + '</header>' +
+      rows + '</section>';
+  }
+
+  function settingsFlags() {
+    return {
+      inbox: !state.accounts.length ? 'Not connected' : '',
+      budget: !state.budget ? 'Not set' : '',
+      plan: state.plan === 'free' && activeSubs().length > FREE_LIMIT ? 'Over the free limit' : '',
+    };
+  }
+
   function viewSettings() {
-    const S = state.settings;
+    const current = SETTINGS_SECTIONS.some((x) => x.id === ui.openSection) ? ui.openSection : 'account';
+    const sec = SETTINGS_SECTIONS.find((x) => x.id === current);
+    const flags = settingsFlags();
+    const nav = '<nav class="snav" aria-label="Settings sections">' + SETTINGS_SECTIONS.map((x) =>
+      '<a href="#/settings/' + x.id + '"' + (x.id === current ? ' aria-current="page"' : '') + '>' + icon(x.icon) + '<span>' + x.label + '</span>' +
+        '<span class="snav-flag" data-navflag="' + x.id + '"' + (flags[x.id] ? '' : ' hidden') + ' title="' + esc(flags[x.id] || '') + '"><span class="sr-only">' + esc(flags[x.id] || '') + '</span></span></a>'
+    ).join('') + '</nav>';
+
+    const bodies = { account: settingsAccount, inbox: settingsInbox, budget: settingsBudget, alerts: settingsAlerts, plan: settingsPlan };
+    return pageHeader({ title: 'Settings', subtitle: 'Changes save automatically.' }) +
+      '<div class="settings">' + nav +
+        '<div class="spanel">' +
+          '<header class="spanel-head"><h2 class="spanel-title" id="spanel-title" tabindex="-1">' + sec.label + '</h2><p class="muted">' + sec.desc + '</p></header>' +
+          bodies[current]() +
+        '</div>' +
+      '</div>';
+  }
+
+  function settingsAccount() {
+    const u = state.user;
+    const method = u.method === 'google' ? 'Google' : 'Email and password';
+    return sgroup('Profile',
+        srow({ label: '<label for="name-input">Name</label>', desc: 'Used to greet you on the overview.',
+          control: '<input class="input input-inline" id="name-input" autocomplete="given-name" value="' + esc(u.name || '') + '" />' })) +
+      sgroup('Sign-in',
+        srow({ label: 'Email', desc: u.email ? esc(u.email) : 'Not set' }) +
+        srow({ label: 'Signed in with', desc: esc(method) }) +
+        srow({ label: 'Sign out', desc: 'Your data stays in your account.', control: btn('Sign out', 'sign-out', { icon: 'logout' }) })) +
+      passwordGroup(u) +
+      sgroup('Account control',
+        srow({ label: 'Delete all data', desc: 'Removes your subscriptions, inbox connection, budget and settings. Your account stays, and you set things up again.',
+          control: btn('Delete all data', 'delete-data', { variant: 'danger-outline' }) }) +
+        srow({ label: 'Delete account', desc: LIVE ? 'Permanently deletes your account and everything in it.' : 'Removes your account and everything in it from this device.',
+          control: btn('Delete account', 'delete-all', { variant: 'danger-outline' }) }));
+  }
+
+  function passwordGroup(u) {
+    const google = u.method === 'google';
+    const field = (id, label, auto, desc) =>
+      '<div class="field"><label class="field-label" for="' + id + '">' + label + '</label>' +
+        (desc ? '<p class="field-desc">' + desc + '</p>' : '') +
+        '<input class="input" id="' + id + '" name="' + id + '" type="password" autocomplete="' + auto + '" required /></div>';
+    return '<section class="card sgroup">' +
+      '<header class="sgroup-head"><h3 class="sgroup-title">' + (google ? 'Add a password' : 'Change password') + '</h3>' +
+        '<p class="sgroup-desc">' + (google ? 'You sign in with Google. Add a password to also sign in with your email.' : 'Use at least 8 characters. You’ll stay signed in on this device.') + '</p></header>' +
+      '<form class="pw-form" data-form="change-password" novalidate>' +
+        (google ? '' : field('pw-current', 'Current password', 'current-password')) +
+        '<div class="field-row">' +
+          field('pw-new', 'New password', 'new-password') +
+          field('pw-confirm', 'Repeat new password', 'new-password') +
+        '</div>' +
+        '<p class="field-error" id="pw-error" hidden>' + icon('alert') + '<span></span></p>' +
+        '<div class="pw-actions">' +
+          (google || !u.email ? '' : '<button type="button" class="link-btn" data-action="change-password">Forgot it? Send me a reset link</button>') +
+          '<span class="spacer"></span>' +
+          btn(ui.pwBusy ? 'Saving…' : (google ? 'Add password' : 'Update password'), null, { type: 'submit', disabled: ui.pwBusy }) +
+        '</div>' +
+      '</form></section>';
+  }
+
+  function settingsInbox() {
+    const list = state.accounts;
+    const events = inboxEvents();
+    const rows = list.map((a) => srow({
+      label: esc(a.address),
+      desc: statusHtml('success', 'Connected') + ' <span class="dot-sep">·</span> Last scan ' + esc(a.lastScan ? relTime(a.lastScan) : 'never'),
+      control: btn('Scan now', 'scan-account', { id: a.id, icon: 'refresh' }) + btn('Disconnect', 'disconnect', { id: a.id, variant: 'ghost' }),
+    })).join('');
+    const add = srow({
+      label: list.length ? 'Add another Gmail account' : 'Connect Gmail',
+      desc: list.length ? 'Scan more inboxes, like a work or family account.' : 'Leaky reads receipts, renewal notices, trial confirmations and price-change emails. Nothing else.',
+      control: btn(list.length ? 'Add account' : 'Connect Gmail', 'connect-gmail', { icon: list.length ? 'plus' : 'mail' }),
+    });
+    return sgroup(list.length > 1 ? plural(list.length, 'connected inbox', 'connected inboxes') : 'Gmail', rows + add,
+        { desc: list.length ? 'Read-only access. Leaky only looks at billing emails.' : '' }) +
+      (events.length
+        ? '<section class="sgroup-table"><h3 class="sgroup-title">Billing emails found</h3>' +
+          '<div class="table-card"><div class="table-scroll"><table class="rtable"><thead><tr><th>From</th><th class="col-mid">Email</th><th class="col-mid">Received</th><th>Read as</th><th class="num">Amount</th></tr></thead><tbody>' +
+          events.map((e) =>
+            '<tr data-open="' + e.s.id + '"><td><div class="name-cell"><button type="button" class="row-link" data-action="open-sub" data-id="' + e.s.id + '">' + esc(e.s.name) + '</button></div>' +
+            '<div class="sub-meta"><span class="m-1024">' + esc(e.type) + ' · ' + esc(fmtDate(e.date)) + '</span><span class="m-640">' + esc(e.type) + ' · ' + esc(fmtDate(e.date)) + '</span></div></td>' +
+            '<td class="col-mid">' + esc(e.type) + '</td>' +
+            '<td class="col-mid muted">' + esc(fmtDate(e.date)) + '</td>' +
+            '<td class="col-status">' + (e.s.review && e.type === 'Receipt' ? statusHtml('warning', 'Needs a check') : statusHtml('success', 'Parsed')) + '</td>' +
+            '<td class="num">' + (e.amount ? money(e.amount) : '<span class="muted">Free</span>') + '</td></tr>'
+          ).join('') + '</tbody></table></div>' +
+          '<div class="pager"><span>' + plural(events.length, 'billing email') + ' found</span></div></div></section>'
+        : '');
+  }
+
+  function settingsBudget() {
     const T = totals();
     const b = state.budget;
-    const plan = PLANS.find((p) => p.id === state.plan);
+    const st = budgetStatus(T.projected, b);
+    return sgroup('Monthly budget',
+      srow({ label: '<label for="budget-input">Budget</label>', desc: 'Covers subscriptions only, not general spending.',
+        control: '<div class="affix input-inline"><span>$</span><input class="input" id="budget-input" inputmode="decimal" autocomplete="off" value="' + (b ? esc(b.toFixed(2)) : '') + '" /></div>' }) +
+      srow({ label: 'This month', desc: 'Projected from your subscriptions’ billing dates.',
+        control: '<span class="srow-value">' + money(T.projected) + '</span>' + (st ? statusHtml(st.tone, st.label) : '') }));
+  }
 
-    const budgetBody =
-      '<div class="field"><label class="field-label" for="budget-input">Monthly budget</label>' +
-        '<p class="field-desc" id="budget-desc">Covers subscriptions only, not general spending. Leaky compares it with this month’s projected total.</p>' +
-        '<div class="affix" style="max-width:240px"><span>$</span><input class="input" id="budget-input" inputmode="decimal" autocomplete="off" aria-describedby="budget-desc" value="' + (b ? esc(b.toFixed(2)) : '') + '" /></div>' +
-        '<p class="muted">This month: ' + money(T.projected) + ' projected.</p></div>';
-
+  function settingsAlerts() {
+    const S = state.settings;
     const days = [[1, '1 day before'], [3, '3 days before'], [7, '7 days before']];
-    const alertRow = (key, label, desc, extra) =>
-      '<div class="setting"><div class="setting-text"><p class="setting-label" id="lbl-' + key + '">' + label + '</p><p class="setting-desc">' + desc + '</p>' +
-      (S[key] && extra ? '<div class="setting-control">' + extra + '</div>' : '') + '</div>' + toggle(key, S[key], label) + '</div>';
-
     const canNotify = 'Notification' in window;
     const blocked = canNotify && Notification.permission === 'denied';
     const pushOn = S.notifications && canNotify && !blocked;
-    const channelRow = (key, label, desc, on, extra, disabled) =>
-      '<div class="setting"><div class="setting-text"><p class="setting-label">' + label + '</p><p class="setting-desc">' + desc + '</p>' +
-      (on && extra ? '<div class="setting-control">' + extra + '</div>' : '') + '</div>' + toggle(key, on, label, { disabled: disabled }) + '</div>';
-    const alertsBody =
-      '<p class="overline">How to reach you</p>' +
-      channelRow('notifications', 'Push notifications',
-        !canNotify ? 'This browser doesn’t support notifications.' : blocked ? 'Notifications are blocked for this site in your browser settings.' : 'Alerts on this device, even when Leaky is closed.',
-        pushOn, btn('Send a test notification', 'test-notify', { icon: 'bell' }), !canNotify || blocked) +
-      channelRow('emailAlerts', 'Email alerts', 'Alerts sent to ' + esc((state.user && state.user.email) || 'your account email') + '.',
-        S.emailAlerts,
-        '<label class="field-label" for="s-email-freq">Send</label>' + selectField('emailFreq', S.emailFreq, [['instant', 'As they happen'], ['daily', 'Daily summary'], ['weekly', 'Weekly summary']], { id: 's-email-freq', setting: 'emailFreq' }) +
-        '<p class="field-desc">Email delivery switches on once Leaky’s email service is connected.</p>') +
-      '<p class="overline">What to alert you about</p>' +
-      alertRow('renewalAlerts', 'Renewal alerts', 'A reminder before a subscription renews, so there’s time to cancel.',
-        '<label class="field-label" for="s-renewal">Remind me</label>' + selectField('renewalDays', S.renewalDays, days, { id: 's-renewal', setting: 'renewalDays' })) +
-      alertRow('trialAlerts', 'Free trial warnings', 'A warning before a free trial turns into a paid subscription.',
-        '<label class="field-label" for="s-trial">Warn me</label>' + selectField('trialDays', S.trialDays, days, { id: 's-trial', setting: 'trialDays' })) +
-      alertRow('priceAlerts', 'Price increase alerts', 'Tells you when a merchant raises its price.') +
-      alertRow('unusedFlag', 'Unused subscription flagging', 'Highlights subscriptions with no activity emails for a while.',
-        '<label class="field-label" for="s-unused">Flag after</label>' + selectField('unusedMonths', S.unusedMonths, [[1, '1 month'], [2, '2 months'], [3, '3 months'], [6, '6 months']], { id: 's-unused', setting: 'unusedMonths' }));
+    const typeRow = (key, label, desc, sub) => srow({ label: label, desc: desc, sub: S[key] ? sub : '', control: toggle(key, S[key], label) });
+    return sgroup('How to reach you',
+        srow({ label: 'Push notifications',
+          desc: !canNotify ? 'This browser doesn’t support notifications.' : blocked ? 'Blocked for this site in your browser settings.' : 'Alerts on this device, even when Leaky is closed.',
+          sub: pushOn ? btn('Send a test notification', 'test-notify', { icon: 'bell' }) : '',
+          control: toggle('notifications', pushOn, 'Push notifications', { disabled: !canNotify || blocked }) }) +
+        srow({ label: 'Email alerts', desc: 'Sent to ' + esc((state.user && state.user.email) || 'your account email') + '.',
+          sub: S.emailAlerts ? '<label class="field-label" for="s-email-freq">Send</label>' + selectField('emailFreq', S.emailFreq, [['instant', 'As they happen'], ['daily', 'Daily summary'], ['weekly', 'Weekly summary']], { id: 's-email-freq', setting: 'emailFreq' }) +
+            '<p class="field-desc">Email delivery switches on once Leaky’s email service is connected.</p>' : '',
+          control: toggle('emailAlerts', S.emailAlerts, 'Email alerts') })) +
+      sgroup('What to alert you about',
+        typeRow('renewalAlerts', 'Renewals', 'A reminder before a subscription renews, so there’s time to cancel.',
+          '<label class="field-label" for="s-renewal">Remind me</label>' + selectField('renewalDays', S.renewalDays, days, { id: 's-renewal', setting: 'renewalDays' })) +
+        typeRow('trialAlerts', 'Free trials', 'A warning before a free trial turns into a paid subscription.',
+          '<label class="field-label" for="s-trial">Warn me</label>' + selectField('trialDays', S.trialDays, days, { id: 's-trial', setting: 'trialDays' })) +
+        typeRow('priceAlerts', 'Price increases', 'When a merchant raises its price.') +
+        typeRow('unusedFlag', 'Unused subscriptions', 'Subscriptions with no activity emails for a while.',
+          '<label class="field-label" for="s-unused">Flag after</label>' + selectField('unusedMonths', S.unusedMonths, [[1, '1 month'], [2, '2 months'], [3, '3 months'], [6, '6 months']], { id: 's-unused', setting: 'unusedMonths' })));
+  }
 
-    const channels = [pushOn ? 'push' : null, S.emailAlerts ? 'email' : null].filter(Boolean);
-    const alertsSummary = (channels.length ? channels.join(' + ') : 'No delivery') + ' · ' + [
-      S.renewalAlerts ? 'Renewals ' + S.renewalDays + (S.renewalDays === 1 ? ' day' : ' days') + ' before' : null,
-      S.trialAlerts ? 'trials' : null,
-      S.priceAlerts ? 'price rises' : null,
-      S.unusedFlag ? 'unused after ' + plural(S.unusedMonths, 'month') : null,
-    ].filter(Boolean).join(', ');
-
-    const deviceBody =
-      '<div class="setting"><div class="setting-text"><p class="setting-label">Install Leaky</p>' +
-        '<p class="setting-desc">' + (isStandalone() ? 'Leaky is installed on this device.' : ui.installEvent ? 'Add Leaky to your home screen or dock, like an app.' : 'Use your browser’s “Add to Home Screen” or install option to keep Leaky one tap away.') + '</p>' +
-        (ui.installEvent && !isStandalone() ? '<div class="setting-control">' + btn('Install', 'install', { icon: 'device' }) + '</div>' : '') +
-      '</div></div>';
-
-    const planBody =
+  function settingsPlan() {
+    const plan = PLANS.find((p) => p.id === state.plan);
+    const over = state.plan === 'free' && activeSubs().length > FREE_LIMIT;
+    return sgroup('Current plan',
+        srow({ label: esc(plan.name), desc: plan.id === 'free'
+          ? 'Up to ' + FREE_LIMIT + ' subscriptions. ' + (over ? '<span class="rise">You’re tracking ' + activeSubs().length + '.</span>' : 'You’re tracking ' + activeSubs().length + '.')
+          : esc(plan.price) + '. Unlimited subscriptions.' })) +
       '<div class="choice-grid">' + PLANS.map((p) => choiceCard({
         tone: p.tone, icon: p.icon, title: p.name, price: p.price, desc: p.desc,
         badge: p.id === state.plan ? ' <span class="tag tag-neutral">Current plan</span>' : '',
         actions: p.id === state.plan ? '' : btn('Switch to ' + p.name, 'choose-plan', { id: p.id }),
       })).join('') + '</div>' +
-      '<p class="muted">Prototype: switching plans doesn’t take a payment.</p>';
-
-    const section = (id, title, summary, body, flag) => {
-      const open = ui.openSection === id;
-      return '<section class="card acc' + (open ? ' is-open' : '') + '">' +
-        '<h2 class="acc-h"><button type="button" class="acc-btn" id="acc-' + id + '" data-action="toggle-section" data-id="' + id + '" aria-expanded="' + open + '" aria-controls="acc-body-' + id + '">' +
-          '<span class="acc-title">' + title + '</span>' +
-          '<span class="acc-summary" data-summary="' + id + '">' + (flag ? '<span class="flag">' + icon('alert') + esc(summary) + '</span>' : esc(summary)) + '</span>' +
-          icon('chevDown') + '</button></h2>' +
-        '<div class="acc-body" id="acc-body-' + id + '"' + (open ? '' : ' hidden') + '>' + body + '</div></section>';
-    };
-
-    const u = state.user;
-    const method = u.method === 'google' ? 'Signed in with Google' : 'Signed in with email';
-    const accountBody =
-      '<div class="field"><label class="field-label" for="name-input">Your name</label>' +
-        '<input class="input" id="name-input" autocomplete="given-name" style="max-width:240px" value="' + esc(u.name || '') + '" /></div>' +
-      '<div class="setting"><div class="setting-text"><p class="setting-label">' + esc(method) + '</p>' +
-        '<p class="setting-desc">' + (u.email ? esc(u.email) : 'Leaky only stores what it needs to keep your list on this device.') + '</p></div>' +
-        btn('Sign out', 'sign-out') + '</div>' +
-      (LIVE && u.method === 'email' ? '<div class="setting"><div class="setting-text"><p class="setting-label">Password</p>' +
-        '<p class="setting-desc">We’ll email you a link to choose a new one.</p></div>' + btn('Change password', 'change-password') + '</div>' : '');
-
-    return pageHeader({ title: 'Settings', subtitle: 'Changes save automatically.' }) +
-      section('account', 'Account', (u.name || 'No name') + (u.email ? ' · ' + u.email : ''), accountBody) +
-      section('inbox', 'Inbox', state.accounts[0] ? state.accounts[0].address + ' · last scan ' + (state.accounts[0].lastScan ? relTime(state.accounts[0].lastScan) : 'never') : 'Not connected', inboxBody(), !state.accounts.length) +
-      section('budget', 'Budget', b ? money(b) + ' a month' : 'Not set', budgetBody, !b) +
-      section('alerts', 'Alerts', alertsSummary, alertsBody) +
-      section('device', 'This device', isStandalone() ? 'Installed' : 'Not installed', deviceBody) +
-      section('plan', 'Plan', plan.name + (plan.id === 'free' ? ' · up to ' + FREE_LIMIT + ' subscriptions' : ' · ' + plan.price), planBody,
-        state.plan === 'free' && activeSubs().length > FREE_LIMIT) +
-      '<h2 class="danger-title">Danger zone</h2>' +
-      '<div class="card danger-card">' +
-        (LIVE
-          ? '<div class="setting"><div class="setting-text"><p class="setting-label">Delete account</p><p class="setting-desc">Permanently deletes your account, subscriptions and settings.</p></div>' +
-            btn('Delete account', 'delete-all', { variant: 'danger-outline' }) + '</div>'
-          : '<div class="setting"><div class="setting-text"><p class="setting-label">Delete all data</p><p class="setting-desc">Removes inboxes, subscriptions and settings from this device and starts over.</p></div>' +
-            btn('Delete all data', 'delete-all', { variant: 'danger-outline' }) + '</div>') +
-      '</div>';
+      '<p class="muted small-note">Prototype: switching plans doesn’t take a payment.</p>';
   }
 
   const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -2014,7 +2069,7 @@
   function findSub(id) { return state.subs.find((s) => s.id === id); }
 
   function focusTitle() {
-    const h = $('#view h1');
+    const h = (route() === 'settings' && state.onboarded && $('#spanel-title')) || $('#view h1');
     if (h) h.focus({ preventScroll: true });
   }
 
@@ -2063,6 +2118,7 @@
     'connect-done': () => {
       ui.connect = null;
       if (!state.onboarded) return finishOnboarding();
+      if (route() === 'settings') { render(); focusTitle(); return; }
       location.hash = '#/overview';
       render();
       focusTitle();
@@ -2093,7 +2149,8 @@
     },
     'change-password': () => {
       const email = state.user && state.user.email;
-      if (!LIVE || !email) return;
+      if (!email) return;
+      if (!LIVE) { toast('Demo mode: a reset link would go to ' + email + '.'); return; }
       sb.auth.resetPasswordForEmail(email, { redirectTo: APP_URL })
         .then(({ error }) => toast(error ? authMessage(error) : 'We sent a link to ' + email + ' to set a new password.'));
     },
@@ -2111,6 +2168,7 @@
     'onb-skip': () => { state.budget = null; goStep('source'); },
     'onb-finish': finishOnboarding,
     'scan-all': () => { if (state.accounts.length) startScan(state.accounts[0], true); },
+    'scan-account': (id) => { const a = state.accounts.find((x) => x.id === id); if (a) startScan(a, true, true); },
     'add-sub': () => sheet(null),
     'open-sub': (id) => { const s = findSub(id); if (s) sheet(s); },
     'cancel-sub': cancelSub,
@@ -2153,9 +2211,24 @@
       save(); render();
       toast('Disconnected ' + (a ? a.address : 'inbox'));
     },
-    'delete-all': () => LIVE
-      ? confirmModal('Delete your account?', 'This permanently deletes your account, subscriptions and settings. It can’t be undone.', 'Delete account', 'confirm-delete-all')
-      : confirmModal('Delete all data?', 'This removes your inboxes, subscriptions and settings from this device. It can’t be undone.', 'Delete everything', 'confirm-delete-all'),
+    'delete-all': () => confirmModal('Delete your account?',
+      LIVE ? 'This permanently deletes your account, subscriptions and settings. It can’t be undone.' : 'This removes your account, subscriptions and settings from this device. It can’t be undone.',
+      'Delete account', 'confirm-delete-all'),
+    'delete-data': () => confirmModal('Delete all data?',
+      'This removes your subscriptions, inbox connection, budget and settings. Your account stays, and you’ll set things up again. It can’t be undone.',
+      'Delete data', 'confirm-delete-data'),
+    'confirm-delete-data': () => {
+      const u = Object.assign({}, state.user);
+      replaceState(null);
+      state.user = u;
+      ui.connect = null;
+      save();
+      closeOverlay();
+      history.replaceState(null, '', location.pathname);
+      render();
+      focusTitle();
+      toast('Your data has been deleted');
+    },
     'confirm-delete-all': async () => {
       if (LIVE && sb) {
         clearTimeout(pushTimer);
@@ -2183,12 +2256,6 @@
       });
     },
     undo: () => { const fn = ui.undo; ui.undo = null; $('#toasts').innerHTML = ''; if (fn) fn(); },
-    'toggle-section': (id) => {
-      ui.openSection = ui.openSection === id ? null : id;
-      render();
-      const b = $('#acc-' + id);
-      if (b) b.focus();
-    },
     toggle: (key) => {
       if (key === 'notifications') return toggleNotifications();
       state.settings[key] = !state.settings[key];
@@ -2200,7 +2267,7 @@
     'choose-plan': (id) => {
       state.plan = id;
       save(); render();
-      const b = $('#acc-plan');
+      const b = $('#spanel-title');
       if (b) b.focus();
       toast('You’re now on ' + PLANS.find((p) => p.id === id).name);
     },
@@ -2366,11 +2433,11 @@
 
   /* Open a Settings section; when already on Settings the hash doesn't change, so render directly. */
   function goSettings(section) {
-    ui.openSection = section;
-    if (route() !== 'settings') { location.hash = '#/settings'; return; }
+    const target = '#/settings/' + section;
+    if (location.hash !== target) { location.hash = target; return; }
     render();
-    const b = $('#acc-' + section);
-    if (b) { b.scrollIntoView({ block: 'start', behavior: 'smooth' }); b.focus({ preventScroll: true }); }
+    const h = $('#spanel-title');
+    if (h) h.focus();
   }
 
   function goStep(step) {
@@ -2414,6 +2481,12 @@
       const c = ui.connect;
       const email = f.email.value.trim();
       if (!EMAIL_RE.test(email)) { showError('c-error', 'Enter a valid email address.'); f.email.setAttribute('aria-invalid', 'true'); f.email.focus(); return; }
+      if (state.accounts.some((a) => a.address.toLowerCase() === email.toLowerCase())) {
+        showError('c-error', 'That inbox is already connected.');
+        f.email.setAttribute('aria-invalid', 'true');
+        f.email.focus();
+        return;
+      }
       startScan(newAccount(c.provider, email), false);
     },
     confirm: () => {},
@@ -2464,6 +2537,36 @@
         ui.authMode = 'signin';
         toast('Password updated');
         focusSoon();
+      });
+    },
+    'change-password': (f) => {
+      const google = state.user.method === 'google';
+      const cur = google ? '' : f['pw-current'].value;
+      const next = f['pw-new'].value;
+      const again = f['pw-confirm'].value;
+      const fail = (msg, el) => { showError('pw-error', msg); if (el) { el.setAttribute('aria-invalid', 'true'); el.focus(); } };
+      if (!google && !cur) return fail('Enter your current password.', f['pw-current']);
+      if (next.length < 8) return fail('Use at least 8 characters for the new password.', f['pw-new']);
+      if (next !== again) return fail('The new passwords don’t match.', f['pw-confirm']);
+      if (!google && next === cur) return fail('Pick a password that’s different from your current one.', f['pw-new']);
+      const done = () => { ui.pwBusy = false; render(); toast(google ? 'Password added' : 'Password updated'); };
+      if (!LIVE) return done();
+      ui.pwBusy = true;
+      render();
+      (async () => {
+        if (!google) {
+          /* Confirm the current password before changing it. */
+          const { error } = await sb.auth.signInWithPassword({ email: state.user.email, password: cur });
+          if (error) throw { message: 'Your current password isn’t right.' };
+        }
+        const { error } = await sb.auth.updateUser({ password: next });
+        if (error) throw error;
+      })().then(done, (err) => {
+        ui.pwBusy = false;
+        render();
+        showError('pw-error', err.message === 'Your current password isn’t right.' ? err.message : authMessage(err));
+        const el = $(google ? '#pw-new' : '#pw-current');
+        if (el) el.focus();
       });
     },
     'onb-name': (f) => {
@@ -2539,8 +2642,8 @@
       if (v === state.budget) return;
       state.budget = v;
       save();
-      const sum = $('[data-summary="budget"]');
-      if (sum) sum.innerHTML = v ? esc(money(v) + ' a month') : '<span class="flag">' + icon('alert') + 'Not set</span>';
+      const flag = $('[data-navflag="budget"]');
+      if (flag) flag.hidden = !!v;
       toast(v ? 'Budget updated to ' + money(v) + ' a month' : 'Budget cleared');
     }, 700);
   }
@@ -2553,8 +2656,6 @@
       if (!v || v === state.user.name) return;
       state.user.name = v;
       save();
-      const sum = $('[data-summary="account"]');
-      if (sum) sum.textContent = v + (state.user.email ? ' · ' + state.user.email : '');
       settingsSaved();
     }, 700);
   }

@@ -1287,6 +1287,66 @@ svg { flex: none; }
 .danger-card .setting { align-items: center; }
 
 /* ==========================================================================
+   Settings: section menu + grouped rows
+   ========================================================================== */
+.settings { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; align-items: start; }
+.snav { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 2px; }
+.snav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  color: var(--plum-70);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.snav a svg { width: 16px; height: 16px; }
+.snav a:hover { background: var(--sand-20); color: var(--plum-100); }
+.snav a[aria-current='page'] { background: var(--sand-30); color: var(--plum-100); }
+.snav-flag { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--warning); flex: none; }
+
+.spanel { display: flex; flex-direction: column; gap: 24px; max-width: 760px; min-width: 0; }
+.spanel-head { display: flex; flex-direction: column; gap: 4px; }
+.spanel-title { font: 500 24px/32px var(--font-serif); }
+.spanel-title:focus { outline: none; }
+
+.card.sgroup { padding: 0; overflow: hidden; }
+.sgroup-head { padding: 16px 24px; background: var(--sand-10); border-bottom: 1px solid var(--sand-30); }
+.sgroup-title { font-size: 16px; line-height: 22px; font-weight: 500; }
+.sgroup-desc { color: var(--plum-70); margin-top: 2px; }
+.sgroup-table { display: flex; flex-direction: column; gap: 12px; }
+
+.srow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  min-height: 64px;
+  padding: 16px 24px;
+}
+.srow + .srow { border-top: 1px solid var(--sand-30); }
+.srow-text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* Rows with a control underneath the text keep their toggle level with the label. */
+.srow:has(.srow-sub) { align-items: flex-start; }
+.srow-label { font-weight: 500; overflow-wrap: anywhere; }
+.srow-label label { cursor: pointer; }
+.srow-desc { color: var(--plum-70); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.srow-sub { margin-top: 12px; max-width: 280px; display: flex; flex-direction: column; gap: 8px; }
+.srow-control { flex: none; display: flex; align-items: center; gap: 12px; }
+.srow-value { font-size: 16px; line-height: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.input-inline { width: 240px; }
+.dot-sep { color: var(--plum-60); }
+.small-note { font-size: 12px; line-height: 16px; }
+.pw-form { display: flex; flex-direction: column; gap: 16px; padding: 20px 24px 24px; }
+.pw-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.pw-actions .spacer { flex: 1; }
+
+/* ==========================================================================
    Overlays
    ========================================================================== */
 .scrim { position: fixed; inset: 0; z-index: 40; background: var(--scrim); animation: fade var(--dur-fast) var(--ease-out); }
@@ -1450,6 +1510,17 @@ svg { flex: none; }
   .panel { margin: 0 12px 12px; }
   .topbar .menu-btn { display: inline-flex; }
   .topbar { grid-template-columns: 1fr auto; }
+  .settings { grid-template-columns: 1fr; gap: 24px; }
+  .snav {
+    position: static;
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    margin: 0 -4px;
+    padding: 0 4px 4px;
+    scrollbar-width: none;
+  }
+  .snav a { flex: none; height: 36px; }
   .nav {
     display: none;
     position: absolute;
@@ -1490,6 +1561,9 @@ svg { flex: none; }
   .choice { padding: 20px; }
   .search { max-width: none; flex-basis: 100%; }
   .goal-grid { grid-template-columns: 1fr; }
+  .srow, .sgroup-head, .pw-form { padding-left: 20px; padding-right: 20px; }
+  .input-inline { width: 100%; }
+  .srow-control:has(.input-inline) { flex: 1 1 100%; }
   .onb-choices { grid-template-columns: 1fr; }
   .auth-card { padding: 20px; }
   .onb-actions .btn { flex: 1 1 auto; }
