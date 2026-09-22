@@ -136,18 +136,18 @@
    * demo always has renewals coming up. used = days since last activity email.
    */
   const SAMPLE_INBOX = [
-    { name: 'Netflix', cat: 'video', amount: 15.49, cycle: 'monthly', renew: 4, used: -2, history: [[13.99, -150], [15.49, -26]] },
-    { name: 'Spotify', cat: 'music', amount: 11.99, cycle: 'monthly', renew: 12, used: -1 },
-    { name: 'YouTube Premium', cat: 'video', amount: 13.99, cycle: 'monthly', renew: 3, used: -3, review: true },
-    { name: 'Adobe Creative Cloud', cat: 'software', amount: 19.99, cycle: 'monthly', renew: 9, used: -112 },
-    { name: 'ChatGPT Plus', cat: 'software', amount: 20.0, cycle: 'monthly', renew: 15, used: -1 },
-    { name: 'iCloud+', cat: 'storage', amount: 2.99, cycle: 'monthly', renew: 18, used: -5 },
-    { name: 'The New York Times', cat: 'news', amount: 17.0, cycle: 'monthly', renew: 6, used: -8 },
-    { name: 'Disney+', cat: 'video', amount: 13.99, cycle: 'monthly', renew: 21, used: -96 },
-    { name: 'Headspace', cat: 'wellness', amount: 12.99, cycle: 'monthly', renew: 27, used: -74 },
+    { name: 'Netflix', cat: 'video', amount: 15.49, cycle: 'monthly', renew: 4, used: -2, since: -1760, history: [[12.99, -1760], [13.99, -700], [15.49, -26]] },
+    { name: 'Spotify', cat: 'music', amount: 11.99, cycle: 'monthly', renew: 12, used: -1, since: -1500, history: [[9.99, -1500], [10.99, -800], [11.99, -400]] },
+    { name: 'YouTube Premium', cat: 'video', amount: 13.99, cycle: 'monthly', renew: 3, used: -3, review: true, since: -600, history: [[11.99, -600], [13.99, -300]] },
+    { name: 'Adobe Creative Cloud', cat: 'software', amount: 19.99, cycle: 'monthly', renew: 9, used: -112, since: -1100 },
+    { name: 'ChatGPT Plus', cat: 'software', amount: 20.0, cycle: 'monthly', renew: 15, used: -1, since: -700 },
+    { name: 'iCloud+', cat: 'storage', amount: 2.99, cycle: 'monthly', renew: 18, used: -5, since: -1700, history: [[0.99, -1700], [2.99, -900]] },
+    { name: 'The New York Times', cat: 'news', amount: 17.0, cycle: 'monthly', renew: 6, used: -8, since: -1000, history: [[4.0, -1000], [17.0, -635]] },
+    { name: 'Disney+', cat: 'video', amount: 13.99, cycle: 'monthly', renew: 21, used: -96, since: -1300, history: [[7.99, -1300], [10.99, -700], [13.99, -330]] },
+    { name: 'Headspace', cat: 'wellness', amount: 12.99, cycle: 'monthly', renew: 27, used: -74, since: -420 },
     { name: 'Duolingo Super', cat: 'learning', amount: 12.99, cycle: 'monthly', trial: 2, trialLength: 14, used: -1 },
     { name: 'Strava', cat: 'fitness', amount: 11.99, cycle: 'monthly', trial: 9, trialLength: 30, used: -4 },
-    { name: 'Amazon Prime', cat: 'shopping', amount: 139.0, cycle: 'yearly', renew: 55, used: -3 },
+    { name: 'Amazon Prime', cat: 'shopping', amount: 139.0, cycle: 'yearly', renew: 55, used: -3, since: -2000, history: [[119.0, -2000], [139.0, -1300]] },
   ];
 
   /* ======================================================================
@@ -271,6 +271,51 @@
     const prev = addMonths(s.nextRenewal, -cycleMonths(s));
     return prev.slice(0, 7) === month ? prev : null;
   }
+
+  /* Price in effect on a date, from the subscription's price history. */
+  function priceAt(s, d) {
+    const h = s.priceHistory || [];
+    if (!h.length) return s.amount;
+    let a = h[0].amount;
+    h.forEach((x) => { if (x.date <= d) a = x.amount; });
+    return a;
+  }
+
+  const startDate = (s) => s.startedAt || ((s.priceHistory || [])[0] || {}).date || s.detectedAt || today();
+
+  /* Every charge that has already happened, stepping back one cycle at a time from the next renewal. */
+  function pastCharges(s) {
+    const t = today();
+    const from = s.paidFrom || startDate(s);
+    const anchor = s.status === 'trial' ? s.trialEnds : s.nextRenewal;
+    if (!anchor) return [];
+    const cm = cycleMonths(s);
+    const out = [];
+    if (anchor <= t && anchor >= from && s.status !== 'cancelled') out.push({ date: anchor, amount: priceAt(s, anchor) });
+    for (let k = 1; k < 600; k++) {
+      const d = addMonths(anchor, -k * cm);
+      if (d < from) break;
+      if (d <= t) out.push({ date: d, amount: priceAt(s, d) });
+    }
+    return out.reverse();
+  }
+
+  function spentSoFar(s) {
+    const c = pastCharges(s);
+    return { total: round2(c.reduce((a, x) => a + x.amount, 0)), count: c.length };
+  }
+
+  function duration(from, to, short) {
+    const a = fromISO(from); const b = fromISO(to);
+    let m = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+    if (b.getDate() < a.getDate()) m--;
+    if (m < 1) return short ? '< 1 mo' : 'less than a month';
+    const y = Math.floor(m / 12); const r = m % 12;
+    if (short) return [y ? y + (y === 1 ? ' yr' : ' yrs') : '', r ? r + (r === 1 ? ' mo' : ' mos') : ''].filter(Boolean).join(' ');
+    return [y ? plural(y, 'year') : '', r ? plural(r, 'month') : ''].filter(Boolean).join(' ');
+  }
+
+  const monthYear = (d) => MONTHS[Number(d.slice(5, 7)) - 1] + ' ' + d.slice(0, 4);
 
   const perMonth = (s) => (s.status === 'cancelled' ? 0 : s.cycle === 'yearly' ? s.amount / 12 : s.amount);
 
@@ -744,8 +789,10 @@
           nextRenewal: trial ? addDays(t, x.trial) : addDays(t, x.renew),
           trialEnds: trial ? addDays(t, x.trial) : null,
           trialStarted: trial ? addDays(t, x.trial - x.trialLength) : null,
+          startedAt: trial ? addDays(t, x.trial - x.trialLength) : addDays(t, x.since),
+          paidFrom: trial ? addDays(t, x.trial) : null,
           lastUsed: x.used != null ? addDays(t, x.used) : null,
-          priceHistory: (x.history || [[x.amount, -200]]).map(([a, d]) => ({ amount: a, date: addDays(t, d) })),
+          priceHistory: (x.history || [[x.amount, trial ? x.trial - x.trialLength : x.since]]).map(([a, d]) => ({ amount: a, date: addDays(t, d) })),
           source: provider,
           review: !!x.review,
           detectedAt: t,
@@ -1170,12 +1217,7 @@
   /* Every charge date inside [start, end], projected from each subscription's billing cycle. */
   function chargesInWindow(start, end) {
     const out = {};
-    const amountAt = (s, d) => {
-      const h = s.priceHistory || [];
-      let a = h.length ? h[0].amount : s.amount;
-      h.forEach((x) => { if (x.date <= d) a = x.amount; });
-      return h.length ? a : s.amount;
-    };
+    const amountAt = priceAt;
     activeSubs().forEach((s) => {
       const anchor = s.status === 'trial' ? s.trialEnds : s.nextRenewal;
       if (!anchor) return;
@@ -1348,10 +1390,13 @@
   }
 
   document.addEventListener('pointermove', (e) => {
+    const pc = e.target.closest && e.target.closest('#price-chart');
+    if (pc) priceHover(pc, e.clientX);
     const el = e.target.closest && e.target.closest('#budget-chart');
     if (el) chartHover(el, e.clientX);
   });
   document.addEventListener('pointerleave', (e) => {
+    if (e.target && e.target.id === 'price-chart') chartLeave(e.target);
     if (e.target && e.target.id === 'budget-chart') chartLeave(e.target);
   }, true);
   document.addEventListener('pointerdown', (e) => {
@@ -1718,6 +1763,11 @@
 
   function sheet(sub) {
     const isNew = !sub;
+    if (sub) {
+      /* Default to the shortest range that still shows when you subscribed. */
+      const years = daysBetween(startDate(sub), today()) / 365;
+      ui.priceRange = years <= 1 ? 1 : years <= 3 ? 3 : 5;
+    }
     const s = sub || { name: '', category: 'other', amount: '', cycle: 'monthly', status: 'active', nextRenewal: addMonths(today(), 1), lastUsed: null, source: 'manual' };
     const dateVal = s.status === 'trial' ? s.trialEnds : s.nextRenewal;
     const catOpts = Object.keys(CATS).map((k) => [k, CATS[k].label]);
@@ -1734,6 +1784,16 @@
             btn('', 'close', { variant: 'ghost', icon: 'x', aria: 'Close' }).replace('class="btn', 'class="sheet-close btn') +
           '</div>' +
           '<div class="sheet-body">' +
+            (isNew ? '' : '<section class="sub-summary" id="sheet-summary">' + sheetSummary(s) + '</section>' +
+              '<section class="price-history" aria-labelledby="ph-h">' +
+                '<div class="ph-head"><h3 class="section-title" id="ph-h">Price history</h3>' +
+                  '<div class="seg" role="group" aria-label="Price history range">' +
+                    [1, 3, 5].map((y) => '<button type="button" class="seg-btn" data-action="price-range" data-id="' + y + '" aria-pressed="' + (ui.priceRange === y) + '">' + y + 'Y</button>').join('') +
+                  '</div></div>' +
+                '<div class="chart" id="price-chart"></div>' +
+                '<div id="price-changes"></div>' +
+              '</section>' +
+              '<h3 class="section-title sheet-section">Details</h3>') +
             (s.review ? '<div class="callout callout-warning">' + icon('alert') + '<span><span class="sr-only">Warning: </span>We weren’t sure about the amount on this receipt. Check it matches your latest charge, then save.</span></div>' : '') +
             (isNew ? '' : '<p class="source-line">' + src + '</p>') +
             '<div class="field"><label class="field-label" for="f-name">Name</label><input class="input" id="f-name" name="name" required value="' + esc(s.name) + '" /></div>' +
@@ -1746,6 +1806,8 @@
               '<div class="field"><label class="field-label" for="f-status">Status</label>' + selectField('status', s.status, [['active', 'Active'], ['trial', 'Free trial'], ['cancelled', 'Cancelled']], { id: 'f-status' }) + '</div>' +
               '<div class="field"><label class="field-label" for="f-date" id="f-date-label">' + dateLabel(s.status) + '</label><input class="input" id="f-date" name="date" type="date" required value="' + esc(dateVal || '') + '" /></div>' +
             '</div>' +
+            '<div class="field"><label class="field-label" for="f-since">Subscribed since</label>' +
+              '<input class="input" id="f-since" name="since" type="date" required value="' + esc(isNew ? today() : startDate(s)) + '" /></div>' +
             '<div class="field"><label class="field-label" for="f-used">Last activity</label>' +
               '<p class="field-desc">From sign-in and usage emails. Used to flag subscriptions you’ve stopped using.</p>' +
               '<input class="input" id="f-used" name="lastUsed" type="date" value="' + esc(s.lastUsed || '') + '" /></div>' +
@@ -1754,12 +1816,176 @@
           '<div class="sheet-foot">' +
             (isNew ? '' : btn('Delete', 'delete-sub', { variant: 'danger-outline', icon: 'trash', id: s.id })) +
             '<span class="spacer"></span>' +
-            btn('Cancel', 'close') +
+            btn('Close', 'close') +
             btn(isNew ? 'Add subscription' : 'Save changes', null, { variant: 'primary', type: 'submit' }) +
           '</div>' +
         '</form>' +
       '</aside>'
     );
+    if (!isNew) renderPriceChart(s);
+  }
+
+  function sheetSummary(s) {
+    const sp = spentSoFar(s);
+    const start = startDate(s);
+    const first = (s.priceHistory || [])[0];
+    const rise = first ? round2(s.amount - first.amount) : 0;
+    const per = s.cycle === 'yearly' ? '/yr' : '/mo';
+    const action = s.status === 'cancelled'
+      ? btn('Reactivate', 'reactivate-sub', { id: s.id, icon: 'refresh' })
+      : btn(s.status === 'trial' ? 'Cancel trial' : 'Mark cancelled', 'cancel-sub', { id: s.id, icon: 'x' });
+    return '<div class="sub-status">' + subStatus(s) +
+        '<span class="muted">' + (s.status === 'cancelled'
+          ? (s.nextRenewal ? 'Paid until ' + esc(fmtDate(s.nextRenewal)) : 'Cancelled')
+          : s.status === 'trial' ? 'Trial ends ' + esc(fmtDate(s.trialEnds)) : 'Renews ' + esc(fmtDate(s.nextRenewal))) + '</span>' +
+        '<span class="spacer"></span>' + action + '</div>' +
+      '<dl class="sub-stats">' +
+        '<div><dt>Spent so far</dt><dd class="stat-big">' + money(sp.total) + '</dd>' +
+          '<dd class="muted">' + (sp.count ? 'over ' + plural(sp.count, 'charge') : s.status === 'trial' ? 'Nothing yet, still on trial' : 'No charges yet') + '</dd></div>' +
+        '<div><dt>Subscribed</dt><dd class="stat-big" title="' + esc(duration(start, today())) + '">' + esc(duration(start, today(), true)) + '</dd>' +
+          '<dd class="muted">since ' + esc(fmtDate(start)) + '</dd></div>' +
+        '<div><dt>Price now</dt><dd class="stat-big">' + money(s.amount) + '<span class="per">' + per + '</span></dd>' +
+          '<dd class="' + (rise > 0 ? 'rise' : 'muted') + '">' + (rise > 0 ? '+' + money(rise) + ' since you joined' : rise < 0 ? money(-rise) + ' less than when you joined' : 'Same as when you joined') + '</dd></div>' +
+      '</dl>';
+  }
+
+  /* Refresh the open subscription sheet after a status change, without replaying its entrance. */
+  function refreshSheet(id) {
+    const s = findSub(id);
+    const box = $('#sheet-summary');
+    if (!s || !box) return;
+    box.innerHTML = sheetSummary(s);
+    const sel = $('#f-status');
+    if (sel) { sel.value = s.status; $('#f-date-label').textContent = dateLabel(s.status); }
+    const date = $('#f-date');
+    if (date) date.value = s.status === 'trial' ? s.trialEnds : s.nextRenewal;
+    renderPriceChart(s);
+  }
+
+  /* Step chart of the price over 1, 3 or 5 years, with a marker where the subscription started. */
+  function renderPriceChart(s) {
+    const el = $('#price-chart');
+    if (!el) return;
+    const years = ui.priceRange || 3;
+    const t = today();
+    const lo = addMonths(t, -12 * years);
+    const start = startDate(s);
+    const hist = (s.priceHistory && s.priceHistory.length ? s.priceHistory : [{ amount: s.amount, date: start }])
+      .slice().sort((a, b) => a.date.localeCompare(b.date));
+    const W = Math.max(260, el.clientWidth);
+    const H = 168;
+    const padL = 44; const padR = 12; const padT = 22; const padB = 26;
+    const span = daysBetween(lo, t);
+    const x = (d) => padL + (Math.max(0, Math.min(span, daysBetween(lo, d))) / span) * (W - padL - padR);
+    const maxV = Math.max.apply(null, hist.map((h) => h.amount)) * 1.3 || 10;
+    const y = (v) => padT + (1 - v / maxV) * (H - padT - padB);
+    const baseY = y(0);
+
+    /* Points of the step line, clipped to the window; nothing before the start date. */
+    const from = start > lo ? start : lo;
+    let pts = [];
+    let cur = priceAt(s, from);
+    pts.push([x(from), y(cur)]);
+    hist.forEach((h) => {
+      if (h.date <= from || h.date > t) return;
+      pts.push([x(h.date), y(cur)]);
+      cur = h.amount;
+      pts.push([x(h.date), y(cur)]);
+    });
+    pts.push([x(t), y(cur)]);
+    const line = pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const area = line + ' ' + x(t).toFixed(1) + ',' + baseY.toFixed(1) + ' ' + x(from).toFixed(1) + ',' + baseY.toFixed(1);
+
+    /* Round price ticks. */
+    const step = [0.5, 1, 2, 5, 10, 20, 25, 50, 100].find((k) => maxV / k <= 3) || 200;
+    let grid = '';
+    for (let v = step; v <= maxV; v += step) {
+      grid += '<line class="grid" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>' +
+        '<text class="axis" x="' + (padL - 8) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">$' + (step < 1 ? v.toFixed(2) : v) + '</text>';
+    }
+    /* Year ticks for 3Y/5Y, quarter ticks for 1Y. */
+    let xt = '';
+    if (years === 1) {
+      for (let k = 0; k <= 12; k += 3) {
+        const d = addMonths(lo, k);
+        xt += '<text class="axis" x="' + x(d).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="' + (k === 0 ? 'start' : k === 12 ? 'end' : 'middle') + '">' + MONTHS[Number(d.slice(5, 7)) - 1] + (k === 0 || d.slice(5, 7) === '01' ? ' ’' + d.slice(2, 4) : '') + '</text>';
+      }
+    } else {
+      for (let yr = Number(lo.slice(0, 4)) + 1; yr <= Number(t.slice(0, 4)); yr++) {
+        const d = yr + '-01-01';
+        xt += '<line class="band" x1="' + x(d).toFixed(1) + '" x2="' + x(d).toFixed(1) + '" y1="' + padT + '" y2="' + baseY.toFixed(1) + '"/>' +
+          '<text class="axis" x="' + x(d).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + yr + '</text>';
+      }
+    }
+
+    /* Increases inside the window get a dot and their delta. */
+    const changes = [];
+    for (let i = 1; i < hist.length; i++) changes.push({ date: hist[i].date, from: hist[i - 1].amount, to: hist[i].amount });
+    const inWin = changes.filter((c) => c.date > lo && c.date <= t);
+    const marks = inWin.map((c) => {
+      const cx = x(c.date); const cy = y(c.to); const up = c.to > c.from;
+      const anchor = cx > W - 60 ? 'end' : cx < padL + 40 ? 'start' : 'middle';
+      return '<circle class="ph-dot' + (up ? ' is-up' : '') + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="4"/>' +
+        '<text class="ph-delta' + (up ? ' is-up' : '') + '" x="' + cx.toFixed(1) + '" y="' + (cy - 9).toFixed(1) + '" text-anchor="' + anchor + '">' + (up ? '+' : '−') + money(Math.abs(c.to - c.from)) + '</text>';
+    }).join('');
+
+    /* Subscribed marker, or a note when it falls before the window. */
+    const startIn = start > lo;
+    const sx = x(start);
+    const startMark = startIn
+      ? '<line class="ph-start" x1="' + sx.toFixed(1) + '" x2="' + sx.toFixed(1) + '" y1="' + (padT - 8) + '" y2="' + baseY.toFixed(1) + '"/>' +
+        '<text class="ph-start-label" x="' + (sx + (sx > W - 90 ? -6 : 6)).toFixed(1) + '" y="' + (padT - 10) + '" text-anchor="' + (sx > W - 90 ? 'end' : 'start') + '">Subscribed ' + monthYear(start) + '</text>'
+      : '';
+
+    el.innerHTML =
+      '<svg class="chart-svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+        esc(s.name + ' price over the last ' + plural(years, 'year') + ': ' + money(priceAt(s, from)) + ' to ' + money(s.amount) + (startIn ? ', subscribed ' + monthYear(start) : '') + '.') + '">' +
+        '<defs><linearGradient id="ph-grad" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="' + padT + '" y2="' + baseY.toFixed(1) + '">' +
+          '<stop offset="0" class="g-area-top"/><stop offset="1" class="g-area-bottom"/></linearGradient></defs>' +
+        grid + xt +
+        '<polygon class="ph-area" points="' + area + '"/>' +
+        '<line class="base" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + baseY.toFixed(1) + '" y2="' + baseY.toFixed(1) + '"/>' +
+        '<polyline class="line" points="' + line + '"/>' +
+        startMark + marks +
+        '<g class="hover" hidden><line class="crosshair" y1="' + padT + '" y2="' + baseY.toFixed(1) + '"/><circle class="hover-dot" r="4"/></g>' +
+        '<rect class="hit" x="' + padL + '" y="0" width="' + (W - padL - padR) + '" height="' + H + '" fill="transparent"/>' +
+      '</svg><div class="tooltip" hidden></div>';
+    el._ph = { s: s, lo: lo, from: from, span: span, padL: padL, padR: padR, W: W, H: H, x: x, y: y };
+
+    const list = $('#price-changes');
+    if (list) {
+      const note = startIn ? '' : '<p class="muted ph-note">Subscribed ' + esc(monthYear(start)) + ', before this range.</p>';
+      list.innerHTML = note + (changes.length
+        ? '<ul class="ph-list">' + changes.slice().reverse().map((c) =>
+            '<li><span>' + esc(fmtDate(c.date)) + '</span><span class="muted">' + money(c.from) + ' → ' + money(c.to) + '</span>' +
+            '<span class="' + (c.to > c.from ? 'rise' : 'muted') + '">' + (c.to > c.from ? '+' : '−') + money(Math.abs(c.to - c.from)) + '</span></li>').join('') +
+          '<li><span>' + esc(fmtDate(start)) + '</span><span class="muted">Started at ' + money(hist[0].amount) + '</span><span></span></li></ul>'
+        : '<p class="muted ph-note">No price changes since you subscribed ' + esc(fmtDate(start)) + '.</p>');
+    }
+  }
+
+  function priceHover(el, clientX) {
+    const g = el._ph;
+    if (!g) return;
+    const svg = el.querySelector('svg');
+    const px = clientX - svg.getBoundingClientRect().left;
+    const frac = Math.max(0, Math.min(1, (px - g.padL) / (g.W - g.padL - g.padR)));
+    let d = addDays(g.lo, Math.round(frac * g.span));
+    if (d < g.from) d = g.from;
+    const cx = g.x(d); const cy = g.y(priceAt(g.s, d));
+    const hov = svg.querySelector('.hover');
+    hov.hidden = false;
+    hov.querySelector('.crosshair').setAttribute('x1', cx);
+    hov.querySelector('.crosshair').setAttribute('x2', cx);
+    hov.querySelector('.hover-dot').setAttribute('cx', cx);
+    hov.querySelector('.hover-dot').setAttribute('cy', cy);
+    const tip = el.querySelector('.tooltip');
+    tip.innerHTML = '<p class="tip-title">' + esc(fmtDate(d)) + '</p><p><span class="tip-val">' + money(priceAt(g.s, d)) + '</span> <span class="muted">' + (g.s.cycle === 'yearly' ? 'a year' : 'a month') + '</span></p>';
+    tip.hidden = false;
+    let left = cx + 12;
+    if (left + tip.offsetWidth > g.W) left = cx - tip.offsetWidth - 12;
+    tip.style.left = Math.max(0, left) + 'px';
+    tip.style.top = Math.max(0, Math.min(cy - 12, g.H - tip.offsetHeight)) + 'px';
   }
 
   const dateLabel = (status) => (status === 'trial' ? 'Trial ends' : status === 'cancelled' ? 'Paid until' : 'Next charge');
@@ -1811,15 +2037,17 @@
   function cancelSub(id) {
     const s = findSub(id);
     if (!s) return;
-    const prev = s.status;
-    withRelief(() => { s.status = 'cancelled'; });
+    const prev = { status: s.status, cancelledAt: s.cancelledAt };
+    withRelief(() => { s.status = 'cancelled'; s.cancelledAt = today(); });
     save();
     render();
+    refreshSheet(id);
     toast('Marked ' + s.name + ' as cancelled. Cancel it with ' + s.name + ' too.', () => {
-      s.status = prev;
+      Object.assign(s, prev);
       ui.relief = null;
       save();
       render();
+      refreshSheet(id);
     });
   }
 
@@ -1886,6 +2114,23 @@
     'add-sub': () => sheet(null),
     'open-sub': (id) => { const s = findSub(id); if (s) sheet(s); },
     'cancel-sub': cancelSub,
+    'reactivate-sub': (id) => {
+      const s = findSub(id);
+      if (!s) return;
+      s.status = 'active';
+      s.cancelledAt = null;
+      rollForward(s);
+      save();
+      render();
+      refreshSheet(id);
+      toast('Reactivated ' + s.name);
+    },
+    'price-range': (id) => {
+      ui.priceRange = Number(id);
+      document.querySelectorAll('[data-action="price-range"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+      const s = findSub(($('form[data-form="sub"]') || {}).dataset ? $('form[data-form="sub"]').dataset.id : '');
+      if (s) renderPriceChart(s);
+    },
     'keep-trial': (id) => { const s = findSub(id); if (s) { s.trialAck = true; save(); render(); toast('Keeping ' + s.name + ' after the trial'); } },
     'ack-price': (id) => { const s = findSub(id); if (s) { s.priceAck = true; save(); render(); } },
     'ack-unused': (id) => { const s = findSub(id); if (s) { s.lastUsed = today(); save(); render(); toast('Got it. ' + s.name + ' won’t be flagged for now.'); } },
@@ -2253,6 +2498,7 @@
         nextRenewal: date,
         trialEnds: status === 'trial' ? date : null,
         lastUsed: f.lastUsed.value || null,
+        startedAt: f.since.value || today(),
       };
       const price = round2(amount);
 
@@ -2261,11 +2507,15 @@
           const h = existing.priceHistory || (existing.priceHistory = []);
           if (existing.review && h.length) h[h.length - 1].amount = price;
           else if (price !== existing.amount) { h.push({ amount: price, date: today() }); existing.priceAck = true; }
+          if (status === 'cancelled' && existing.status !== 'cancelled') fields.cancelledAt = today();
+          if (status !== 'cancelled') fields.cancelledAt = null;
+          /* Keep the history's first entry on or after the start date. */
+          if (h.length && h[0].date > fields.startedAt) h[0].date = fields.startedAt;
           Object.assign(existing, fields, { amount: price, review: false });
         } else {
           state.subs.push(Object.assign({
             id: uid(), amount: price, source: 'manual', review: false, detectedAt: today(),
-            priceHistory: [{ amount: price, date: today() }],
+            priceHistory: [{ amount: price, date: fields.startedAt }],
           }, fields));
         }
       });
