@@ -61,6 +61,11 @@
   --shadow-popover: 0 8px 24px rgb(120 90 60 / 0.12);
   --shadow-floating: 0 12px 32px rgb(120 90 60 / 0.16);
 
+  /* Text and marks on the primary fill */
+  --on-primary: #ffffff;
+  --on-primary-muted: #d8d0d2;
+  --danger-on-primary: #ffa3a6;
+
   /* Overlays (derived) */
   --scrim: rgb(0 0 0 / 0.7);
   --sheet-backdrop: color-mix(in srgb, var(--white) 35%, transparent);
@@ -151,7 +156,7 @@ svg { flex: none; }
   border-radius: var(--r-md);
 }
 .brand:hover { color: var(--plum-100); }
-.brand svg { width: 22px; height: 22px; color: var(--plum-80); fill: currentColor; stroke: currentColor; stroke-width: 4; transition: transform var(--dur) var(--ease-out); }
+.brand svg { width: 33px; height: 33px; color: var(--plum-80); fill: currentColor; stroke: currentColor; stroke-width: 4; transition: transform var(--dur) var(--ease-out); }
 @media (hover: hover) and (pointer: fine) { .brand:hover svg { transform: rotate(-12deg); } }
 .brand:active svg { transform: rotate(-12deg) scale(0.92); }
 
@@ -286,9 +291,43 @@ svg { flex: none; }
 }
 .page-title:focus { outline: none; }
 .page-sub { margin-top: 4px; color: var(--plum-70); }
-.page-head-greeting .page-sub { margin-top: 8px; max-width: 640px; font-size: 16px; line-height: 24px; }
-.page-head-greeting .hl { font-weight: 500; color: var(--plum-100); font-variant-numeric: tabular-nums; }
-.page-head-greeting .hl-over { color: var(--danger-text); }
+/* Personal greeting on the primary fill */
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 32px;
+  border-radius: var(--r-xl);
+  background: var(--plum-80);
+  color: var(--on-primary);
+  box-shadow: var(--shadow-card);
+}
+.hero-mark {
+  position: absolute;
+  right: -40px;
+  top: -56px;
+  width: 260px;
+  height: 260px;
+  fill: var(--on-primary);
+  opacity: 0.07;
+  pointer-events: none;
+}
+.hero-text { position: relative; }
+.hero-greeting { font: 500 36px/44px var(--font-serif); letter-spacing: -0.01em; }
+.hero-greeting:focus { outline: none; }
+.hero-line { margin-top: 12px; max-width: 640px; font-size: 16px; line-height: 24px; color: var(--on-primary-muted); }
+.hero .hl { font-weight: 500; color: var(--on-primary); font-variant-numeric: tabular-nums; }
+.hero .hl-over { color: var(--danger-on-primary); }
+.hero-actions { position: relative; display: flex; gap: 8px; flex: none; }
+.hero :focus-visible { outline-color: var(--on-primary); }
+.btn-inverse { background: var(--white); color: var(--plum-80); }
+.btn-inverse:hover { background: var(--plum-10); }
+.btn-on-primary { background: transparent; border-color: color-mix(in srgb, var(--on-primary) 40%, transparent); color: var(--on-primary); }
+.btn-on-primary:hover { background: color-mix(in srgb, var(--on-primary) 12%, transparent); }
 .page-actions { display: flex; gap: 8px; flex: none; }
 
 .hero-title {
@@ -1347,6 +1386,10 @@ svg { flex: none; }
   .panel-note { padding: 16px; }
   .page-head { flex-direction: column; align-items: stretch; gap: 16px; }
   .page-actions .btn { flex: 1; }
+  .hero { flex-direction: column; align-items: stretch; padding: 24px 20px; gap: 20px; }
+  .hero-greeting { font-size: 30px; line-height: 36px; }
+  .hero-actions .btn { flex: 1; }
+  .hero-mark { width: 200px; height: 200px; right: -48px; top: -48px; }
   .hero-title { font-size: 30px; line-height: 36px; }
   .field-row { grid-template-columns: 1fr; }
   .card { padding: 20px; }
@@ -1390,9 +1433,16 @@ svg { flex: none; }
   .toast-region { bottom: 16px; }
 }
 
+/* Touch screens keep :hover after a tap; hold every control at its resting look. */
 @media (hover: none) {
-  .btn:hover, .filter-btn:hover, .page-btn:hover, .acc-btn:hover, .tab:hover, .nav a:hover { background: revert; color: revert; }
-  .btn-primary:hover { background: var(--plum-80); color: var(--white); }
+  .btn-primary:hover { background: var(--plum-80); }
+  .btn-secondary:hover, .btn-danger-outline:hover, .btn-inverse:hover, .filter-btn:hover { background: var(--white); }
+  .btn-soft:hover { background: var(--sand-30); }
+  .btn-ghost:hover, .btn-on-primary:hover { background: transparent; }
+  .btn-danger:hover { background: var(--button-danger); }
+  .page-btn:hover, .acc-btn:hover { background: none; }
+  .tab:hover, .nav a:hover { color: var(--plum-70); }
+  .tab[aria-selected='true']:hover, .nav a[aria-current='page']:hover { color: var(--plum-100); }
 }
 
 @media (prefers-reduced-motion: reduce) {
