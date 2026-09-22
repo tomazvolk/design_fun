@@ -11,16 +11,16 @@ simulated with sample data. There's no inbox scanning.
 
 - **Landing, sign up, log in, reset password.** Sign up shows a live preview of your vault
   next to the form. Log out and delete account from the avatar menu and Settings.
-- **Home:** greeting, a summary row, "Needs attention" (return windows closing, warranties
-  ending, details to check) and an items table with status filters, category, shop and
-  sort, plus search in the top bar (⌘K).
-- **Item panel:** time left, a bought → today → ends timeline, return window, details,
-  reminders, the receipt, edit and delete (with undo), and a claim PDF.
+- **Vault:** one list, grouped by what needs doing: *Needs action* (return windows closing,
+  warranties ending within 30 days, details to check), *Covered* and *Expired*. Each row has
+  one status line, coloured only when urgent. Search (⌘K), category and shop filters.
+- **Item panel:** one headline fact, a bought → today → ends timeline, details, reminders in
+  a sentence, the receipt drawn as a paper document, edit and delete (with undo), claim PDF.
 - **Add a receipt:** take a photo, upload a file, or type it in. Unsure fields are
   flagged "Check this".
-- **Reminders:** 30 and 7 days before a warranty ends, 2 days before a return window closes.
 - **Settings:** profile and appearance (system, light, dark), password, warranty rules by
-  region and category, reminders, plan (free: 10 items; Plus: unlimited and PDF exports),
+  region and category, reminders (30 and 7 days before a warranty ends, 2 days before a
+  return window closes), plan (free: 10 items; Plus: unlimited and PDF exports),
   download data, sample items, danger zone.
 
 New accounts start empty. "Try with sample items" loads nine receipts with dates relative

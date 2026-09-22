@@ -121,6 +121,7 @@
     clock: '<circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/>',
     return: '<path d="M5.5 6.5 3 9l2.5 2.5"/><path d="M3 9h7a3 3 0 0 0 0-6H8"/>',
     file: '<path d="M4 2.5h5l3 3v8H4Z"/><path d="M9 2.5v3h3"/>',
+    receipt: '<path d="M3.5 2.5h9v11l-1.5-1-1.5 1-1.5-1-1.5 1-1.5-1-1.5 1Z"/><path d="M6 5.5h4M6 8h4"/>',
     user: '<circle cx="8" cy="5.5" r="2.5"/><path d="M3 13.5a5 5 0 0 1 10 0"/>',
     key: '<circle cx="5.5" cy="10.5" r="3"/><path d="m7.6 8.4 5.4-5.4M11 5l1.5 1.5"/>',
     shield: '<path d="M8 2 13 4v4c0 3-2.2 5.2-5 6-2.8-.8-5-3-5-6V4Z"/>',
@@ -215,7 +216,7 @@
 
   /* Things that only live for this session. */
   const ui = {
-    q: '', status: 'all', cat: 'all', merchant: 'all', sort: 'soonest',
+    q: '', cat: 'all', merchant: 'all',
     add: null, editing: null, base: null, drawerId: null,
   };
 
@@ -278,30 +279,6 @@
     return out.map((x) => Object.assign(x, { item: it, info: i }));
   }
 
-  const REMINDER_TEXT = {
-    w30: 'Warranty ends in 30 days',
-    w7: 'Warranty ends in 7 days',
-    r2: 'Return window closes in 2 days',
-  };
-
-  function upcomingReminders() {
-    const t = today();
-    const horizon = addDays(t, 365);
-    return state.items.flatMap(remindersFor).filter((r) => r.date >= t && r.date <= horizon).sort((a, b) => a.date - b.date);
-  }
-
-  function attention() {
-    const out = [];
-    state.items.forEach((it) => {
-      const i = info(it);
-      if (i.returnOpen && i.rLeft <= 7) out.push({ kind: 'return', it, i, sort: i.rLeft });
-      if (i.left >= 0 && i.left <= 30) out.push({ kind: 'warranty', it, i, sort: i.left + 0.5 });
-      const n = Object.keys(it.review || {}).length;
-      if (n) out.push({ kind: 'review', it, i, n, sort: 100 });
-    });
-    return out.sort((a, b) => a.sort - b.sort);
-  }
-
   function findItem(id) { return state.items.find((x) => x.id === id); }
   function initials() {
     const a = state.account;
@@ -321,16 +298,6 @@
   }
 
   function catIcon(key) { return '<span class="cat-ic" aria-hidden="true">' + icon(key) + '</span>'; }
-
-  function statusPill(i) {
-    const o = { active: ['success', 'Active', 'checkCircle'], expiring: ['warning', 'Ending soon', 'clock'], expired: ['neutral', 'Expired', ''] }[i.status];
-    return '<span class="pill pill-' + o[0] + '">' + (o[2] ? icon(o[2], 12) : '') + o[1] + '</span>';
-  }
-
-  function returnPill(i) {
-    if (!i.returnOpen) return '';
-    return '<span class="pill pill-info">' + icon('return', 12) + 'Return by ' + fmtDate(i.rEnd, { short: true }) + '</span>';
-  }
 
   function field(o) {
     const id = 'f-' + o.name;
@@ -389,32 +356,33 @@
 
   function render() {
     const r = route();
+    if (r.name === 'home' || r.name === 'reminders') return redirect('vault');
     if (!state.session) {
       if (!PUBLIC.includes(r.name)) return redirect(state.account ? 'login' : 'welcome');
     } else if (!r.name || PUBLIC.includes(r.name)) {
-      return redirect('home');
+      return redirect('vault');
     }
 
     if (r.name === 'item') {
-      if (!findItem(r.arg)) return redirect('home');
-      if (ui.base !== 'home') paint('home');
+      if (!findItem(r.arg)) return redirect('vault');
+      if (ui.base !== 'vault') paint('vault');
       openDrawer(r.arg);
       return;
     }
     const back = closeDrawer();
-    const keep = back !== undefined && r.name === 'home' && ui.base === 'home';
+    const keep = back !== undefined && r.name === 'vault' && ui.base === 'vault';
     paint(r.name, r.arg, keep);
     if (keep && back) { const row = $('a[href="' + back + '"]', view); if (row) row.focus({ preventScroll: true }); }
   }
 
   const VIEWS = {
     welcome: viewWelcome, signup: viewSignup, login: viewLogin, forgot: viewForgot,
-    home: viewHome, reminders: viewReminders, add: viewAdd, settings: viewSettings,
+    vault: viewVault, add: viewAdd, settings: viewSettings,
   };
 
   /* keep: repaint in place (after closing the drawer), without jumping to the top. */
   function paint(name, arg, keep) {
-    const fn = VIEWS[name] || viewHome;
+    const fn = VIEWS[name] || viewVault;
     const y = window.scrollY;
     const out = fn(arg);
     const app = !PUBLIC.includes(name);
@@ -447,29 +415,25 @@
      App chrome: icon rail, top bar, tab bar, banner
      ========================================================================== */
   const NAV = [
-    { key: 'home', label: 'Home', icon: 'home' },
-    { key: 'reminders', label: 'Reminders', icon: 'bell' },
+    { key: 'vault', label: 'Vault', icon: 'receipt' },
     { key: 'add', label: 'Add receipt', icon: 'plusCircle' },
   ];
 
   function renderChrome(name, arg) {
-    const soon = upcomingReminders().filter((r) => daysFrom(today(), r.date) <= 7).length;
-    const dot = (k) => (k === 'reminders' && soon ? '<span class="dot-badge" aria-hidden="true"></span>' : '');
     const railLink = (n) => '<a href="#/' + n.key + '" class="rail-link"' + (n.key === name ? ' aria-current="page"' : '') +
-      ' aria-label="' + n.label + (n.key === 'reminders' && soon ? ', ' + plural(soon, 'reminder') + ' this week' : '') + '" data-tip="' + n.label + '">' + icon(n.icon, 20) + dot(n.key) + '</a>';
+      ' aria-label="' + n.label + '" data-tip="' + n.label + '">' + icon(n.icon, 20) + '</a>';
 
     const avatarBtn = (cls) => '<div class="menu-wrap ' + cls + '">' +
       '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button></div>';
 
     $('#rail').innerHTML =
-      '<a class="rail-logo" href="#/home" aria-label="Warranty tracker, home">' + logo(28) + '</a>' +
+      '<a class="rail-logo" href="#/vault" aria-label="Warranty tracker, home">' + logo(28) + '</a>' +
       '<nav class="rail-group" aria-label="Main">' + NAV.map(railLink).join('') + '</nav>' +
       '<span class="rail-sep" aria-hidden="true"></span>' +
       '<nav class="rail-group" aria-label="Account">' + railLink({ key: 'settings', label: 'Settings', icon: 'sliders' }) + '</nav>' +
       '<span class="rail-spacer"></span>' + avatarBtn('menu-rail');
 
     const crumbs = {
-      reminders: ['Reminders'],
       add: ['Add receipt'],
       settings: ['Settings', (SETTINGS.find((s) => s.key === (arg || 'profile')) || SETTINGS[0]).label],
     }[name];
@@ -479,7 +443,7 @@
       : '';
 
     $('#topbar').innerHTML = '<div class="container topbar-inner">' +
-      '<a class="topbar-logo" href="#/home" aria-label="Warranty tracker, home">' + logo(24) + '</a>' +
+      '<a class="topbar-logo" href="#/vault" aria-label="Warranty tracker, home">' + logo(24) + '</a>' +
       crumbHtml +
       '<div class="topbar-end">' +
         '<label class="search">' + icon('search') + '<span class="sr-only">Search receipts</span>' +
@@ -489,10 +453,10 @@
         avatarBtn('menu-top') +
       '</div></div>';
 
-    const tabs = [NAV[0], NAV[1], { key: 'add', label: 'Add', icon: 'plusCircle' }, { key: 'settings', label: 'Settings', icon: 'sliders' }];
+    const tabs = [NAV[0], { key: 'add', label: 'Add', icon: 'plusCircle' }, { key: 'settings', label: 'Settings', icon: 'sliders' }];
     $('#tabbar').innerHTML = tabs.map((n) =>
       '<a href="#/' + n.key + '" class="tab"' + (n.key === name ? ' aria-current="page"' : '') + '>' +
-      '<span class="tab-ic">' + icon(n.icon, 20) + dot(n.key) + '</span><span>' + n.label + '</span></a>').join('');
+      '<span class="tab-ic">' + icon(n.icon, 20) + '</span><span>' + n.label + '</span></a>').join('');
 
     $('#banner').innerHTML = state.banner
       ? '<div class="banner" role="status">' + icon('checkCircle') +
@@ -539,13 +503,15 @@
   }
 
   function previewRows() {
-    return [
-      ['kitchen', 'Philips Airfryer XXL', 'Amazon.de', 'info', 'Return by 24 Sep'],
-      ['appliances', 'Bosch washing machine', 'Big Bang', 'warning', 'Ends in 25 days'],
-      ['computers', 'MacBook Air 13" M4', 'Apple', 'success', '1 yr 1 mo left'],
-      ['furniture', 'IKEA KIVIK sofa', 'IKEA', 'success', '8 yr 11 mo left'],
-    ].map((r) => '<div class="pv-row">' + catIcon(r[0]) + '<span class="pv-text"><b>' + r[1] + '</b><span>' + r[2] + '</span></span>' +
-      '<span class="pill pill-' + r[3] + '">' + r[4] + '</span></div>').join('');
+    const row = (cat, name, shop, tone, main, sub) =>
+      '<div class="pv-row">' + catIcon(cat) + '<span class="pv-text"><b>' + name + '</b><span>' + shop + '</span></span>' +
+      '<span class="pv-next tone-' + tone + '"><b>' + main + '</b><span>' + sub + '</span></span></div>';
+    return '<div class="pv-group">Needs action <span>2</span></div>' +
+      row('kitchen', 'Philips Airfryer XXL', 'Amazon.de', 'info', 'Return by Thu 24 Sep', '2 days left') +
+      row('appliances', 'Bosch washing machine', 'Big Bang', 'warning', 'Warranty ends Sat 17 Oct', '25 days left') +
+      '<div class="pv-group">Covered <span>6</span></div>' +
+      row('computers', 'MacBook Air 13" M4', 'Apple', 'base', 'Covered until Oct 2027', '1 year 1 month left') +
+      row('furniture', 'IKEA KIVIK sofa', 'IKEA', 'base', 'Covered until Aug 2035', '8 years 11 months left');
   }
 
   function viewWelcome() {
@@ -561,8 +527,7 @@
           '</div>' +
           '<div class="hero-preview" aria-hidden="true">' +
             '<div class="pv-card">' +
-              '<div class="pv-top"><span class="pv-greet">Good morning, Alex</span><span class="pv-search">' + icon('search', 12) + 'Search</span></div>' +
-              '<div class="pv-stats"><div><span>Items</span><b>9</b></div><div><span>Still covered</span><b>€4,454</b></div><div><span>Ending soon</span><b>2</b></div></div>' +
+              '<div class="pv-top"><span class="pv-greet">Vault <span class="weak">· 9 items · €4,454 covered</span></span><span class="pv-search">' + icon('search', 12) + 'Search</span></div>' +
               '<div class="pv-table">' + previewRows() + '</div>' +
             '</div>' +
           '</div>' +
@@ -598,8 +563,8 @@
   }
 
   function skeletonPreview() {
-    const bars = ['home', 'bell', 'plusCircle', 'sliders'].map((ic, n) =>
-      '<div class="sk-nav">' + icon(ic) + '<span class="sk" style="width:' + [56, 72, 64, 52][n] + 'px"></span></div>').join('');
+    const bars = ['receipt', 'plusCircle', 'sliders'].map((ic, n) =>
+      '<div class="sk-nav">' + icon(ic) + '<span class="sk" style="width:' + [56, 72, 52][n] + 'px"></span></div>').join('');
     return '<div class="sk-app">' +
       '<div class="sk-side"><div class="sk-org"><span class="sk-avatar" id="pv-initials">A</span><b id="pv-name">Your vault</b>' + icon('chevronDown') + '</div>' + bars + '</div>' +
       '<div class="sk-main"><p class="sk-hello">Hello, <span id="pv-hello">there</span></p><span class="sk sk-line"></span>' +
@@ -669,21 +634,51 @@
   }
 
   /* ==========================================================================
-     Home: greeting, summary, needs attention, items table
+     Vault: every item, grouped by what needs doing
      ========================================================================== */
-  function greeting() {
-    const h = new Date().getHours();
-    const part = h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-    return part + ', ' + esc(state.account.first);
+  /* What to say about an item in the list, and how loudly. */
+  function nextStep(it, i) {
+    const flags = Object.keys(it.review || {});
+    if (flags.length) {
+      return { group: 'action', tone: 'warning', urgency: 15,
+        main: 'Check ' + flags.map((f) => (FIELD_NAMES[f] || f).toLowerCase()).join(' and '),
+        sub: 'We weren’t sure when reading the receipt' };
+    }
+    if (i.returnOpen && i.rLeft <= 7) {
+      return { group: 'action', tone: 'info', urgency: i.rLeft,
+        main: 'Return by ' + fmtDate(i.rEnd, { short: true, weekday: true }),
+        sub: i.rLeft === 0 ? 'Last day' : plural(i.rLeft, 'day') + ' left' };
+    }
+    if (i.status === 'expired') {
+      return { group: 'expired', tone: 'weak', urgency: -i.left, main: 'Ended ' + fmtDate(i.end, { short: true }), sub: span(i.left) + ' ago' };
+    }
+    if (i.left <= 30) {
+      return { group: 'action', tone: 'warning', urgency: i.left + 0.5,
+        main: 'Warranty ends ' + fmtDate(i.end, { short: true, weekday: true }),
+        sub: i.left === 0 ? 'Today' : plural(i.left, 'day') + ' left' };
+    }
+    if (i.returnOpen) {
+      return { group: 'covered', tone: 'base', urgency: i.left, main: 'Return by ' + fmtDate(i.rEnd, { short: true }), sub: 'Warranty until ' + fmtDate(i.end, { short: true }) };
+    }
+    if (i.left <= 90) {
+      return { group: 'covered', tone: 'base', urgency: i.left, main: 'Warranty ends ' + fmtDate(i.end, { short: true }), sub: plural(i.left, 'day') + ' left' };
+    }
+    return { group: 'covered', tone: 'base', urgency: i.left, main: 'Covered until ' + MONTHS[i.end.getMonth()] + ' ' + i.end.getFullYear(), sub: span(i.left) + ' left' };
   }
 
-  function viewHome() {
+  const GROUPS = [
+    { key: 'action', label: 'Needs action' },
+    { key: 'covered', label: 'Covered' },
+    { key: 'expired', label: 'Expired' },
+  ];
+
+  function viewVault() {
     const items = state.items;
-    const head = '<header class="page-head"><h1>' + greeting() + '</h1></header>';
+    const head = (sub) => '<header class="page-head"><h1>Vault</h1>' + (sub ? '<p>' + sub + '</p>' : '') + '</header>';
 
     if (!items.length) {
       return {
-        html: head +
+        html: head('') +
           '<section class="empty">' +
             '<p>No receipts yet. Add your first one and we’ll track its warranty and return window.</p>' +
             '<div class="empty-actions">' +
@@ -695,74 +690,67 @@
     }
 
     const infos = items.map(info);
-    const coveredItems = items.filter((it, n) => infos[n].status !== 'expired');
-    const covered = coveredItems.reduce((a, it) => a + Number(it.price || 0), 0);
-    const ending = infos.filter((i) => i.status === 'expiring').length;
-    const att = attention();
-    const next = upNext();
+    const covered = items.filter((it, n) => infos[n].status !== 'expired').reduce((a, it) => a + Number(it.price || 0), 0);
+    const expired = infos.filter((i) => i.status === 'expired').length;
     const merchants = Array.from(new Set(items.map((it) => it.merchant))).sort((a, b) => a.localeCompare(b));
     const cats = CATS.filter((c) => items.some((it) => it.category === c.key));
 
-    const html = head +
-      upNextHtml(next, covered, coveredItems.length, ending) +
-
-      (att.length ? '<section class="section" aria-labelledby="att-title"><div class="section-head"><h2 id="att-title">Needs attention</h2></div>' +
-        '<ul class="list">' + att.slice(0, 5).map(attRow).join('') + '</ul></section>' : '') +
-
-      '<section class="section" aria-labelledby="items-title">' +
-        '<div class="section-head"><h2 id="items-title">Items</h2><div class="seg" role="group" aria-label="Status" id="seg"></div></div>' +
-        '<div class="toolbar">' +
-          '<div class="select select-sm"><label class="sr-only" for="flt-cat">Category</label><select id="flt-cat"><option value="all">All categories</option>' +
-            cats.map((c) => '<option value="' + c.key + '"' + (ui.cat === c.key ? ' selected' : '') + '>' + c.label + '</option>').join('') + '</select>' + icon('updown', 14) + '</div>' +
-          '<div class="select select-sm"><label class="sr-only" for="flt-merchant">Shop</label><select id="flt-merchant"><option value="all">All shops</option>' +
-            merchants.map((m) => '<option' + (ui.merchant === m ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' + icon('updown', 14) + '</div>' +
-          '<div class="select select-sm"><label class="sr-only" for="flt-sort">Sort</label><select id="flt-sort">' +
-            [['soonest', 'Ending soonest'], ['newest', 'Newest purchase'], ['price', 'Highest price']].map((o) =>
-              '<option value="' + o[0] + '"' + (ui.sort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' + icon('updown', 14) + '</div>' +
-          '<span class="toolbar-gap"></span>' +
-          btn('Export PDF', 'export-all', { icon: 'download', cls: 'btn-sm' }) +
-        '</div>' +
-        '<div class="table" role="table" aria-label="Items">' +
-          '<div class="thead" role="row"><span role="columnheader">Item</span><span role="columnheader">Status</span><span role="columnheader">Warranty</span><span role="columnheader" class="t-right">Price</span><span></span></div>' +
-          '<div id="items" role="rowgroup"></div>' +
-        '</div>' +
-        '<p class="list-foot" id="list-foot"></p>' +
-      '</section>' +
+    const html = head(plural(items.length, 'item') + ' · <span class="num">' + money(covered) + '</span> still under warranty' + (expired ? ' · ' + expired + ' expired' : '')) +
+      '<div class="toolbar">' +
+        '<div class="select select-sm"><label class="sr-only" for="flt-cat">Category</label><select id="flt-cat"><option value="all">All categories</option>' +
+          cats.map((c) => '<option value="' + c.key + '"' + (ui.cat === c.key ? ' selected' : '') + '>' + c.label + '</option>').join('') + '</select>' + icon('updown', 14) + '</div>' +
+        '<div class="select select-sm"><label class="sr-only" for="flt-merchant">Shop</label><select id="flt-merchant"><option value="all">All shops</option>' +
+          merchants.map((m) => '<option' + (ui.merchant === m ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' + icon('updown', 14) + '</div>' +
+        '<span class="toolbar-gap"></span>' +
+        btn('Export PDF', 'export-all', { icon: 'download', cls: 'btn-sm' }) +
+      '</div>' +
+      '<div class="table" role="table" aria-label="Items">' +
+        '<div class="thead" role="row"><span role="columnheader">Item</span><span role="columnheader">Status</span><span role="columnheader" class="t-right">Paid</span><span></span></div>' +
+        '<div id="items"></div>' +
+      '</div>' +
+      '<p class="list-foot" id="list-foot"></p>' +
       (state.plan === 'free' ? '<p class="plan-note">' + items.length + ' of ' + FREE_LIMIT + ' items on the free plan. <a href="#/settings/plan">See Plus</a></p>' : '');
 
     return { html, after: renderList };
   }
 
-  /* The nearest deadline: a return window closing or a warranty ending. */
-  function upNext() {
-    const c = [];
-    state.items.forEach((it) => {
-      const i = info(it);
-      if (i.returnOpen) c.push({ it, i, kind: 'return', days: i.rLeft });
-      if (i.left >= 0) c.push({ it, i, kind: 'warranty', days: i.left });
-    });
-    return c.sort((a, b) => a.days - b.days)[0] || null;
+  function filtered() {
+    const q = ui.q.trim().toLowerCase();
+    let list = state.items.map((it) => { const i = info(it); return { it, i, next: nextStep(it, i) }; });
+    if (q) list = list.filter(({ it }) => [it.name, it.merchant, it.orderNo, catLabel(it.category), it.notes].join(' ').toLowerCase().includes(q));
+    if (ui.cat !== 'all') list = list.filter(({ it }) => it.category === ui.cat);
+    if (ui.merchant !== 'all') list = list.filter(({ it }) => it.merchant === ui.merchant);
+    return list.sort((a, b) => a.next.urgency - b.next.urgency);
   }
 
-  function upNextHtml(n, covered, count, ending) {
-    const cov = '<p class="section-label">Coverage</p>' +
-      '<p class="upnext-cov"><b class="num">' + money(covered) + '</b> across ' + plural(count, 'item') + ' still under warranty' +
-      (ending ? '<span class="weak"> · ' + ending + ' ending within 60 days</span>' : '') + '</p>';
-    if (!n) return '<section class="upnext upnext-plain">' + cov + '</section>';
-    const it = n.it, i = n.i;
-    const when = n.kind === 'return'
-      ? 'Return window closes <b>' + fmtDate(i.rEnd, { weekday: true }) + '</b>' + (i.rLeft === 0 ? ', today' : ', in ' + plural(i.rLeft, 'day'))
-      : 'Warranty ends <b>' + fmtDate(i.end, { weekday: true }) + '</b>' + (i.left === 0 ? ', today' : ', in ' + span(i.left));
-    return '<section class="upnext" aria-labelledby="upnext-title">' +
-      '<a class="rc-frame" href="#/item/' + it.id + '" aria-label="Open ' + esc(it.name) + '">' + receiptPreview(it, i) + '</a>' +
-      '<div class="upnext-body">' +
-        '<p class="section-label">Up next</p>' +
-        '<div class="upnext-title"><h2 id="upnext-title">' + esc(it.name) + '</h2>' + (n.kind === 'return' ? returnPill(i) : statusPill(i)) + '</div>' +
-        '<p class="upnext-line">' + when + '</p>' +
-        '<div class="upnext-actions"><a class="btn btn-secondary" href="#/item/' + it.id + '">' + icon('receipt') + '<span>Open item</span></a>' +
-          btn('Export PDF', 'export-one', { kind: 'ghost', icon: 'download', data: { id: it.id } }) + '</div>' +
-        cov +
-      '</div></section>';
+  function renderList() {
+    const el = $('#items');
+    if (!el) return;
+    const list = filtered();
+
+    if (!list.length) {
+      el.innerHTML = '<div class="t-empty">' + (ui.q ? 'No items match “' + esc(ui.q) + '”.' : 'No items match these filters.') + ' ' +
+        '<button type="button" class="link-btn" data-action="clear-filters">Clear filters</button></div>';
+      $('#list-foot').textContent = '';
+      return;
+    }
+
+    el.innerHTML = GROUPS.map((g) => {
+      const rows = list.filter((x) => x.next.group === g.key);
+      if (!rows.length) return '';
+      return '<div role="rowgroup">' +
+        '<div class="tgroup" role="row"><span role="cell">' + g.label + ' <span class="tgroup-n">' + rows.length + '</span></span></div>' +
+        rows.map(({ it, next }, n) =>
+          '<a class="trow" role="row" href="#/item/' + it.id + '" style="--n:' + n + '">' +
+            '<span class="t-item" role="cell">' + catIcon(it.category) +
+              '<span class="t-text"><b>' + esc(it.name) + '</b><span>' + esc(it.merchant) + ' · ' + fmtDate(it.purchased, { short: true }) + '</span></span></span>' +
+            '<span class="t-next tone-' + next.tone + '" role="cell"><b>' + next.main + '</b><span>' + next.sub + '</span></span>' +
+            '<span class="t-price num" role="cell">' + money(it.price) + '</span>' +
+            '<span class="t-go" aria-hidden="true">' + icon('chevron') + '</span>' +
+          '</a>').join('') +
+      '</div>';
+    }).join('');
+    $('#list-foot').textContent = list.length === state.items.length ? '' : 'Showing ' + list.length + ' of ' + state.items.length;
   }
 
   /* A small paper receipt, drawn from the item's details. */
@@ -777,79 +765,6 @@
       '<p class="rc-line rc-foot"><span>Warranty</span><span>' + (i.status === 'expired' ? 'Ended ' : 'Until ') + fmtDate(i.end) + '</span></p>' +
       (i.rDays ? '<p class="rc-line rc-foot"><span>Returns</span><span>' + (i.returnOpen ? 'Until ' : 'Closed ') + fmtDate(i.rEnd) + '</span></p>' : '') +
     '</div>';
-  }
-
-  function attRow(a) {
-    const it = a.it, i = a.i;
-    let ic, tone, title, meta;
-    if (a.kind === 'return') {
-      ic = 'return'; tone = 'info';
-      title = 'Return window closes ' + fmtDate(i.rEnd, { short: true, weekday: true });
-      meta = i.rLeft === 0 ? 'Last day to return it' : plural(i.rLeft, 'day') + ' left';
-    } else if (a.kind === 'warranty') {
-      ic = 'clock'; tone = 'warning';
-      title = 'Warranty ends ' + fmtDate(i.end, { short: true, weekday: true });
-      meta = 'Check it still works properly';
-    } else {
-      ic = 'alert'; tone = 'warning';
-      title = 'Check ' + plural(a.n, 'detail');
-      meta = Object.keys(it.review).map((k) => FIELD_NAMES[k] || k).join(', ') + ' may be wrong';
-    }
-    return '<li><a class="lrow" href="#/item/' + it.id + '">' +
-      '<span class="tone-ic tone-' + tone + '">' + icon(ic) + '</span>' +
-      '<span class="lrow-text"><b>' + esc(it.name) + '</b><span>' + title + '</span></span>' +
-      '<span class="lrow-meta">' + meta + '</span>' +
-      icon('chevron') + '</a></li>';
-  }
-
-  function filtered() {
-    const q = ui.q.trim().toLowerCase();
-    let list = state.items.map((it) => ({ it, i: info(it) }));
-    if (q) list = list.filter(({ it }) => [it.name, it.merchant, it.orderNo, catLabel(it.category), it.notes].join(' ').toLowerCase().includes(q));
-    if (ui.cat !== 'all') list = list.filter(({ it }) => it.category === ui.cat);
-    if (ui.merchant !== 'all') list = list.filter(({ it }) => it.merchant === ui.merchant);
-    const counts = { all: list.length, active: 0, expiring: 0, expired: 0 };
-    list.forEach(({ i }) => { counts[i.status]++; });
-    if (ui.status !== 'all') list = list.filter(({ i }) => i.status === ui.status);
-
-    const rank = { expiring: 0, active: 1, expired: 2 };
-    list.sort((a, b) => {
-      if (ui.sort === 'newest') return b.i.bought - a.i.bought;
-      if (ui.sort === 'price') return b.it.price - a.it.price;
-      if (rank[a.i.status] !== rank[b.i.status]) return rank[a.i.status] - rank[b.i.status];
-      return a.i.status === 'expired' ? b.i.left - a.i.left : a.i.left - b.i.left;
-    });
-    return { list, counts };
-  }
-
-  function renderList() {
-    const el = $('#items');
-    if (!el) return;
-    const { list, counts } = filtered();
-    const segs = [['all', 'All'], ['active', 'Active'], ['expiring', 'Ending soon'], ['expired', 'Expired']];
-    $('#seg').innerHTML = segs.map((s) =>
-      '<button type="button" data-action="status" data-v="' + s[0] + '" aria-pressed="' + (ui.status === s[0]) + '">' + s[1] +
-      '<span class="seg-n">' + counts[s[0]] + '</span></button>').join('');
-
-    if (!list.length) {
-      el.innerHTML = '<div class="t-empty">' + (ui.q ? 'No items match “' + esc(ui.q) + '”.' : 'No items match these filters.') + ' ' +
-        '<button type="button" class="link-btn" data-action="clear-filters">Clear filters</button></div>';
-      $('#list-foot').textContent = '';
-      return;
-    }
-
-    el.innerHTML = list.map(({ it, i }) =>
-      '<a class="trow" role="row" href="#/item/' + it.id + '">' +
-        '<span class="t-item" role="cell">' + catIcon(it.category) +
-          '<span class="t-text"><b>' + esc(it.name) + (it.review && Object.keys(it.review).length ? '<span class="flag-dot" title="Has details to check"></span>' : '') + '</b>' +
-          '<span>' + esc(it.merchant) + ' · ' + fmtDate(it.purchased, { short: true }) + '</span></span></span>' +
-        '<span class="t-status" role="cell">' + statusPill(i) + returnPill(i) + '</span>' +
-        '<span class="t-warranty" role="cell"><b>' + (i.status === 'expired' ? 'Ended ' : 'Until ') + fmtDate(i.end) + '</b>' +
-          '<span>' + (i.status === 'expired' ? span(i.left) + ' ago' : i.left === 0 ? 'Ends today' : span(i.left) + ' left') + '</span></span>' +
-        '<span class="t-price num" role="cell">' + money(it.price) + '</span>' +
-        '<span class="t-go" aria-hidden="true">' + icon('chevron') + '</span>' +
-      '</a>').join('');
-    $('#list-foot').textContent = list.length === state.items.length ? '' : 'Showing ' + list.length + ' of ' + state.items.length;
   }
 
   /* ==========================================================================
@@ -897,36 +812,53 @@
     const todayPct = pct(t);
     const retPct = i.rDays > 0 ? Math.max(1.2, pct(i.rEnd)) : 0;
     const align = todayPct < 12 ? 'start' : todayPct > 88 ? 'end' : 'mid';
-    return '<div class="tl tl-' + i.status + '" aria-hidden="true">' +
+    return '<div class="tl tl-' + i.status + '">' +
       '<div class="tl-track">' +
         '<span class="tl-used" style="width:' + todayPct + '%"></span>' +
         (retPct ? '<span class="tl-return' + (i.returnOpen ? ' is-open' : '') + '" style="width:' + retPct + '%"></span>' : '') +
-        '<span class="tl-today tl-today-' + align + '" style="left:' + todayPct + '%"><span>Today</span></span>' +
+        '<span class="tl-today tl-today-' + align + '" style="left:' + todayPct + '%"><span aria-hidden="true">Today</span></span>' +
       '</div>' +
       '<div class="tl-labels"><span><b>Bought</b>' + fmtDate(i.bought) + '</span>' +
         '<span class="tl-end"><b>' + (i.status === 'expired' ? 'Ended' : 'Ends') + '</b>' + fmtDate(i.end) + '</span></div>' +
     '</div>';
   }
 
+  /* One sentence about reminders, instead of a list of dates. */
+  function reminderLine(it) {
+    const t = today();
+    const up = remindersFor(it).filter((r) => r.date >= t).sort((a, b) => a.date - b.date)
+      .map((r) => (daysFrom(t, r.date) === 0 ? 'today' : daysFrom(t, r.date) === 1 ? 'tomorrow' : fmtDate(r.date, { short: true })));
+    const change = ' <a href="#/settings/reminders">Change</a>';
+    if (!up.length) return 'None coming up.' + change;
+    const dates = up.length === 1 ? up[0] : up.slice(0, -1).join(', ') + ' and ' + up[up.length - 1];
+    const where = [state.settings.device && 'on this device', state.settings.emailCopy && 'by email'].filter(Boolean).join(' and ');
+    return dates + (where ? ', ' + where : '') + '.' + change;
+  }
+
   function drawerDetail(it) {
     const i = info(it);
     const flags = Object.keys(it.review || {});
-    const head = i.status === 'expired' ? 'Warranty ended ' + span(i.left) + ' ago'
-      : i.left === 0 ? 'Warranty ends today' : span(i.left) + ' of warranty left';
-    const sub = i.status === 'expired'
-      ? 'It ended on ' + fmtDate(i.end, { weekday: true }) + '. The maker may still repair it for a fee.'
-      : i.status === 'expiring'
-        ? 'Covered until ' + fmtDate(i.end, { weekday: true }) + '. Check it works properly now, and claim before then if anything’s wrong.'
-        : 'Covered until ' + fmtDate(i.end, { weekday: true }) + '.';
-    const warrantySource = it.warrantyNote ? esc(it.warrantyNote) : !it.warrantyMonths ? 'Default for ' + catLabel(it.category).toLowerCase() : 'Set by you';
-    const rems = remindersFor(it).sort((a, b) => a.date - b.date);
-    const t = today();
+    let lead, sub;
+    if (i.returnOpen && (i.rLeft <= 7 || i.left > 30)) {
+      lead = i.rLeft === 0 ? 'Last day to return it' : 'Return window closes in ' + plural(i.rLeft, 'day');
+      sub = 'You can return it to ' + esc(it.merchant) + ' until ' + fmtDate(i.rEnd, { weekday: true }) + '. The warranty runs until ' + fmtDate(i.end) + '.';
+    } else if (i.status === 'expired') {
+      lead = 'Warranty ended ' + span(i.left) + ' ago';
+      sub = 'It ended on ' + fmtDate(i.end, { weekday: true }) + '. The maker may still repair it for a fee.';
+    } else if (i.left <= 30) {
+      lead = i.left === 0 ? 'Warranty ends today' : 'Warranty ends in ' + plural(i.left, 'day');
+      sub = 'Covered until ' + fmtDate(i.end, { weekday: true }) + '. If anything’s wrong, claim before then.';
+    } else {
+      lead = 'Covered for ' + span(i.left) + ' more';
+      sub = 'Warranty until ' + fmtDate(i.end, { weekday: true }) + '.';
+    }
+    const warrantySource = it.warrantyNote ? esc(it.warrantyNote) : !it.warrantyMonths ? 'default for ' + catLabel(it.category).toLowerCase() : 'set by you';
 
     return '<header class="d-head">' +
         '<div class="d-top"><span class="d-cat">' + catIcon(it.category) + catLabel(it.category) + '</span>' +
           '<button type="button" class="icon-btn" data-action="close-drawer" aria-label="Close">' + icon('x') + '</button></div>' +
         '<h2 id="d-title" class="d-title">' + esc(it.name) + '</h2>' +
-        '<p class="d-sub">' + esc(it.merchant) + (it.orderNo ? ' · <span class="mono">' + esc(it.orderNo) + '</span>' : '') + '</p>' +
+        '<p class="d-sub">' + esc(it.merchant) + ' · bought ' + fmtDate(it.purchased) + '</p>' +
       '</header>' +
       '<div class="d-body">' +
         (flags.length ? '<section class="callout callout-warning">' + icon('alert') + '<div>' +
@@ -936,33 +868,21 @@
           btn('Edit', 'edit', { kind: 'ghost', cls: 'btn-sm', data: { id: it.id } }) + '</div></div></section>' : '') +
 
         '<section class="d-status">' +
-          '<div class="d-pills">' + statusPill(i) + returnPill(i) + '</div>' +
-          '<p class="d-big">' + head + '</p>' +
+          '<p class="d-big">' + lead + '</p>' +
           '<p class="d-muted">' + sub + '</p>' +
           timeline(i) +
-          (i.returnOpen ? '<p class="inline-info">' + icon('return') + '<span>Changed your mind? You can return it until <b>' + fmtDate(i.rEnd, { weekday: true }) + '</b>, ' +
-            (i.rLeft === 0 ? 'today is the last day.' : plural(i.rLeft, 'day') + ' from now.') + '</span></p>' : '') +
         '</section>' +
 
         '<section class="d-sec"><h3>Details</h3><dl class="dl">' +
-          '<div><dt>Price paid</dt><dd class="num">' + money(it.price) + '</dd></div>' +
-          '<div><dt>Bought</dt><dd>' + fmtDate(it.purchased) + '</dd></div>' +
-          '<div><dt>Shop</dt><dd>' + esc(it.merchant) + '</dd></div>' +
+          '<div><dt>Paid</dt><dd class="num">' + money(it.price) + '</dd></div>' +
           '<div><dt>Order number</dt><dd class="mono">' + (it.orderNo ? esc(it.orderNo) : '<span class="weak">Not recorded</span>') + '</dd></div>' +
-          '<div><dt>Warranty</dt><dd>' + monthsLabel(i.months) + '<span class="dd-sub">' + warrantySource + '</span></dd></div>' +
-          '<div><dt>Return window</dt><dd>' + (i.rDays ? plural(i.rDays, 'day') : 'None') + '<span class="dd-sub">' + (it.returnDays == null ? 'Your default' : 'Shop’s return policy') + '</span></dd></div>' +
+          '<div><dt>Warranty</dt><dd>' + monthsLabel(i.months) + ' <span class="weak">· ' + warrantySource + '</span></dd></div>' +
+          '<div><dt>Return window</dt><dd>' + (i.rDays ? plural(i.rDays, 'day') : 'None') + ' <span class="weak">· ' + (it.returnDays == null ? 'your default' : 'shop’s policy') + '</span></dd></div>' +
           (it.notes ? '<div><dt>Notes</dt><dd>' + esc(it.notes) + '</dd></div>' : '') +
+          '<div><dt>Reminders</dt><dd>' + reminderLine(it) + '</dd></div>' +
         '</dl></section>' +
 
-        '<section class="d-sec"><h3>Reminders</h3>' +
-          (rems.length ? '<ul class="rem-list">' + rems.map((r) => {
-            const past = r.date < t;
-            return '<li class="' + (past ? 'is-past' : '') + '">' + icon(past ? 'check' : 'bell') +
-              '<span>' + REMINDER_TEXT[r.kind] + '</span><span class="mono">' + (past ? 'Sent ' : '') + fmtDate(r.date, { short: true }) + '</span></li>';
-          }).join('') + '</ul>' : '<p class="d-muted">Reminders are off. <a href="#/settings/reminders">Turn them on in Settings</a></p>') +
-        '</section>' +
-
-        '<section class="d-sec"><h3>Receipt</h3>' + proofCard(it) + '</section>' +
+        '<section class="d-sec"><h3>Receipt</h3>' + proofCard(it, i) + '</section>' +
       '</div>' +
       '<footer class="d-foot">' +
         btn('Export for a claim', 'export-one', { kind: 'primary', icon: 'download', data: { id: it.id } }) +
@@ -971,16 +891,15 @@
       '</footer>';
   }
 
-  function proofCard(it) {
+  function proofCard(it, i) {
     if (it.photo) {
       return '<button type="button" class="proof proof-photo" data-action="view-proof" data-id="' + it.id + '">' +
         '<img src="' + it.photo + '" alt="" /><span class="proof-cap">' + icon('camera') + 'Photo of receipt · added ' + fmtDate(it.added || it.purchased) + '</span></button>';
     }
     if (it.fileName) {
-      return '<button type="button" class="proof" data-action="view-proof" data-id="' + it.id + '">' +
-        '<span class="proof-ic">' + icon('file') + '</span>' +
-        '<span class="proof-text"><b class="mono">' + esc(it.fileName) + '</b><span>Uploaded ' + fmtDate(it.added || it.purchased) + '</span></span>' +
-        icon('chevron') + '</button>';
+      return '<button type="button" class="proof proof-doc" data-action="view-proof" data-id="' + it.id + '">' +
+        receiptPreview(it, i) +
+        '<span class="proof-cap">' + icon('file') + '<span class="mono">' + esc(it.fileName) + '</span> · uploaded ' + fmtDate(it.added || it.purchased) + '</span></button>';
     }
     return '<p class="d-muted">No receipt attached. Add a photo so you have proof if you need to claim.</p>' +
       '<label class="btn btn-secondary btn-sm file-btn">' + icon('camera') + '<span>Add a photo</span>' +
@@ -1064,58 +983,6 @@
         '<button type="submit" form="edit-form" class="btn btn-primary"><span>Save changes</span></button>' +
         btn('Cancel', 'cancel-edit', { kind: 'ghost' }) +
       '</footer>';
-  }
-
-  /* ==========================================================================
-     Reminders
-     ========================================================================== */
-  function reminderSummary() {
-    const r = state.settings.remind;
-    const w = [r.w30 && '30', r.w7 && '7'].filter(Boolean);
-    const parts = [];
-    if (w.length) parts.push(w.join(' and ') + ' days before a warranty ends');
-    if (r.r2) parts.push('2 days before a return window closes');
-    return parts.join(', and ');
-  }
-
-  function viewReminders() {
-    const list = upcomingReminders();
-    const t = today();
-    const r = state.settings.remind;
-    const on = r.w30 || r.w7 || r.r2;
-    const groups = [
-      { title: 'This week', test: (d) => d <= 7 },
-      { title: 'This month', test: (d) => d > 7 && d <= 31 },
-      { title: 'Next 3 months', test: (d) => d > 31 && d <= 92 },
-      { title: 'Later', test: (d) => d > 92 },
-    ];
-    const emptyLine = (text, cta) => '<section class="empty"><p>' + text + '</p>' + (cta ? '<div class="empty-actions">' + cta + '</div>' : '') + '</section>';
-
-    const body = !state.items.length
-      ? emptyLine('No reminders yet. Add a receipt and its reminders show up here.', '<a class="btn btn-primary" href="#/add">' + icon('plus') + '<span>Add receipt</span></a>')
-      : !on
-        ? emptyLine('Reminders are off.', '<a class="btn btn-secondary" href="#/settings/reminders">Turn on reminders</a>')
-        : !list.length
-          ? emptyLine('Nothing coming up in the next 12 months.')
-          : groups.map((g) => {
-              const rows = list.filter((x) => g.test(daysFrom(t, x.date)));
-              if (!rows.length) return '';
-              return '<section class="section"><div class="section-head"><h2>' + g.title + '</h2></div><ul class="list">' + rows.map((x) => {
-                const d = daysFrom(t, x.date);
-                const deadline = x.kind === 'r2' ? x.info.rEnd : x.info.end;
-                return '<li><a class="lrow" href="#/item/' + x.item.id + '">' +
-                  '<span class="date-chip' + (d <= 7 ? ' is-soon' : '') + '"><span>' + MONTHS[x.date.getMonth()] + '</span><b>' + x.date.getDate() + '</b></span>' +
-                  '<span class="lrow-text"><b>' + esc(x.item.name) + '</b><span>' + (x.kind === 'r2' ? 'Return window closes ' : 'Warranty ends ') + fmtDate(deadline, { short: true, weekday: true }) + '</span></span>' +
-                  '<span class="lrow-meta">' + (d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : 'In ' + span(d, true)) + '</span>' +
-                  icon('chevron') + '</a></li>';
-              }).join('') + '</ul></section>';
-            }).join('');
-
-    return {
-      html: '<header class="page-head page-head-row"><div><h1>Reminders</h1>' +
-        (on ? '<p>We remind you ' + reminderSummary() + '.</p>' : '') + '</div>' +
-        '<a class="btn btn-secondary" href="#/settings/reminders">' + icon('sliders') + '<span>Change</span></a></header>' + body,
-    };
   }
 
   /* ==========================================================================
@@ -1451,7 +1318,7 @@
     state.items = state.items.concat(fresh);
     state.banner = false;
     save();
-    if (ui.base === 'home') paint('home'); else go('home');
+    if (ui.base === 'vault') paint('vault'); else go('vault');
     toast(plural(fresh.length, 'sample item') + ' added.');
   }
 
@@ -1475,17 +1342,11 @@
     },
     'dismiss-banner': () => { state.banner = false; save(); $('#banner').innerHTML = ''; },
     'load-samples': loadSamples,
-    'close-drawer': () => go('home'),
+    'close-drawer': () => go('vault'),
     'close-modal': () => closeModal(),
-    'status': (el) => {
-      ui.status = el.dataset.v;
-      renderList();
-      const again = $('#seg [data-v="' + ui.status + '"]');
-      if (again) again.focus();
-    },
     'clear-filters': () => {
-      ui.q = ''; ui.status = 'all'; ui.cat = 'all'; ui.merchant = 'all';
-      paint('home');
+      ui.q = ''; ui.cat = 'all'; ui.merchant = 'all';
+      paint('vault');
     },
     'edit': (el) => { ui.editing = el.dataset.id; openDrawer(el.dataset.id); },
     'cancel-edit': () => { ui.editing = null; refreshDrawer(); },
@@ -1510,11 +1371,11 @@
       const [gone] = state.items.splice(idx, 1);
       save();
       closeModal(true);
-      go('home');
+      go('vault');
       toast(esc(gone.name) + ' deleted.', () => {
         state.items.splice(idx, 0, gone);
         save();
-        if (ui.base === 'home') paint('home', null, true);
+        if (ui.base === 'vault') paint('vault', null, true);
       });
     },
     'view-proof': (el) => viewProof(findItem(el.dataset.id)),
@@ -1588,7 +1449,7 @@
     if (t.getAttribute('aria-invalid') === 'true') showError(t.id, '');
     if (t.id === 'q') {
       ui.q = t.value;
-      if (ui.base !== 'home') { ui.refocusSearch = true; go('home'); } else renderList();
+      if (ui.base !== 'vault') { ui.refocusSearch = true; go('vault'); } else renderList();
     }
     /* Live preview next to the sign-up form. */
     if (ui.base === 'signup' && (t.id === 'f-first' || t.id === 'f-last')) {
@@ -1609,7 +1470,6 @@
     const t = e.target;
     if (t.id === 'flt-cat') { ui.cat = t.value; renderList(); }
     if (t.id === 'flt-merchant') { ui.merchant = t.value; renderList(); }
-    if (t.id === 'flt-sort') { ui.sort = t.value; renderList(); }
     if (t.id === 'photo-input' || t.id === 'file-input') onReceiptFile(t.files[0]);
     if (t.dataset.attach) {
       const it = findItem(t.dataset.attach);
@@ -1671,9 +1531,8 @@
       state.settings.theme = theme;
       state.account = { first: val('first'), last: val('last'), email: val('email'), password };
       state.session = true;
-      state.banner = true;
       save();
-      go('home');
+      go('vault');
       return;
     }
 
@@ -1689,7 +1548,7 @@
       }
       state.session = true;
       save();
-      go('home');
+      go('vault');
       toast('Welcome back, ' + esc(state.account.first) + '.');
       return;
     }
@@ -1769,7 +1628,7 @@
       if ($('.modal-wrap:not(.is-closing)')) return closeModal();
       if (ui.drawerId) {
         if (ui.editing) { ui.editing = null; return refreshDrawer(); }
-        return go('home');
+        return go('vault');
       }
       if (document.activeElement && document.activeElement.id === 'q' && ui.q) {
         ui.q = '';
