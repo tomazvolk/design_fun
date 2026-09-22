@@ -591,8 +591,6 @@
     const signup = mode === 'signup';
     return authShell(signup ? 'Create your account' : 'Welcome back',
       signup ? 'Leaky finds the subscriptions hiding in your inbox and keeps them under budget.' : 'Sign in to pick up where you left off.',
-      '<div class="stack-xs">' + btn('Continue with Google', 'social', { id: 'google', size: 'lg', icon: 'google', disabled: ui.authBusy }) + '</div>' +
-      '<div class="divider" role="separator"><span>or</span></div>' +
       '<form data-form="auth" class="stack-sm" novalidate>' +
         '<div class="field"><label class="field-label" for="a-email">Email</label>' +
           '<input class="input" id="a-email" name="email" type="email" autocomplete="email" required value="' + email + '" /></div>' +
@@ -602,7 +600,9 @@
           '<input class="input" id="a-pass" name="password" type="password" autocomplete="' + (signup ? 'new-password' : 'current-password') + '" required /></div>' +
         authError +
         btn(busyLabel(signup ? 'Create account' : 'Sign in', signup ? 'Creating account…' : 'Signing in…'), null, { variant: 'primary', size: 'lg', type: 'submit', disabled: ui.authBusy }) +
-      '</form>',
+      '</form>' +
+      '<div class="divider" role="separator"><span>or</span></div>' +
+      '<div class="stack-xs">' + btn('Continue with Google', 'social', { id: 'google', size: 'lg', icon: 'google', disabled: ui.authBusy }) + '</div>',
       '<p class="auth-switch muted">' + (signup ? 'Already have an account?' : 'New to Leaky?') +
         ' <button type="button" class="link-btn" data-action="auth-mode" data-id="' + (signup ? 'signin' : 'signup') + '">' + (signup ? 'Sign in' : 'Create one') + '</button></p>');
   }
