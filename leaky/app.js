@@ -484,7 +484,6 @@
     if (!pop) return;
     b.setAttribute('aria-expanded', String(open));
     if (open) {
-      if ($('#bell-btn').getAttribute('aria-expanded') === 'true') setNotifications(false);
       pop.hidden = false;
       requestAnimationFrame(() => pop.classList.add('is-open'));
       const first = pop.querySelector('.user-pop-item');
@@ -1086,6 +1085,17 @@
   /* ---- Notifications: the bell next to the avatar ---- */
   const KEEP_OPEN = ['cancel-sub', 'keep-trial', 'ack-price', 'ack-unused'];
 
+  function notifList(items, seen) {
+    return items.length
+      ? '<ul class="attn notif-list">' + items.map((it) =>
+          '<li class="attn-item tone-' + it.tone + (seen.includes(it.id) ? '' : ' is-new') + '"><span class="attn-icon">' + icon(it.icon) + '</span>' +
+          '<p class="attn-title">' + (seen.includes(it.id) ? '' : '<span class="sr-only">New. </span>') + (it.tone === 'critical' || it.tone === 'warning' ? '<span class="sr-only">Warning: </span>' : '') + esc(it.title) + '</p>' +
+          '<p class="attn-desc">' + esc(it.desc) + '</p>' +
+          '<div class="attn-actions">' + it.actions + '</div></li>'
+        ).join('') + '</ul>'
+      : emptyState({ small: true, icon: 'check', title: 'You’re all caught up', text: 'Leaky will let you know about trials, price rises and unused subscriptions here.' });
+  }
+
   function renderNotifications() {
     const wrap = $('#notif');
     const show = !!state.user && state.onboarded && !ui.booting;
@@ -1098,39 +1108,36 @@
     badge.hidden = !unseen;
     badge.textContent = unseen > 9 ? '9+' : String(unseen);
     $('#bell-btn').setAttribute('aria-label', 'Notifications' + (unseen ? ', ' + unseen + ' new' : ''));
-    $('#notif-pop').innerHTML =
-      '<div class="notif-head"><h2 class="section-title">Notifications</h2>' +
-        (items.length ? '<span class="muted">' + items.length + '</span>' : '') + '</div>' +
-      (items.length
-        ? '<ul class="attn notif-list">' + items.map((it) =>
-            '<li class="attn-item tone-' + it.tone + (seen.includes(it.id) ? '' : ' is-new') + '"><span class="attn-icon">' + icon(it.icon) + '</span>' +
-            '<p class="attn-title">' + (seen.includes(it.id) ? '' : '<span class="sr-only">New. </span>') + (it.tone === 'critical' || it.tone === 'warning' ? '<span class="sr-only">Warning: </span>' : '') + esc(it.title) + '</p>' +
-            '<p class="attn-desc">' + esc(it.desc) + '</p>' +
-            '<div class="attn-actions">' + it.actions + '</div></li>'
-          ).join('') + '</ul>'
-        : emptyState({ small: true, icon: 'check', title: 'You’re all caught up', text: 'Leaky will let you know about trials, price rises and unused subscriptions here.' }));
+    /* Keep an open drawer in step after a fix resolves an item. */
+    const body = $('#notif-body');
+    if (body) {
+      body.innerHTML = notifList(items, ui.notifSeenBefore || seen);
+      const count = $('#notif-count');
+      if (count) count.textContent = items.length ? plural(items.length, 'item') : 'Nothing new';
+    }
   }
 
-  function setNotifications(open) {
-    const pop = $('#notif-pop');
-    const b = $('#bell-btn');
-    b.setAttribute('aria-expanded', String(open));
-    if (open) {
-      setUserMenu(false);
-      pop.hidden = false;
-      requestAnimationFrame(() => pop.classList.add('is-open'));
-      /* Opening the panel counts as seeing everything in it. */
-      const ids = attentionItems(totals()).map((it) => it.id);
-      const before = (state.seenAlerts || []).length;
-      state.seenAlerts = Array.from(new Set((state.seenAlerts || []).filter((id) => ids.includes(id)).concat(ids)));
-      if (state.seenAlerts.length !== before || ids.length) save();
-      const badge = $('#bell-badge');
-      badge.hidden = true;
-      b.setAttribute('aria-label', 'Notifications');
-    } else if (!pop.hidden) {
-      pop.classList.remove('is-open');
-      setTimeout(() => { if (!pop.classList.contains('is-open')) { pop.hidden = true; renderNotifications(); } }, 120);
-    }
+  /* Opens in the right-hand drawer, like adding a subscription. */
+  function openNotifications() {
+    setUserMenu(false);
+    const items = attentionItems(totals());
+    const ids = items.map((it) => it.id);
+    /* Dots mark what was new when the drawer opened; opening counts as seeing it all. */
+    ui.notifSeenBefore = (state.seenAlerts || []).slice();
+    state.seenAlerts = Array.from(new Set(ui.notifSeenBefore.filter((id) => ids.includes(id)).concat(ids)));
+    save();
+    openOverlay(
+      '<div class="sheet-backdrop" data-action="close"></div>' +
+      '<aside class="sheet notif-sheet" id="notif-drawer" role="dialog" aria-modal="true" aria-labelledby="notif-title">' +
+        '<div class="sheet-head"><div>' +
+          '<p class="label" id="notif-count">' + (items.length ? plural(items.length, 'item') : 'Nothing new') + '</p>' +
+          '<h2 class="modal-title" id="notif-title">Notifications</h2></div>' +
+          btn('', 'close', { variant: 'ghost', icon: 'x', aria: 'Close' }).replace('class="btn', 'class="sheet-close btn') +
+        '</div>' +
+        '<div class="sheet-body" id="notif-body">' + notifList(items, ui.notifSeenBefore) + '</div>' +
+      '</aside>'
+    );
+    renderNotifications();
   }
 
   function upcomingCard() {
@@ -1883,9 +1890,9 @@
     'ack-price': (id) => { const s = findSub(id); if (s) { s.priceAck = true; save(); render(); } },
     'ack-unused': (id) => { const s = findSub(id); if (s) { s.lastUsed = today(); save(); render(); toast('Got it. ' + s.name + ' won’t be flagged for now.'); } },
     'go-subs': () => { location.hash = '#/subscriptions'; },
-    'go-inbox': () => { ui.openSection = 'inbox'; location.hash = '#/settings'; },
-    'go-budget': () => { ui.openSection = 'budget'; location.hash = '#/settings'; },
-    'go-plan': () => { ui.openSection = 'plan'; location.hash = '#/settings'; },
+    'go-inbox': () => goSettings('inbox'),
+    'go-budget': () => goSettings('budget'),
+    'go-plan': () => goSettings('plan'),
     tab: (id) => { ui.tab = id; ui.page = 1; render(); const t = $('#tab-' + id); if (t) t.focus(); },
     sort: (key) => {
       ui.sort = ui.sort.key === key ? { key: key, dir: ui.sort.dir === 'asc' ? 'desc' : 'asc' } : { key: key, dir: 'asc' };
@@ -2110,6 +2117,15 @@
     render();
     focusTitle();
     checkAlerts();
+  }
+
+  /* Open a Settings section; when already on Settings the hash doesn't change, so render directly. */
+  function goSettings(section) {
+    ui.openSection = section;
+    if (route() !== 'settings') { location.hash = '#/settings'; return; }
+    render();
+    const b = $('#acc-' + section);
+    if (b) { b.scrollIntoView({ block: 'start', behavior: 'smooth' }); b.focus({ preventScroll: true }); }
   }
 
   function goStep(step) {
@@ -2412,7 +2428,6 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if ($('#avatar-btn').getAttribute('aria-expanded') === 'true') { setUserMenu(false); $('#avatar-btn').focus(); return; }
-      if ($('#bell-btn').getAttribute('aria-expanded') === 'true') { setNotifications(false); $('#bell-btn').focus(); return; }
       if ($('#overlay').innerHTML) closeOverlay();
       else if ($('#nav').classList.contains('is-open')) { setMenu(false); $('#menu-btn').focus(); }
       return;
@@ -2448,15 +2463,15 @@
   /* The path is fixed at click time, so it still holds when an action re-renders the clicked node away. */
   const clickedInside = (e, id) => e.composedPath().some((el) => el.id === id);
   document.addEventListener('click', (e) => { if (!clickedInside(e, 'user-menu')) setUserMenu(false); });
-  $('#bell-btn').addEventListener('click', (e) => { e.stopPropagation(); setNotifications($('#bell-btn').getAttribute('aria-expanded') !== 'true'); });
-  /* Actions inside the panel: fixes that resolve an item keep it open; anything that navigates closes it. */
-  $('#notif-pop').addEventListener('click', (e) => {
-    const el = e.target.closest('[data-action]');
-    if (el && !KEEP_OPEN.includes(el.dataset.action)) setNotifications(false);
+  $('#bell-btn').addEventListener('click', openNotifications);
+  /* In the drawer, fixes that resolve an item keep it open; anything that navigates closes it first. */
+  $('#overlay').addEventListener('click', (e) => {
+    const el = e.target.closest('#notif-drawer [data-action]');
+    if (!el) return;
+    const a = el.dataset.action;
+    if (KEEP_OPEN.includes(a) || a === 'close' || a === 'open-sub') return;
+    closeOverlay();
   }, true);
-  document.addEventListener('click', (e) => {
-    if (!clickedInside(e, 'notif') && $('#bell-btn').getAttribute('aria-expanded') === 'true') setNotifications(false);
-  });
   $('#user-pop').addEventListener('click', (e) => { if (e.target.closest('a')) setUserMenu(false); });
 
   window.addEventListener('hashchange', () => {

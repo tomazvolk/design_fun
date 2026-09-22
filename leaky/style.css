@@ -202,7 +202,6 @@ svg { flex: none; }
 }
 .icon-btn:hover { background: var(--sand-30); }
 .icon-btn:active { transform: scale(0.95); }
-.icon-btn[aria-expanded='true'] { background: var(--sand-30); }
 .icon-btn svg { width: 20px; height: 20px; }
 .badge {
   position: absolute;
@@ -222,27 +221,6 @@ svg { flex: none; }
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.notif-pop {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: -44px;
-  z-index: 35;
-  width: min(400px, calc(100vw - 24px));
-  max-height: min(560px, calc(100vh - 88px));
-  overflow-y: auto;
-  padding: 16px 20px 8px;
-  background: var(--white);
-  border: 1px solid var(--sand-30);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-popover);
-  opacity: 0;
-  transform: scale(0.96);
-  transform-origin: top right;
-  transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
-}
-.notif-pop.is-open { opacity: 1; transform: scale(1); }
-.notif-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.notif-head .muted { font-size: 12px; line-height: 16px; font-weight: 500; }
 .notif-list .attn-item { margin: 0 -8px; padding: 12px 8px; }
 .notif-list .attn-item + .attn-item { border-top: 1px solid var(--row-divider); border-radius: 0; }
 .notif-list .attn-item.is-new .attn-title::after {
@@ -255,7 +233,8 @@ svg { flex: none; }
   border-radius: 50%;
   background: var(--button-danger);
 }
-.notif-pop .empty-sm { padding: 24px 8px 32px; }
+.notif-sheet .sheet-body { gap: 0; padding-top: 8px; }
+.notif-sheet .empty-sm { padding: 40px 8px; }
 
 /* Avatar + account menu */
 .user-menu { position: relative; }
@@ -1430,7 +1409,6 @@ svg { flex: none; }
   .panel { margin: 0 12px 12px; }
   .topbar .menu-btn { display: inline-flex; }
   .topbar { grid-template-columns: 1fr auto; }
-  .notif-pop { position: fixed; top: 56px; right: 12px; left: 12px; width: auto; }
   .nav {
     display: none;
     position: absolute;
