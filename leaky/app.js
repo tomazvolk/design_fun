@@ -166,6 +166,7 @@
       budget: null,
       plan: 'free',
       notified: {},
+      seenAlerts: [],
       settings: {
         renewalAlerts: true,
         renewalDays: 3,
@@ -483,6 +484,7 @@
     if (!pop) return;
     b.setAttribute('aria-expanded', String(open));
     if (open) {
+      if ($('#bell-btn').getAttribute('aria-expanded') === 'true') setNotifications(false);
       pop.hidden = false;
       requestAnimationFrame(() => pop.classList.add('is-open'));
       const first = pop.querySelector('.user-pop-item');
@@ -512,6 +514,7 @@
     state.subs.forEach(rollForward);
     renderNav();
     renderUserMenu();
+    renderNotifications();
     const view = $('#view');
     if (ui.booting) {
       view.innerHTML = '<div class="boot" aria-busy="true" aria-label="Loading"><span class="spinner"></span></div>';
@@ -981,7 +984,7 @@
         '</dl>' +
       '</section>';
 
-    return header + '<div class="overview">' + budgetCard + attentionCard(T) + upcomingCard() + '</div>';
+    return header + '<div class="overview">' + budgetCard + upcomingCard() + '</div>';
   }
 
   /* The personal header: a greeting and one sentence on how the month is going. */
@@ -1028,27 +1031,27 @@
     if (b && T.projected > b) {
       const free = round2(unused.reduce((sum, s) => sum + (chargeThisMonth(s) ? s.amount : 0), 0));
       items.push({
-        tone: 'critical', icon: 'alert',
+        id: 'over:' + today().slice(0, 7), tone: 'critical', icon: 'alert',
         title: 'Projected ' + money(T.projected - b) + ' over budget',
-        desc: free ? 'Cancelling the unused subscriptions below would free up ' + money(free) + ' this month.' : 'Review your subscriptions to find some room.',
+        desc: free ? 'Cancelling your unused subscriptions would free up ' + money(free) + ' this month.' : 'Review your subscriptions to find some room.',
         actions: btn('Review subscriptions', 'go-subs'),
       });
     }
     if (!b) {
       items.push({
-        tone: 'warning', icon: 'wallet', title: 'No monthly budget set',
+        id: 'budget', tone: 'warning', icon: 'wallet', title: 'No monthly budget set',
         desc: 'Set one so Leaky can tell you when subscriptions add up.',
         actions: btn('Set budget', 'go-budget'),
       });
     }
     state.subs.filter((s) => s.review).forEach((s) => items.push({
-      tone: 'warning', icon: 'alert', title: 'Check the details for ' + s.name,
+      id: 'review:' + s.id, tone: 'warning', icon: 'alert', title: 'Check the details for ' + s.name,
       desc: 'We couldn’t read the amount on this receipt with confidence.',
       actions: btn('Review', 'open-sub', { id: s.id }),
     }));
     if (S.trialAlerts) {
       state.subs.filter((s) => s.status === 'trial' && !s.trialAck && daysBetween(today(), s.trialEnds) <= 7).forEach((s) => items.push({
-        tone: 'warning', icon: 'gift', title: s.name + ' trial ends ' + fmtRel(s.trialEnds),
+        id: 'trial:' + s.id + ':' + s.trialEnds, tone: 'warning', icon: 'gift', title: s.name + ' trial ends ' + fmtRel(s.trialEnds),
         desc: 'Then ' + money(s.amount) + (s.cycle === 'yearly' ? ' a year' : ' a month') + '. Cancel before ' + fmtDate(s.trialEnds) + ' if you don’t want it.',
         actions: btn('Mark cancelled', 'cancel-sub', { id: s.id }) + btn('Keep it', 'keep-trial', { id: s.id, variant: 'ghost' }),
       }));
@@ -1057,20 +1060,20 @@
       state.subs.filter((s) => s.status !== 'cancelled' && !s.priceAck && priceChange(s)).forEach((s) => {
         const pc = priceChange(s);
         items.push({
-          tone: 'warning', icon: 'trend', title: s.name + ' raised its price',
+          id: 'price:' + s.id + ':' + pc.date, tone: 'warning', icon: 'trend', title: s.name + ' raised its price',
           desc: money(pc.from) + ' to ' + money(pc.to) + (s.cycle === 'yearly' ? ' a year' : ' a month') + ', since ' + fmtDate(pc.date) + '.',
           actions: btn('Review', 'open-sub', { id: s.id }) + btn('Got it', 'ack-price', { id: s.id, variant: 'ghost' }),
         });
       });
     }
     unused.forEach((s) => items.push({
-      tone: 'info', icon: 'pause', title: s.name + ' looks unused',
+      id: 'unused:' + s.id, tone: 'info', icon: 'pause', title: s.name + ' looks unused',
       desc: 'No activity emails for ' + Math.floor(daysBetween(s.lastUsed, today()) / 30) + ' months. It costs ' + money(perMonth(s)) + ' a month.',
       actions: btn('Mark cancelled', 'cancel-sub', { id: s.id }) + btn('Still using it', 'ack-unused', { id: s.id, variant: 'ghost' }),
     }));
     if (state.plan === 'free' && activeSubs().length > FREE_LIMIT) {
       items.push({
-        tone: 'info', icon: 'sparkle', title: 'The free plan covers ' + FREE_LIMIT + ' subscriptions',
+        id: 'plan', tone: 'info', icon: 'sparkle', title: 'The free plan covers ' + FREE_LIMIT + ' subscriptions',
         desc: 'Leaky is tracking ' + activeSubs().length + '. Upgrade to get alerts for all of them.',
         actions: btn('See plans', 'go-plan'),
       });
@@ -1078,18 +1081,54 @@
     return items;
   }
 
-  function attentionCard(T) {
-    const items = attentionItems(T);
-    const body = items.length
-      ? '<ul class="attn stagger">' + items.map((it) =>
-          '<li class="attn-item tone-' + it.tone + '"><span class="attn-icon">' + icon(it.icon) + '</span>' +
-          '<p class="attn-title">' + (it.tone === 'critical' || it.tone === 'warning' ? '<span class="sr-only">Warning: </span>' : '') + esc(it.title) + '</p>' +
-          '<p class="attn-desc">' + esc(it.desc) + '</p>' +
-          '<div class="attn-actions">' + it.actions + '</div></li>'
-        ).join('') + '</ul>'
-      : emptyState({ small: true, icon: 'check', title: 'Nothing needs your attention', text: 'Leaky will flag trials, price rises and unused subscriptions here.' });
-    return '<section class="card" aria-labelledby="attn-h"><div class="card-head"><h2 class="section-title" id="attn-h">Needs attention</h2>' +
-      (items.length ? '<span class="muted">' + items.length + '</span>' : '') + '</div>' + body + '</section>';
+  /* ---- Notifications: the bell next to the avatar ---- */
+  const KEEP_OPEN = ['cancel-sub', 'keep-trial', 'ack-price', 'ack-unused'];
+
+  function renderNotifications() {
+    const wrap = $('#notif');
+    const show = !!state.user && state.onboarded && !ui.booting;
+    wrap.hidden = !show;
+    if (!show) return;
+    const items = attentionItems(totals());
+    const seen = state.seenAlerts || [];
+    const unseen = items.filter((it) => !seen.includes(it.id)).length;
+    const badge = $('#bell-badge');
+    badge.hidden = !unseen;
+    badge.textContent = unseen > 9 ? '9+' : String(unseen);
+    $('#bell-btn').setAttribute('aria-label', 'Notifications' + (unseen ? ', ' + unseen + ' new' : ''));
+    $('#notif-pop').innerHTML =
+      '<div class="notif-head"><h2 class="section-title">Notifications</h2>' +
+        (items.length ? '<span class="muted">' + items.length + '</span>' : '') + '</div>' +
+      (items.length
+        ? '<ul class="attn notif-list">' + items.map((it) =>
+            '<li class="attn-item tone-' + it.tone + (seen.includes(it.id) ? '' : ' is-new') + '"><span class="attn-icon">' + icon(it.icon) + '</span>' +
+            '<p class="attn-title">' + (seen.includes(it.id) ? '' : '<span class="sr-only">New. </span>') + (it.tone === 'critical' || it.tone === 'warning' ? '<span class="sr-only">Warning: </span>' : '') + esc(it.title) + '</p>' +
+            '<p class="attn-desc">' + esc(it.desc) + '</p>' +
+            '<div class="attn-actions">' + it.actions + '</div></li>'
+          ).join('') + '</ul>'
+        : emptyState({ small: true, icon: 'check', title: 'You’re all caught up', text: 'Leaky will let you know about trials, price rises and unused subscriptions here.' }));
+  }
+
+  function setNotifications(open) {
+    const pop = $('#notif-pop');
+    const b = $('#bell-btn');
+    b.setAttribute('aria-expanded', String(open));
+    if (open) {
+      setUserMenu(false);
+      pop.hidden = false;
+      requestAnimationFrame(() => pop.classList.add('is-open'));
+      /* Opening the panel counts as seeing everything in it. */
+      const ids = attentionItems(totals()).map((it) => it.id);
+      const before = (state.seenAlerts || []).length;
+      state.seenAlerts = Array.from(new Set((state.seenAlerts || []).filter((id) => ids.includes(id)).concat(ids)));
+      if (state.seenAlerts.length !== before || ids.length) save();
+      const badge = $('#bell-badge');
+      badge.hidden = true;
+      b.setAttribute('aria-label', 'Notifications');
+    } else if (!pop.hidden) {
+      pop.classList.remove('is-open');
+      setTimeout(() => { if (!pop.classList.contains('is-open')) { pop.hidden = true; renderNotifications(); } }, 120);
+    }
   }
 
   function upcomingCard() {
@@ -2371,6 +2410,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if ($('#avatar-btn').getAttribute('aria-expanded') === 'true') { setUserMenu(false); $('#avatar-btn').focus(); return; }
+      if ($('#bell-btn').getAttribute('aria-expanded') === 'true') { setNotifications(false); $('#bell-btn').focus(); return; }
       if ($('#overlay').innerHTML) closeOverlay();
       else if ($('#nav').classList.contains('is-open')) { setMenu(false); $('#menu-btn').focus(); }
       return;
@@ -2403,7 +2443,18 @@
     if (state.onboarded && route() === 'overview' && !ui.connect) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   });
   $('#avatar-btn').addEventListener('click', (e) => { e.stopPropagation(); setUserMenu($('#avatar-btn').getAttribute('aria-expanded') !== 'true'); });
-  document.addEventListener('click', (e) => { if (!e.target.closest('#user-menu')) setUserMenu(false); });
+  /* The path is fixed at click time, so it still holds when an action re-renders the clicked node away. */
+  const clickedInside = (e, id) => e.composedPath().some((el) => el.id === id);
+  document.addEventListener('click', (e) => { if (!clickedInside(e, 'user-menu')) setUserMenu(false); });
+  $('#bell-btn').addEventListener('click', (e) => { e.stopPropagation(); setNotifications($('#bell-btn').getAttribute('aria-expanded') !== 'true'); });
+  /* Actions inside the panel: fixes that resolve an item keep it open; anything that navigates closes it. */
+  $('#notif-pop').addEventListener('click', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (el && !KEEP_OPEN.includes(el.dataset.action)) setNotifications(false);
+  }, true);
+  document.addEventListener('click', (e) => {
+    if (!clickedInside(e, 'notif') && $('#bell-btn').getAttribute('aria-expanded') === 'true') setNotifications(false);
+  });
   $('#user-pop').addEventListener('click', (e) => { if (e.target.closest('a')) setUserMenu(false); });
 
   window.addEventListener('hashchange', () => {
