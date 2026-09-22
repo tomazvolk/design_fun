@@ -1480,8 +1480,10 @@ svg { flex: none; }
   .num-xl { font-size: 20px; line-height: 28px; }
   .stats dd { font-size: 12px; }
   .fox svg { width: 96px; height: 78px; }
-  .penny .fox svg { width: 128px; height: 104px; }
-  .penny { flex-direction: column; align-items: flex-start; gap: 16px; }
+  /* Phones: Penny fills the card width, her line sits underneath. */
+  .penny { flex-direction: column; align-items: stretch; gap: 16px; }
+  .penny .fox { width: 100%; }
+  .penny .fox svg { width: 100%; height: auto; }
   .penny-says { font-size: 20px; line-height: 24px; }
   .penny-num { font-size: 12px; line-height: 24px; }
   .say { gap: 12px; }
