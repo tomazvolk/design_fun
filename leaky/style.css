@@ -848,8 +848,11 @@ svg { flex: none; }
 .overview { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 
 .budget-card { padding: 32px; }
-.budget-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
-.budget-head .budget-line { margin: 0 0 6px; }
+.budget-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+/* Status lines up with the label, the range switcher with the big number. */
+.budget-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.budget-head .budget-line { margin: 0; min-height: 16px; font-size: 12px; line-height: 16px; }
+.budget-side .seg { margin-top: 2px; }
 .budget-note { margin-top: 16px; }
 .big-num { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .num-xl { font-size: 30px; line-height: 36px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
@@ -929,7 +932,6 @@ svg { flex: none; }
 .bell svg { width: 14px; height: 14px; }
 
 /* Budget chart */
-.chart-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r-md); background: var(--sand-20); }
 .seg-btn {
   height: 28px;
@@ -1446,6 +1448,7 @@ svg { flex: none; }
   .nav a svg { display: block; }
   .nav a[aria-current='page'] { background: var(--sand-30); box-shadow: none; }
   .budget-card { padding: 24px; }
+  .budget-side { align-items: flex-start; }
   .acc-btn { grid-template-columns: 1fr 16px; gap: 4px 16px; }
   .acc-summary { grid-column: 1; grid-row: 2; }
   .acc-btn > svg { grid-column: 2; grid-row: 1 / span 2; }

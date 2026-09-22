@@ -967,13 +967,15 @@
             '<p class="big-num"><span class="num-xl">' + money(T.projected) + '</span>' +
               '<span class="muted">' + (b ? 'of ' + money(b) + ' budget' : 'no budget set') + '</span></p>' +
           '</div>' +
-          (st ? '<div class="budget-line">' + statusHtml(st.tone, st.label) +
-            '<span class="muted">' + (T.projected > b ? money(T.projected - b) + ' over' : money(b - T.projected) + ' left') + '</span></div>' : '') +
+          '<div class="budget-side">' +
+            (st ? '<div class="budget-line">' + statusHtml(st.tone, st.label) +
+              '<span class="muted">' + (T.projected > b ? money(T.projected - b) + ' over' : money(b - T.projected) + ' left') + '</span></div>' : '') +
+            '<div class="seg" role="group" aria-label="Chart range">' +
+              '<button type="button" class="seg-btn" data-action="chart-range" data-id="3m" aria-pressed="' + (ui.chartRange !== '12m') + '">3 months</button>' +
+              '<button type="button" class="seg-btn" data-action="chart-range" data-id="12m" aria-pressed="' + (ui.chartRange === '12m') + '">12 months</button>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
-        '<div class="chart-bar"><div class="seg" role="group" aria-label="Chart range">' +
-          '<button type="button" class="seg-btn" data-action="chart-range" data-id="3m" aria-pressed="' + (ui.chartRange !== '12m') + '">3 months</button>' +
-          '<button type="button" class="seg-btn" data-action="chart-range" data-id="12m" aria-pressed="' + (ui.chartRange === '12m') + '">12 months</button>' +
-        '</div></div>' +
         '<div class="chart" id="budget-chart"></div>' +
         '<p class="muted budget-note">' + esc(speech(md, T.projected, b)) + '</p>' +
         '<dl class="stats">' +
