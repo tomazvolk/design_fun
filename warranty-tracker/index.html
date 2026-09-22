@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Warranty tracker</title>
+  <meta name="description" content="Finds your receipts in your inbox and reminds you before a warranty or return window runs out." />
+  <meta name="theme-color" content="#f4f2ec" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Warranties" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a class="skip" href="#view">Skip to content</a>
+
+  <header class="topbar" id="topbar" hidden>
+    <a class="brand" href="#/vault" aria-label="Warranty tracker, go to vault">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M7 3.5h18a1.5 1.5 0 0 1 1.5 1.5v23.2l-3-2-3 2-3.5-2-3.5 2-3-2-3 2V5A1.5 1.5 0 0 1 7 3.5Z" /><path class="logo-mark" d="m11 15.5 3.4 3.4L21.5 11.8" /></svg>
+      <span>Warranty tracker</span>
+    </a>
+    <nav class="nav" id="nav" aria-label="Main"></nav>
+  </header>
+
+  <main class="main" id="view" tabindex="-1"></main>
+
+  <nav class="tabbar" id="tabbar" aria-label="Main" hidden></nav>
+
+  <div id="overlay"></div>
+  <div class="toast-region" id="toasts" aria-live="polite"></div>
+  <div id="print" aria-hidden="true"></div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>

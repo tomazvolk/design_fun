@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'warranty-tracker',
+    name: 'Warranty tracker',
+    deployed: '2026-09-22',
+    status: 'wip',
+    description:
+      'Finds receipts in your inbox, tracks each warranty and return window, and reminds you before they run out. Photo receipts and claim-ready PDFs. PWA.',
+    tags: ['pwa', 'inbox scanning', 'utility', 'vanilla js'],
+    accent: '#2f7a59',
+    art: 'receipt',
+  },
+  {
     slug: 'leaky-v2',
     name: 'Leaky v2',
     deployed: '2026-09-21',
@@ -59,6 +70,21 @@ const PROTOTYPES = [
 
 /* Pixel art for the tiles: each row is a string, each character a palette key. */
 const PIXEL_ART = {
+  receipt: {
+    palette: { k: '#1d4a3a', w: '#f4f2ec', g: '#2f7a59' },
+    rows: [
+      '.kkkkkkkk.',
+      '.kwwwwwwk.',
+      '.kwwwwwgk.',
+      '.kwwwwggk.',
+      '.kgwwggwk.',
+      '.kggggwwk.',
+      '.kwggwwwk.',
+      '.kwwwwwwk.',
+      '.kwkwwkwk.',
+      '.k.k..k.k.',
+    ],
+  },
   tomato: {
     palette: { r: '#e94560', d: '#a52a3f', g: '#4ecca3', k: '#000000' },
     rows: [
