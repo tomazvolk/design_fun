@@ -1599,7 +1599,8 @@
 
   /* One row: label and description on the left, its control on the right, a divider between rows. */
   function srow(o) {
-    return '<div class="srow' + (o.danger ? ' srow-danger' : '') + '"><div class="srow-text">' +
+    return '<div class="srow' + (o.danger ? ' srow-danger' : '') + (o.lead ? ' srow-lead' : '') + '">' +
+      (o.lead ? '<div class="srow-toggle">' + o.lead + '</div>' : '') + '<div class="srow-text">' +
         '<p class="srow-label"' + (o.id ? ' id="' + o.id + '"' : '') + '>' + o.label + '</p>' +
         (o.desc ? '<p class="srow-desc">' + o.desc + '</p>' : '') +
         (o.sub ? '<div class="srow-sub">' + o.sub + '</div>' : '') +
@@ -1729,16 +1730,16 @@
     const canNotify = 'Notification' in window;
     const blocked = canNotify && Notification.permission === 'denied';
     const pushOn = S.notifications && canNotify && !blocked;
-    const typeRow = (key, label, desc, sub) => srow({ label: label, desc: desc, sub: S[key] ? sub : '', control: toggle(key, S[key], label) });
+    const typeRow = (key, label, desc, sub) => srow({ label: label, desc: desc, sub: S[key] ? sub : '', lead: toggle(key, S[key], label) });
     return sgroup('How to reach you',
         srow({ label: 'Push notifications',
           desc: !canNotify ? 'This browser doesn’t support notifications.' : blocked ? 'Blocked for this site in your browser settings.' : 'Alerts on this device, even when Leaky is closed.',
           sub: pushOn ? btn('Send a test notification', 'test-notify', { icon: 'bell' }) : '',
-          control: toggle('notifications', pushOn, 'Push notifications', { disabled: !canNotify || blocked }) }) +
+          lead: toggle('notifications', pushOn, 'Push notifications', { disabled: !canNotify || blocked }) }) +
         srow({ label: 'Email alerts', desc: 'Sent to ' + esc((state.user && state.user.email) || 'your account email') + '.',
           sub: S.emailAlerts ? '<label class="field-label" for="s-email-freq">Send</label>' + selectField('emailFreq', S.emailFreq, [['instant', 'As they happen'], ['daily', 'Daily summary'], ['weekly', 'Weekly summary']], { id: 's-email-freq', setting: 'emailFreq' }) +
             '<p class="field-desc">Email delivery switches on once Leaky’s email service is connected.</p>' : '',
-          control: toggle('emailAlerts', S.emailAlerts, 'Email alerts') })) +
+          lead: toggle('emailAlerts', S.emailAlerts, 'Email alerts') })) +
       sgroup('What to alert you about',
         typeRow('renewalAlerts', 'Renewals', 'A reminder before a subscription renews, so there’s time to cancel.',
           '<label class="field-label" for="s-renewal">Remind me</label>' + selectField('renewalDays', S.renewalDays, days, { id: 's-renewal', setting: 'renewalDays' })) +

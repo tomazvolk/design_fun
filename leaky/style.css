@@ -137,7 +137,7 @@ svg { flex: none; }
    ========================================================================== */
 .topbar {
   position: relative;
-  height: 56px;
+  height: 64px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -156,7 +156,7 @@ svg { flex: none; }
   border-radius: var(--r-md);
 }
 .brand:hover { color: var(--plum-100); }
-.brand svg { width: 33px; height: 33px; color: var(--plum-80); fill: currentColor; stroke: currentColor; stroke-width: 4; transition: transform var(--dur) var(--ease-out); }
+.brand svg { width: 50px; height: 50px; color: var(--plum-80); fill: currentColor; stroke: currentColor; stroke-width: 4; transition: transform var(--dur) var(--ease-out); }
 @media (hover: hover) and (pointer: fine) { .brand:hover svg { transform: rotate(-12deg); } }
 .brand:active svg { transform: rotate(-12deg) scale(0.92); }
 
@@ -205,8 +205,8 @@ svg { flex: none; }
 .icon-btn svg { width: 20px; height: 20px; }
 .badge {
   position: absolute;
-  top: 2px;
-  right: 1px;
+  top: -3px;
+  right: -5px;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
@@ -298,7 +298,7 @@ svg { flex: none; }
 
 .panel {
   margin: 0 28px 12px;
-  min-height: calc(100vh - 68px);
+  min-height: calc(100vh - 76px);
   background: var(--white);
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-card);
@@ -1333,6 +1333,9 @@ svg { flex: none; }
 .srow-text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 /* Rows with a control underneath the text keep their toggle level with the label. */
 .srow:has(.srow-sub) { align-items: flex-start; }
+/* Toggle rows: the switch leads, level with the label. */
+.srow-lead { flex-wrap: nowrap; align-items: flex-start; justify-content: flex-start; gap: 16px; }
+.srow-toggle { flex: none; padding-top: 0; margin-top: -2px; }
 .srow-label { font-weight: 500; overflow-wrap: anywhere; }
 .srow-label label { cursor: pointer; }
 .srow-desc { color: var(--plum-70); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
@@ -1525,7 +1528,7 @@ svg { flex: none; }
     display: none;
     position: absolute;
     z-index: 30;
-    top: 52px; left: 12px; right: 12px;
+    top: 60px; left: 12px; right: 12px;
     flex-direction: column;
     padding: 8px;
     background: var(--white);
@@ -1546,7 +1549,7 @@ svg { flex: none; }
 }
 
 @media (max-width: 639px) {
-  .panel { margin: 0 8px 8px; min-height: calc(100vh - 64px); }
+  .panel { margin: 0 8px 8px; min-height: calc(100vh - 72px); }
   .content { padding: 24px 16px 40px; }
   .panel-note { padding: 16px; }
   .page-head { flex-direction: column; align-items: stretch; gap: 16px; }
