@@ -224,7 +224,7 @@
 
   /* Things that only live for this session. */
   const ui = {
-    q: '', cat: 'all', merchant: 'all', showAll: false, attention: false,
+    q: '', cat: 'all', merchant: 'all', showAll: false, status: 'all',
     add: null, editing: null, base: null, drawerId: null,
   };
 
@@ -720,26 +720,23 @@
 
   /* The greeting: one sentence about right now, and the actions that follow from it. */
   function greetingBlock(list) {
+    /* The greeting says how things stand, never which product: everything's fine, or how many
+       things need you, and whether a warranty runs out within a month. The list shows which. */
     const action = list.filter((x) => x.next.tier <= 2);
-    const first = action[0];
+    const soon = action.filter((x) => x.i.status !== 'expired' && x.i.left <= 30).length;
     let line, cta = '';
     if (!list.length) {
       line = 'Add your first receipt and we’ll track its warranty and return window for you.';
       cta = btn('Try with sample items', 'load-samples', { kind: 'secondary', icon: 'sparkle' });
-    } else if (first) {
-      const { it, i, next } = first;
-      const what = next.tier === 0 ? esc(it.name) + ' has a detail to check'
-        : next.tier === 1 ? 'the return window for ' + esc(it.name) + ' closes' + (i.rLeft === 0 ? ' today' : ' in ' + plural(i.rLeft, 'day'))
-        : 'the warranty on ' + esc(it.name) + ' ends' + (i.left === 0 ? ' today' : ' in ' + plural(i.left, 'day'));
-      line = (action.length === 1 ? 'One thing needs your attention: ' : plural(action.length, 'thing') + ' need your attention. First, ') + what + '.';
-      cta = action.length > 1
-        ? (ui.attention
-            ? btn('Show all items', 'inspect-off')
-            : btn('Inspect', 'inspect', { kind: 'secondary', icon: 'search' }))
-        : '<a class="btn btn-secondary" href="#/item/' + it.id + '"><span>Open ' + esc(it.name) + '</span></a>';
+    } else if (action.length) {
+      const expiring = soon === 1 ? 'a warranty that expires within a month' : plural(soon, 'warranty', 'warranties') + ' that expire within a month';
+      line = (action.length === 1 ? 'One thing needs your attention' : plural(action.length, 'thing') + ' need your attention') +
+        (soon ? (action.length === soon ? (soon === 1 ? ': a warranty expires within a month.' : ': ' + plural(soon, 'warranty', 'warranties') + ' expire within a month.') : ', including ' + expiring + '.') : '.');
+      cta = ui.status === 'attention'
+        ? btn('Show all items', 'inspect-off')
+        : btn('Inspect', 'inspect', { kind: 'secondary', icon: 'search' });
     } else {
-      const soonest = list.filter((x) => x.next.tier === 3).sort((a, b) => a.i.left - b.i.left)[0];
-      line = 'Everything is covered.' + (soonest ? ' Nothing to do until ' + fmtDate(soonest.i.end) + ', when the warranty on ' + esc(soonest.it.name) + ' ends.' : '');
+      line = 'Everything is covered. Nothing needs your attention.';
     }
     return '<header class="page-head greet">' +
       '<div class="greet-text"><h1 class="large-title">' + greeting() + '</h1><p>' + line + '</p></div>' +
@@ -762,7 +759,9 @@
       '<div class="toolbar">' +
         '<p class="vault-sum"><b>' + plural(items.length, 'item') + '</b>, <span class="num">' + money(covered) + '</span> still covered</p>' +
         '<div class="toolbar-controls">' +
-          (ui.attention ? '<button type="button" class="chip" data-action="inspect-off" aria-label="Stop showing only items that need attention">Needs attention' + icon('x', 12) + '</button>' : '') +
+          '<div class="select select-sm"><label class="sr-only" for="flt-status">Status</label><select id="flt-status">' +
+            STATUSES.map((o) => '<option value="' + o.key + '"' + (ui.status === o.key ? ' selected' : '') + '>' + o.label + '</option>').join('') +
+          '</select>' + icon('chevronDown', 12) + '</div>' +
           '<div class="select select-sm"><label class="sr-only" for="flt-cat">Category</label><select id="flt-cat"><option value="all">All categories</option>' +
             cats.map((c) => '<option value="' + c.key + '"' + (ui.cat === c.key ? ' selected' : '') + '>' + c.label + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>' +
           '<div class="select select-sm"><label class="sr-only" for="flt-merchant">Shop</label><select id="flt-merchant"><option value="all">All shops</option>' +
@@ -784,8 +783,9 @@
     if (q) list = list.filter(({ it }) => [it.name, it.merchant, it.orderNo, catLabel(it.category), it.notes].join(' ').toLowerCase().includes(q));
     if (ui.cat !== 'all') list = list.filter(({ it }) => it.category === ui.cat);
     if (ui.merchant !== 'all') list = list.filter(({ it }) => it.merchant === ui.merchant);
-    /* Inspect: only what needs attention (a detail to check, a closing return, an ending warranty). */
-    if (ui.attention) list = list.filter(({ next }) => next.tier <= 2);
+    /* Status: needs attention (a detail to check, a closing return, an ending warranty), active, or expired. */
+    const status = STATUSES.find((o) => o.key === ui.status);
+    if (status && status.has) list = list.filter(status.has);
     return list.sort((a, b) => a.next.urgency - b.next.urgency);
   }
 
@@ -810,10 +810,18 @@
     '</a>';
   }
 
+  /* The status filter uses the same three groups as the list. */
+  const STATUSES = [
+    { key: 'all', label: 'All statuses' },
+    { key: 'attention', label: 'Needs attention', has: (x) => x.next.tier <= 2 },
+    { key: 'active', label: 'Active warranty', has: (x) => x.next.tier === 3 },
+    { key: 'expired', label: 'Expired', has: (x) => x.next.tier === 4 },
+  ];
+
   /* Most urgent first, in three groups: what needs you, what's covered, what has expired. */
   const GROUPS = [
     { title: 'Needs attention', has: (x) => x.next.tier <= 2 },
-    { title: 'Covered', has: (x) => x.next.tier === 3 },
+    { title: 'Active warranty', has: (x) => x.next.tier === 3 },
     { title: 'Expired', has: (x) => x.next.tier === 4 },
   ];
 
@@ -1568,10 +1576,10 @@
     'load-samples': loadSamples,
     'close-drawer': () => go('vault'),
     'close-modal': () => closeModal(),
-    'inspect': () => { ui.attention = true; ui.showAll = true; paint('vault', null, true); },
-    'inspect-off': () => { ui.attention = false; ui.showAll = false; paint('vault', null, true); },
+    'inspect': () => { ui.status = 'attention'; ui.showAll = true; paint('vault', null, true); },
+    'inspect-off': () => { ui.status = 'all'; ui.showAll = false; paint('vault', null, true); },
     'clear-filters': () => {
-      ui.q = ''; ui.cat = 'all'; ui.merchant = 'all'; ui.showAll = false; ui.attention = false;
+      ui.q = ''; ui.cat = 'all'; ui.merchant = 'all'; ui.showAll = false; ui.status = 'all';
       paint('vault');
     },
     'show-all': () => { ui.showAll = true; renderList(); },
@@ -1711,6 +1719,8 @@
     const t = e.target;
     if (t.id === 'flt-cat') { ui.cat = t.value; ui.showAll = false; renderList(); }
     if (t.id === 'flt-merchant') { ui.merchant = t.value; ui.showAll = false; renderList(); }
+    /* Status also changes the greeting's Inspect / Show all button, so repaint in place. */
+    if (t.id === 'flt-status') { ui.status = t.value; ui.showAll = t.value !== 'all'; paint('vault', null, true); $('#flt-status').focus(); }
     if (t.id === 'photo-input' || t.id === 'file-input') onReceiptFile(t.files[0]);
     if (t.form && t.form.id === 'add-coverage' && ui.add) {
       mergeStep(t.form);
