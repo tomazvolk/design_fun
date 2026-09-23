@@ -113,6 +113,7 @@
     checkCircle: '<circle cx="8" cy="8" r="5.75"/><path d="m5.5 8.2 1.7 1.7 3.3-3.6"/>',
     chevron: '<path d="m6 3.5 4.5 4.5L6 12.5"/>',
     chevronDown: '<path d="m3.5 6 4.5 4.5L12.5 6"/>',
+    chevronLeft: '<path d="M10 3.5 5.5 8 10 12.5"/>',
     updown: '<path d="m5 6 3-3 3 3M5 10l3 3 3-3"/>',
     mail: '<rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="m2.5 4.5 5.5 4 5.5-4"/>',
     lock: '<rect x="3" y="7" width="10" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
@@ -400,7 +401,7 @@
     ui.arg = arg;
     document.body.classList.toggle('is-app', app);
     $('#topbar').hidden = !app;
-    $('#tabbar').hidden = !app;
+    $('#tabbar').hidden = true;
     view.className = 'main ' + (app ? 'main-app main-' + name : 'main-public');
     if (app) renderChrome(name, arg); else $('#banner').innerHTML = '';
     view.innerHTML = out.html;
@@ -421,13 +422,9 @@
   }
 
   /* ==========================================================================
-     App chrome: top bar, floating tab bar, banner
+     App chrome: one top bar. The vault is the home page, so there's nothing to navigate
+     between: the bar holds search, the one primary action, and the account menu.
      ========================================================================== */
-  const NAV = [
-    { key: 'vault', label: 'Vault', icon: 'receipt' },
-    { key: 'add', label: 'Add receipt', short: 'Add', icon: 'plusCircle' },
-    { key: 'settings', label: 'Settings', icon: 'sliders' },
-  ];
 
   /* One search field, rendered wherever it's needed; a shared class keeps them in sync. */
   function searchField(id) {
@@ -440,23 +437,15 @@
   }
 
   function renderChrome(name) {
-    const links = (cls) => NAV.map((n) =>
-      '<a href="#/' + n.key + '" class="' + cls + '"' + (n.key === name ? ' aria-current="page"' : '') + '>' +
-      (cls === 'tab' ? icon(n.icon, 22) : '') + '<span>' + (cls === 'tab' && n.short ? n.short : n.label) + '</span></a>').join('');
-
-    /* A letterhead: wordmark, the three places, a line to write a search on, and your monogram. */
     $('#topbar').innerHTML = '<div class="container topbar-inner">' +
       '<a class="brand" href="#/vault" aria-label="Warranty tracker, home">' + logo(30) + '<span>Warranty tracker</span></a>' +
-      '<nav class="toptabs" aria-label="Main">' + links('toptab') + '</nav>' +
       '<div class="topbar-end">' +
         searchField('q') +
-        '<a class="icon-btn topbar-add" href="#/add" aria-label="Add receipt">' + icon('plus', 18) + '</a>' +
+        (name === 'add' ? '' : '<a class="btn btn-primary topbar-add" href="#/add" aria-label="Add receipt">' + icon('plus') + '<span>Add receipt</span></a>') +
         '<div class="menu-wrap">' +
           '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button>' +
         '</div>' +
       '</div></div>';
-
-    $('#tabbar').innerHTML = '<div class="tabbar-inner">' + links('tab') + '</div>';
 
     $('#banner').innerHTML = state.banner
       ? '<div class="banner" role="status">' + icon('checkCircle') +
@@ -539,7 +528,7 @@
       : '<p class="pass-title">' + esc(it.name) + '</p>';
     return '<div class="pass cat-' + esc(it.category) + (o.cls ? ' ' + o.cls : '') + '">' +
       title +
-      '<p class="pass-cat">' + icon(it.category, 14) + '<span>' + catLabel(it.category) + ', ' + esc(it.merchant) + '</span></p>' +
+      '<p class="pass-cat cat-' + esc(it.category) + '">' + icon(it.category, 14) + '<span>' + catLabel(it.category) + ', ' + esc(it.merchant) + '</span></p>' +
       (o.sub ? '<p class="pass-sub">' + o.sub + '</p>' : '') +
       (o.fields === false ? '' :
         '<div class="pass-fields">' +
@@ -750,7 +739,7 @@
     }
     return '<header class="page-head greet">' +
       '<div class="greet-text"><h1 class="large-title">' + greeting() + '</h1><p>' + line + '</p></div>' +
-      '<div class="page-actions">' + cta + '<a class="btn btn-primary greet-add" href="#/add">' + icon('plus') + '<span>Add receipt</span></a></div>' +
+      (cta ? '<div class="page-actions">' + cta + '</div>' : '') +
     '</header>' +
     (list.length ? '' : '<section class="first-add" aria-label="Add your first receipt">' + addChoices() +
       '<p class="first-add-note">We read the shop, the price and the date, then remind you before the return window or the warranty runs out.</p></section>');
@@ -803,7 +792,7 @@
     const useReturn = next.tier === 1;
     const st = statusOf(i, useReturn);
     return '<a class="lrow' + (next.expired ? ' is-expired' : '') + '" href="#/item/' + it.id + '" style="--n:' + n + '">' +
-      '<span class="lrow-mark" aria-hidden="true">' + icon(it.category, 16) + '</span>' +
+      '<span class="lrow-mark cat-' + esc(it.category) + '" aria-hidden="true">' + icon(it.category, 16) + '</span>' +
       '<span class="lrow-id"><b>' + esc(it.name) + '</b>' +
         '<span>' + esc(it.merchant) + ', <span class="num">' + money(it.price) + '</span></span>' +
         (next.tag ? '<span class="lrow-tag lrow-tag-' + next.tagTone + '">' + esc(next.tag) + '</span>' : '') +
@@ -1117,9 +1106,12 @@
       '</div>';
   }
 
+  /* Add and Settings sit on top of the vault: one way back to it. */
+  function backLink() { return '<a class="back-link" href="#/vault">' + icon('chevronLeft', 14) + '<span>Vault</span></a>'; }
+
   function viewAdd() {
     const a = ui.add || { stage: 'choose' };
-    const head = '<header class="page-head"><h1 class="large-title">Add a receipt</h1><p>We’ll read the details and track the warranty and return window.</p></header>';
+    const head = backLink() + '<header class="page-head"><h1 class="large-title">Add a receipt</h1><p>We’ll read the details and track the warranty and return window.</p></header>';
 
     if (state.plan === 'free' && state.items.length >= FREE_LIMIT) {
       return {
@@ -1240,7 +1232,7 @@
     groups += '</div>';
 
     return {
-      html: '<header class="page-head"><h1 class="large-title">Settings</h1></header>' +
+      html: backLink() + '<header class="page-head"><h1 class="large-title">Settings</h1></header>' +
         '<div class="settings">' +
         '<nav class="snav" aria-label="Settings sections">' + groups + '</nav>' +
         '<div class="settings-body">' + SETTINGS_BODY[key]() + '</div>' +

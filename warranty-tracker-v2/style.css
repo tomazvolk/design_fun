@@ -66,6 +66,22 @@ h1:focus, h2:focus, .main:focus { outline: none; }
 .logo-tool { display: none; }
 .logo-mark { fill: none; stroke: var(--color-on-ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
+/* Category colours: one soft tag hue each, like Notion's. Red and ultramarine stay reserved. */
+.cat-electronics { --cat: var(--color-cat-electronics); }
+.cat-computers { --cat: var(--color-cat-computers); }
+.cat-appliances { --cat: var(--color-cat-appliances); }
+.cat-kitchen { --cat: var(--color-cat-kitchen); }
+.cat-tools { --cat: var(--color-cat-tools); }
+.cat-furniture { --cat: var(--color-cat-furniture); }
+.cat-sports { --cat: var(--color-cat-sports); }
+.cat-other { --cat: var(--color-cat-other); }
+.cat-ic[class*="cat-"], .lrow-mark[class*="cat-"] {
+  background: color-mix(in oklch, var(--cat) 13%, var(--color-paper));
+  color: var(--cat);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--cat) 22%, transparent);
+}
+.pass-cat[class*="cat-"] .i { color: var(--cat); }
+
 /* Icon marks: monochrome, on a faint square */
 .cat-ic, .add-ic, .set-ic {
   display: grid; place-items: center; flex: none;
@@ -186,14 +202,6 @@ kbd {
 .topbar .brand span { display: none; }
 .topbar-end { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; justify-content: flex-end; }
 
-.toptabs { display: none; gap: 2px; }
-.toptab {
-  display: inline-flex; align-items: center; height: 32px; padding: 0 var(--space-md); border-radius: var(--radius-sm);
-  color: var(--color-ink-2); font-size: var(--text-sub); font-weight: 500; white-space: nowrap; text-decoration: none !important;
-  transition: color var(--dur-fast) ease, background-color var(--dur-fast) ease;
-}
-.toptab:hover { color: var(--color-ink); background: var(--color-paper-2); }
-.toptab[aria-current="page"] { color: var(--color-ink); background: var(--color-paper-3); }
 
 .search {
   display: flex; align-items: center; gap: var(--space-sm);
@@ -209,7 +217,22 @@ kbd {
 .search input::-webkit-search-cancel-button { display: none; }
 .search input:focus-visible { outline: none; }
 .search kbd { display: none; }
-.topbar-add { color: var(--color-ink); }
+.topbar-add { flex: none; }
+/* On phones the primary action is a square +; the label returns with room */
+@media (max-width: 599px) {
+  .topbar-add { width: 36px; height: 36px; padding: 0; }
+  .topbar-add span { display: none; }
+}
+.topbar-add:not(.btn) { color: var(--color-ink); }
+
+/* The one way back from Add and Settings */
+.back-link {
+  display: inline-flex; align-items: center; gap: 4px; margin: calc(-1 * var(--space-lg)) 0 var(--space-xl) -4px;
+  height: 32px; padding: 0 8px 0 4px; border-radius: var(--radius-sm);
+  color: var(--color-ink-2); font-size: var(--text-sub); font-weight: 500; text-decoration: none !important;
+  transition: color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+.back-link:hover { color: var(--color-ink); background: var(--color-paper-2); }
 
 .menu-wrap { position: relative; }
 .user-pop {
@@ -247,30 +270,13 @@ kbd {
 .main { display: block; outline: none; }
 .main-app {
   width: 100%; max-width: var(--layout-max); margin: 0 auto;
-  padding: var(--space-4xl) var(--space-xl) calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 48px);
+  padding: var(--space-4xl) var(--space-xl) calc(env(safe-area-inset-bottom) + var(--space-5xl));
 }
 
-.tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  padding-bottom: env(safe-area-inset-bottom);
-  background: color-mix(in oklch, var(--color-ground) 92%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(12px); backdrop-filter: saturate(180%) blur(12px);
-  border-top: 1px solid var(--color-rule);
-}
-.tabbar-inner { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); height: var(--tabbar-h); }
-.tab {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  color: var(--color-ink-3); font-size: 11px; font-weight: 500; text-decoration: none !important;
-  transition: color var(--dur-fast) ease;
-}
-.tab[aria-current="page"] { color: var(--color-ink); }
 
 @media (min-width: 760px) {
-  .tabbar { display: none; }
-  .topbar-inner { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--space-2xl); }
+  .topbar-inner { gap: var(--space-2xl); }
   .topbar .brand span { display: inline; }
-  .toptabs { display: flex; }
-  .topbar-add { display: none; }
   .search kbd { display: inline-block; }
   .search input { font-size: var(--text-sub); }
   .container { padding-left: var(--space-3xl); padding-right: var(--space-3xl); }
@@ -287,10 +293,7 @@ kbd {
 .greet { display: grid; gap: var(--space-2xl); margin-bottom: var(--space-5xl); }
 .page-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 .page-actions .btn span { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 759px) {
-  .greet-add { display: none; }
-  .page-actions .btn-secondary { width: 100%; }
-}
+@media (max-width: 759px) { .page-actions .btn-secondary { width: 100%; } }
 @media (min-width: 760px) { .large-title { font-size: var(--text-display); } }
 @media (min-width: 960px) { .greet { grid-template-columns: minmax(0, 1fr) auto; align-items: end; } }
 
@@ -880,12 +883,11 @@ button.proof:active { transform: scale(0.99); }
    Toasts
    ========================================================================== */
 .toast-region {
-  position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px); z-index: 80;
+  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + var(--space-xl)); z-index: 80;
   display: grid; gap: var(--space-sm); justify-items: center;
   width: max-content; max-width: calc(100vw - 32px);
   transform: translateX(-50%); pointer-events: none;
 }
-body:not(.is-app) .toast-region { bottom: calc(var(--space-xl) + env(safe-area-inset-bottom)); }
 @media (min-width: 760px) { .toast-region { bottom: var(--space-3xl); } }
 .toast {
   display: flex; align-items: center; gap: var(--space-md);
