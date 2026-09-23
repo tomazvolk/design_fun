@@ -43,6 +43,20 @@
   --color-glow-1: oklch(58% 0.22 266 / 0.16);
   --color-glow-2: oklch(66% 0.17 305 / 0.12);
 
+  /* Coverage chart (validated: CVD ΔE 12.2, contrast >= 3:1; the grey is deliberately neutral) */
+  --color-chart-active: oklch(55% 0.12 180);
+  --color-chart-soon: oklch(60% 0.21 30);
+  --color-chart-expired: oklch(60% 0.03 265);
+
+  /* Buttons, from Wise */
+  --btn-accent: #9fe870;
+  --btn-accent-hover: #80e142;
+  --btn-accent-active: #65cf21;
+  --btn-ink: #163300;
+  --btn-neutral: rgba(22, 51, 0, 0.08);
+  --btn-neutral-hover: rgba(22, 51, 0, 0.13);
+  --btn-neutral-active: rgba(22, 51, 0, 0.18);
+
   /* Primary actions: Wise-style lime with deep forest-green text */
   --color-primary: oklch(86.5% 0.176 134);
   --color-primary-hover: oklch(82% 0.19 134);
@@ -137,6 +151,15 @@
 
   --color-glow-1: oklch(55% 0.22 266 / 0.3);
   --color-glow-2: oklch(58% 0.18 305 / 0.22);
+
+  /* On dark, the neutral is light on dark and its text is light; the lime keeps its dark ink */
+  --btn-neutral: rgba(223, 247, 208, 0.1);
+  --btn-neutral-hover: rgba(223, 247, 208, 0.16);
+  --btn-neutral-active: rgba(223, 247, 208, 0.22);
+
+  --color-chart-active: oklch(66% 0.12 180);
+  --color-chart-soon: oklch(66% 0.19 30);
+  --color-chart-expired: oklch(56% 0.03 265);
 
   --color-cat-electronics: oklch(72% 0.14 305);
   --color-cat-computers: oklch(74% 0.11 235);

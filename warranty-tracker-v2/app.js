@@ -444,8 +444,7 @@
     $('#topbar').innerHTML = '<div class="container topbar-inner">' +
       '<a class="brand" href="#/vault" aria-label="Warranty tracker, home">' + logo(30) + '<span>Warranty tracker</span></a>' +
       '<div class="topbar-end">' +
-        searchField('q') +
-        (name === 'add' ? '' : '<a class="btn btn-primary topbar-add" href="#/add" aria-label="Add receipt">' + icon('plus') + '<span>Add receipt</span></a>') +
+        (name === 'add' ? '' : searchField('q') + '<a class="btn btn-primary topbar-add" href="#/add" aria-label="Add receipt">' + icon('plus') + '<span>Add receipt</span></a>') +
         '<div class="menu-wrap">' +
           '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button>' +
         '</div>' +
@@ -723,6 +722,41 @@
   }
 
   /* The greeting: one sentence about right now, and the actions that follow from it. */
+  /* Coverage at a glance: how many warranties are active, expire within a month, or have expired.
+     A ring for the share, a legend with the counts, so no colour has to be read on its own. */
+  function coverageOverview(list) {
+    const parts = [
+      { key: 'active', label: 'Active', n: list.filter((x) => x.i.status !== 'expired' && x.i.left > 30).length },
+      { key: 'soon', label: 'Expiring soon', n: list.filter((x) => x.i.status !== 'expired' && x.i.left <= 30).length },
+      { key: 'expired', label: 'Expired', n: list.filter((x) => x.i.status === 'expired').length },
+    ];
+    const total = list.length;
+    const R = 52, C = 2 * Math.PI * R;
+    const shown = parts.filter((p) => p.n);
+    const gap = shown.length > 1 ? 3 : 0;
+    let at = 0;
+    const segs = shown.map((p) => {
+      const len = (p.n / total) * C;
+      const seg = '<circle class="ov-seg ov-' + p.key + '" cx="60" cy="60" r="' + R + '" stroke-dasharray="' + Math.max(0.01, len - gap).toFixed(2) + ' ' + C.toFixed(2) + '" stroke-dashoffset="' + (-at).toFixed(2) + '">' +
+        '<title>' + p.label + ': ' + p.n + ' of ' + total + '</title></circle>';
+      at += len;
+      return seg;
+    }).join('');
+    const pct = Math.round((parts[0].n / total) * 100);
+    return '<aside class="overview" aria-label="Coverage overview">' +
+      '<div class="ov-text">' +
+        '<h2 class="ov-title">Coverage</h2><p class="ov-sub">All your warranties in one place</p>' +
+        '<ul class="ov-legend">' + parts.map((p) =>
+          '<li class="ov-' + p.key + '"><span class="ov-dot" aria-hidden="true"></span><span>' + p.label + '</span><b class="num">' + p.n + '</b></li>').join('') + '</ul>' +
+      '</div>' +
+      '<div class="ov-ring">' +
+        '<svg viewBox="0 0 120 120" role="img" aria-label="' + pct + '% of your warranties are active">' +
+          '<circle class="ov-track" cx="60" cy="60" r="' + R + '" />' + segs + '</svg>' +
+        '<p class="ov-center"><b class="num">' + pct + '%</b><span>Active</span></p>' +
+      '</div>' +
+    '</aside>';
+  }
+
   function greetingBlock(list) {
     /* The greeting says how things stand, never which product: everything's fine, or how many
        things need you, and whether a warranty runs out within a month. The list shows which. */
@@ -743,8 +777,9 @@
       line = 'Everything is covered. Nothing needs your attention.';
     }
     return '<header class="page-head greet">' +
-      '<div class="greet-text"><h1 class="large-title">' + greeting() + '</h1><p>' + line + '</p></div>' +
-      (cta ? '<div class="page-actions">' + cta + '</div>' : '') +
+      '<div class="greet-text"><h1 class="large-title">' + greeting() + '</h1><p>' + line + '</p>' +
+        (cta ? '<div class="page-actions">' + cta + '</div>' : '') + '</div>' +
+      (list.length ? coverageOverview(list) : '') +
     '</header>' +
     (list.length ? '' : '<section class="first-add" aria-label="Add your first receipt">' + addChoices() +
       '<p class="first-add-note">We read the shop, the price and the date, then remind you before the return window or the warranty runs out.</p></section>');
@@ -996,6 +1031,10 @@
         '</dl></section>' +
 
         '<section class="d-sec"><h3>Receipt</h3>' + proofCard(it, i) + '</section>' +
+        '<section class="d-sec"><h3>Documents</h3>' +
+          ((it.docs || []).length ? '<ul class="doc-list">' + it.docs.map((d, n) => docRow(d, { itemId: it.id, n })).join('') + '</ul>' : '<p class="d-muted docs-empty">Warranty card, manual, delivery note: keep them here for a claim.</p>') +
+          dropzone('data-attach-docs="' + it.id + '"', true) +
+        '</section>' +
       '</div>' +
       '<footer class="d-foot">' +
         btn('Export for a claim', 'export-one', { kind: 'primary', icon: 'download', data: { id: it.id } }) +
@@ -1128,9 +1167,10 @@
   /* Add and Settings sit on top of the vault: one way back to it. */
   function backLink() { return '<a class="back-link" href="#/vault">' + icon('chevronLeft', 14) + '<span>Vault</span></a>'; }
 
-  /* Adding a receipt is four steps: the receipt, what it is, how long it's covered, done. */
-  const ADD_STEPS = ['Receipt', 'Details', 'Coverage', 'Done'];
-  const ADD_STEP_OF = { choose: 0, reading: 0, details: 1, coverage: 2, done: 3 };
+  /* Adding a receipt: the receipt, what it is, how long it's covered, anything else to keep with it, done. */
+  const ADD_STEPS = ['Receipt', 'Details', 'Coverage', 'Documents', 'Done'];
+  const ADD_STEP_OF = { choose: 0, reading: 0, details: 1, coverage: 2, docs: 3, done: 4 };
+  const DOC_KINDS = ['Warranty card', 'Manual', 'Invoice', 'Delivery note', 'Photo', 'Other'];
 
   function stepper(current) {
     return '<ol class="stepper" aria-label="Steps">' + ADD_STEPS.map((label, n) =>
@@ -1160,7 +1200,7 @@
   function mergeStep(form) {
     const f = new FormData(form);
     ui.add.values = ui.add.values || {};
-    f.forEach((value, key) => { ui.add.values[key] = value; });
+    f.forEach((value, key) => { if (typeof value === 'string') ui.add.values[key] = value; });
   }
 
   /* Step 3's live answer: when cover ends, when the return window closes, drawn from the purchase date. */
@@ -1173,6 +1213,51 @@
       '</div>' + timeline(i);
   }
 
+  /* Documents: the warranty card, the manual, the delivery note: whatever the shop asks to see. */
+  function fileSize(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function guessKind(name, type) {
+    const n = String(name).toLowerCase();
+    if (/warrant|garanc|garant|jamstv/.test(n)) return 'Warranty card';
+    if (/manual|navodil|instruction|anleitung|guide/.test(n)) return 'Manual';
+    if (/invoice|ra[cč]un|rechnung|bill/.test(n)) return 'Invoice';
+    if (/deliver|dobavn|lieferschein/.test(n)) return 'Delivery note';
+    return String(type).startsWith('image/') ? 'Photo' : 'Other';
+  }
+  function readDocs(files) {
+    return Promise.all(Array.from(files || []).map((file) => {
+      const doc = { id: uid(), name: file.name, size: file.size, type: file.type, kind: guessKind(file.name, file.type), added: iso(today()) };
+      if (!file.type.startsWith('image/')) return Promise.resolve(doc);
+      return shrinkImage(file, 360).then((thumb) => Object.assign(doc, { thumb })).catch(() => doc);
+    }));
+  }
+  function docRow(d, o) {
+    const mark = d.thumb
+      ? '<span class="doc-thumb"><img src="' + d.thumb + '" alt="" /></span>'
+      : '<span class="doc-thumb doc-file" aria-hidden="true">' + icon('file', 18) + '<em>' + esc((String(d.name).split('.').pop() || 'file').slice(0, 4)) + '</em></span>';
+    const kind = o.editable
+      ? '<div class="select select-sm doc-kind"><label class="sr-only" for="kind-' + d.id + '">Type of ' + esc(d.name) + '</label><select id="kind-' + d.id + '" data-doc-kind="' + d.id + '">' +
+          DOC_KINDS.map((k) => '<option' + (k === d.kind ? ' selected' : '') + '>' + k + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>'
+      : '';
+    return '<li class="doc" style="--n:' + (o.n || 0) + '">' + mark +
+      '<span class="doc-text"><b>' + esc(d.name) + '</b><span>' + (o.editable ? '' : esc(d.kind) + ', ') + fileSize(d.size || 0) + '</span></span>' + kind +
+      '<button type="button" class="icon-btn doc-remove" data-action="doc-remove" data-doc="' + d.id + '"' + (o.itemId ? ' data-id="' + o.itemId + '"' : '') + ' aria-label="Remove ' + esc(d.name) + '">' + icon('x', 14) + '</button>' +
+    '</li>';
+  }
+  function dropzone(attrs, compact) {
+    return '<label class="dropzone' + (compact ? ' dropzone-compact' : '') + '">' +
+      '<span class="dz-ic" aria-hidden="true">' + icon('upload', 20) + '</span>' +
+      '<span class="dz-text"><b>Drop files here, or browse</b><span>Warranty card, manual, delivery note. PDF or photos, as many as you need.</span></span>' +
+      '<input type="file" class="sr-only" multiple accept="image/*,application/pdf" ' + attrs + ' /></label>';
+  }
+  function renderAddDocs() {
+    const list = $('#add-doc-list');
+    if (!list || !ui.add) return;
+    const docs = ui.add.docs || [];
+    list.innerHTML = docs.map((d, n) => docRow(d, { editable: true, n })).join('');
+    const go = $('#docs-next span');
+    if (go) go.textContent = docs.length ? 'Save to vault' : 'Skip and save';
+  }
+
   function viewAdd() {
     const a = ui.add || { stage: 'choose' };
     const step = ADD_STEP_OF[a.stage] == null ? 0 : ADD_STEP_OF[a.stage];
@@ -1181,30 +1266,31 @@
       reading: ['Reading your receipt', 'This takes a moment.'],
       details: ['What did you buy?', a.extracted ? 'We read these from your receipt. Check them, then continue.' : 'The basics, so you can find it and prove the purchase.'],
       coverage: ['How long is it covered?', 'We’ve filled in the usual lengths. Change them if the shop or maker gives more.'],
-      done: ['Added to your vault', 'We’ll remind you before anything runs out.'],
+      docs: ['Anything else to keep with it?', 'Shops often ask for more than the receipt. Add the warranty card, the manual or the delivery note now, and it’s all in one place when you claim.'],
     }[a.stage] || ['Add a receipt', ''];
-    const head = backLink() + stepper(step) +
-      '<header class="page-head add-head"><h1 class="large-title">' + titles[0] + '</h1>' + (titles[1] ? '<p>' + titles[1] + '</p>' : '') + '</header>';
+    const shell = (inner) => '<div class="add-shell">' + inner + '</div>';
+    const top = '<div class="add-top">' + backLink() + '</div>' + stepper(step);
+    const head = '<header class="add-head"><h1 class="large-title">' + titles[0] + '</h1>' + (titles[1] ? '<p>' + titles[1] + '</p>' : '') + '</header>';
     const panel = (html) => '<section class="step-panel">' + html + '</section>';
+    const actions = (next) => '<div class="step-actions">' + btn('Back', 'add-back', { kind: 'plain', icon: 'chevronLeft' }) + next + '</div>';
 
     if (state.plan === 'free' && state.items.length >= FREE_LIMIT && a.stage !== 'done') {
       return {
-        html: backLink() + '<header class="page-head"><h1 class="large-title">Add a receipt</h1></header>' +
-          '<section class="empty"><p>Your vault is full. The free plan holds ' + FREE_LIMIT + ' items.</p>' +
-          '<div class="empty-actions">' + btn('See Plus', 'show-plans', { kind: 'primary' }) + '</div></section>',
+        html: shell('<div class="add-top">' + backLink() + '</div><header class="add-head"><h1 class="large-title">Your vault is full</h1><p>The free plan holds ' + FREE_LIMIT + ' items. Plus holds as many as you like.</p></header>' +
+          '<div class="done-actions">' + btn('See Plus', 'show-plans', { kind: 'primary', cls: 'btn-lg' }) + '</div>'),
       };
     }
 
-    if (a.stage === 'choose') return { html: head + panel(addChoices()) };
+    if (a.stage === 'choose') return { html: shell(top + head + panel(addChoices())) };
 
     if (a.stage === 'reading') {
       return {
-        html: head + panel(
+        html: shell(top + head + panel(
           '<div class="reading">' +
             '<div class="reading-img">' + (a.image ? '<img src="' + a.image + '" alt="Your receipt" />' : '<span class="reading-file">' + icon('file', 24) + '<span class="mono">' + esc(a.fileName || '') + '</span></span>') +
               '<span class="scanline" aria-hidden="true"></span></div>' +
             '<p class="reading-text" role="status"><span class="spinner" aria-hidden="true"></span>Finding the shop, the item, the price and the date…</p>' +
-          '</div>'),
+          '</div>')),
         after: () => {
           setTimeout(() => {
             if (!ui.add || ui.add.stage !== 'reading') return;
@@ -1220,26 +1306,21 @@
       const flags = a.flags || {};
       const flagCount = Object.keys(flags).length;
       return {
-        html: head + panel(
-          '<div class="add-form-wrap">' +
-            (a.image ? '<aside class="add-thumb"><img src="' + a.image + '" alt="Your receipt" /></aside>' : '') +
-            '<form class="form add-form" id="add-details" novalidate>' +
-              (flagCount ? '<p class="callout callout-warning">' + icon('alert') + '<span>' + Object.keys(flags).map((k) => esc(flags[k])).join(' ') + '</span></p>' : '') +
-              '<div class="form-grid">' +
-                field({ name: 'name', label: 'Item', value: v.name || '', placeholder: 'Bosch dishwasher…', flag: flags.name, wide: true, attrs: ' autocomplete="off"' }) +
-                field({ name: 'merchant', label: 'Shop', value: v.merchant || '', placeholder: 'MediaMarkt…', flag: flags.merchant, attrs: ' autocomplete="off"' }) +
-                field({ name: 'category', label: 'Category', type: 'select', value: v.category || 'electronics', options: CATS.map((c) => ({ value: c.key, label: c.label })), flag: flags.category }) +
-                field({ name: 'price', label: 'Price paid (€)', value: v.price != null && v.price !== '' ? String(v.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal" autocomplete="off"', flag: flags.price }) +
-                field({ name: 'purchased', label: 'Purchase date', type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
-                field({ name: 'orderNo', label: 'Order number', value: v.orderNo || '', placeholder: 'Optional', flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
-              '</div>' +
-              '<div class="step-actions">' +
-                btn('Back', 'add-back', { kind: 'plain', icon: 'chevronLeft' }) +
-                '<button type="submit" class="btn btn-primary btn-lg"><span>Continue</span>' + icon('chevron') + '</button>' +
-              '</div>' +
-              (a.extracted ? '<p class="fineprint">Prototype: reading the receipt is simulated, so these details are sample data.</p>' : '') +
-            '</form>' +
-          '</div>'),
+        html: shell(top + head + panel(
+          (a.image ? '<div class="add-thumb"><img src="' + a.image + '" alt="Your receipt" /></div>' : '') +
+          '<form class="form add-form" id="add-details" novalidate>' +
+            (flagCount ? '<p class="callout callout-warning">' + icon('alert') + '<span>' + Object.keys(flags).map((k) => esc(flags[k])).join(' ') + '</span></p>' : '') +
+            '<div class="form-grid">' +
+              field({ name: 'name', label: 'Item', value: v.name || '', placeholder: 'Gorenje washing machine…', flag: flags.name, wide: true, attrs: ' autocomplete="off"' }) +
+              field({ name: 'merchant', label: 'Shop', value: v.merchant || '', placeholder: 'Big Bang…', flag: flags.merchant, attrs: ' autocomplete="off"' }) +
+              field({ name: 'category', label: 'Category', type: 'select', value: v.category || 'electronics', options: CATS.map((c) => ({ value: c.key, label: c.label })), flag: flags.category }) +
+              field({ name: 'price', label: 'Price paid (€)', value: v.price != null && v.price !== '' ? String(v.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal" autocomplete="off"', flag: flags.price }) +
+              field({ name: 'purchased', label: 'Purchase date', type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
+              field({ name: 'orderNo', label: 'Order number', value: v.orderNo || '', placeholder: 'Optional', flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
+            '</div>' +
+            actions('<button type="submit" class="btn btn-primary btn-lg"><span>Continue</span>' + icon('chevron') + '</button>') +
+            (a.extracted ? '<p class="fineprint">Prototype: reading the receipt is simulated, so these details are sample data.</p>' : '') +
+          '</form>')),
         after: () => { if (!a.extracted) { const n = $('#f-name'); if (n) n.focus(); } },
       };
     }
@@ -1248,7 +1329,7 @@
       const v = a.values || {};
       const catDefault = state.settings.defaults[v.category || 'electronics'];
       return {
-        html: head + panel(
+        html: shell(top + head + panel(
           '<form class="form add-form" id="add-coverage" novalidate>' +
             '<div class="cov-preview" id="cov-preview" aria-live="polite">' + coveragePreview() + '</div>' +
             '<div class="form-grid">' +
@@ -1258,32 +1339,50 @@
                 options: [{ value: '', label: 'Default (' + plural(state.settings.returnDays, 'day') + ')' }].concat(RETURN_OPTIONS.map((d) => ({ value: d, label: d ? plural(d, 'day') : 'No returns' }))) }) +
               field({ name: 'notes', label: 'Notes', type: 'textarea', value: v.notes || '', placeholder: 'Serial number, where it’s kept, anything useful for a claim…', wide: true }) +
             '</div>' +
-            '<div class="step-actions">' +
-              btn('Back', 'add-back', { kind: 'plain', icon: 'chevronLeft' }) +
-              '<button type="submit" class="btn btn-primary btn-lg">' + icon('check') + '<span>Save to vault</span></button>' +
-            '</div>' +
-          '</form>'),
+            actions('<button type="submit" class="btn btn-primary btn-lg"><span>Continue</span>' + icon('chevron') + '</button>') +
+          '</form>')),
       };
     }
 
-    /* Done: the check draws itself, then the new item's reading and what happens next. */
+    if (a.stage === 'docs') {
+      const receipt = a.image || a.fileName
+        ? '<p class="docs-receipt">' + icon('checkCircle', 16) + '<span>Your receipt is already attached' + (a.fileName ? ': <b>' + esc(a.fileName) + '</b>' : '') + '.</span></p>'
+        : '';
+      return {
+        html: shell(top + head + panel(
+          '<form class="form add-form" id="add-docs" novalidate>' +
+            receipt +
+            dropzone('id="docs-input"') +
+            '<ul class="doc-list" id="add-doc-list" aria-live="polite"></ul>' +
+            actions('<button type="submit" class="btn btn-primary btn-lg" id="docs-next">' + icon('check') + '<span>Skip and save</span></button>') +
+          '</form>')),
+        after: renderAddDocs,
+      };
+    }
+
+    /* Done: a lime burst, the check draws itself, then the new item and what happens next. */
     const it = findItem(a.savedId);
     if (!it) { ui.add = null; return viewAdd(); }
     const i = info(it);
     const st = statusOf(i, i.returnOpen && i.rLeft <= 7);
+    const docs = (it.docs || []).length + (it.photo || it.fileName ? 1 : 0);
     return {
-      html: backLink() + stepper(3) + panel(
+      html: shell('<div class="add-top">' + backLink() + '</div>' + stepper(4) + panel(
         '<div class="done">' +
-          '<svg class="done-mark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" /><path d="m15 27 7.5 7.5L37.5 19" /></svg>' +
+          '<div class="done-burst" aria-hidden="true">' + Array.from({ length: 10 }, (_, n) => '<i style="--a:' + (n * 36) + 'deg"></i>').join('') +
+            '<svg class="done-mark" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" /><path d="m15 27 7.5 7.5L37.5 19" /></svg></div>' +
           '<h1 class="large-title">Added to your vault</h1>' +
-          '<p class="done-name">' + esc(it.name) + '<span>' + esc(it.merchant) + ', <span class="num">' + money(it.price) + '</span></span></p>' +
-          '<div class="done-reading"><span class="lrow-label">' + st.label + '</span>' + reading(st, 'value-lg') + '</div>' +
+          '<div class="done-card">' +
+            '<span class="lrow-mark cat-' + esc(it.category) + '" aria-hidden="true">' + icon(it.category, 18) + '</span>' +
+            '<span class="done-name"><b>' + esc(it.name) + '</b><span>' + esc(it.merchant) + ', <span class="num">' + money(it.price) + '</span>' + (docs ? ', ' + plural(docs, 'document') : '') + '</span></span>' +
+            '<span class="lrow-reading"><span class="lrow-label">' + st.label + '</span>' + reading(st) + '</span>' +
+          '</div>' +
           '<p class="done-remind">' + icon('bell', 14) + '<span>Reminders: ' + reminderLine(it) + '</span></p>' +
           '<div class="done-actions">' +
             '<a class="btn btn-primary btn-lg" href="#/item/' + it.id + '"><span>Open item</span></a>' +
             btn('Add another', 'add-reset', { kind: 'secondary', cls: 'btn-lg', icon: 'plus' }) +
           '</div>' +
-        '</div>'),
+        '</div>')),
     };
   }
 
@@ -1305,12 +1404,12 @@
   }
 
   /* Keep photos small enough for local storage. */
-  function shrinkImage(file) {
+  function shrinkImage(file, max) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
       const img = new Image();
       img.onload = () => {
-        const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+        const scale = Math.min(1, (max || 900) / Math.max(img.width, img.height));
         const c = document.createElement('canvas');
         c.width = Math.round(img.width * scale);
         c.height = Math.round(img.height * scale);
@@ -1465,6 +1564,7 @@
         '</tbody></table>' +
         '<h2>Proof of purchase</h2>' +
         (it.photo ? '<img class="p-photo" src="' + it.photo + '" alt="" />' : it.fileName ? '<p>Receipt file: ' + esc(it.fileName) + '</p>' : '<p>No receipt attached.</p>') +
+        ((it.docs || []).length ? '<h2>Other documents</h2><ul>' + it.docs.map((d) => '<li>' + esc(d.kind) + ': ' + esc(d.name) + '</li>').join('') + '</ul>' : '') +
         '</div>';
     } else {
       html = '<div class="p-page">' +
@@ -1630,8 +1730,22 @@
       if (!a || a.stage === 'details') { ui.add = null; return paint('add'); }
       const form = $('#add-coverage');
       if (form) mergeStep(form);
-      a.stage = 'details';
+      a.stage = a.stage === 'docs' ? 'coverage' : 'details';
       paint('add');
+    },
+    'doc-remove': (el) => {
+      if (el.dataset.id) {
+        const it = findItem(el.dataset.id);
+        const idx = (it.docs || []).findIndex((d) => d.id === el.dataset.doc);
+        if (idx < 0) return;
+        const [gone] = it.docs.splice(idx, 1);
+        save();
+        refreshDrawer();
+        toast(esc(gone.name) + ' removed.', () => { it.docs.splice(idx, 0, gone); save(); refreshDrawer(); });
+        return;
+      }
+      ui.add.docs = (ui.add.docs || []).filter((d) => d.id !== el.dataset.doc);
+      renderAddDocs();
     },
     'show-plans': () => showPlans(),
     'pick-plan': (el) => {
@@ -1730,6 +1844,19 @@
       mergeStep(t.form);
       $('#cov-preview').innerHTML = coveragePreview();
     }
+    if (t.id === 'docs-input' && ui.add) {
+      readDocs(t.files).then((docs) => { ui.add.docs = (ui.add.docs || []).concat(docs); renderAddDocs(); });
+      t.value = '';
+    }
+    if (t.dataset.docKind && ui.add) {
+      const d = (ui.add.docs || []).find((x) => x.id === t.dataset.docKind);
+      if (d) d.kind = t.value;
+    }
+    if (t.dataset.attachDocs) {
+      const it = findItem(t.dataset.attachDocs);
+      const n = t.files.length;
+      readDocs(t.files).then((docs) => { it.docs = (it.docs || []).concat(docs); save(); refreshDrawer(); toast(plural(n, 'document') + ' added.'); });
+    }
     if (t.dataset.attach) {
       const it = findItem(t.dataset.attach);
       shrinkImage(t.files[0]).then((img) => { it.photo = img; save(); refreshDrawer(); toast('Photo added.'); });
@@ -1767,6 +1894,28 @@
       save();
       renderChrome(ui.base, ui.arg);
     }
+  });
+
+  /* Drop files on a drop zone: they go through its file input, like a browse. */
+  document.addEventListener('dragover', (e) => {
+    const z = e.target.closest && e.target.closest('.dropzone');
+    if (!z) return;
+    e.preventDefault();
+    z.classList.add('is-over');
+  });
+  document.addEventListener('dragleave', (e) => {
+    const z = e.target.closest && e.target.closest('.dropzone');
+    if (z && !z.contains(e.relatedTarget)) z.classList.remove('is-over');
+  });
+  document.addEventListener('drop', (e) => {
+    const z = e.target.closest && e.target.closest('.dropzone');
+    if (!z) return;
+    e.preventDefault();
+    z.classList.remove('is-over');
+    const input = $('input[type="file"]', z);
+    if (!input || !e.dataTransfer.files.length) return;
+    try { input.files = e.dataTransfer.files; } catch (err) { return; }
+    input.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
   document.addEventListener('submit', async (e) => {
@@ -1870,10 +2019,17 @@
 
     if (f.id === 'add-coverage') {
       mergeStep(f);
+      ui.add.stage = 'docs';
+      paint('add');
+      return;
+    }
+
+    if (f.id === 'add-docs') {
       const v = valuesToItem(ui.add.values);
       const it = Object.assign({ id: uid(), added: iso(today()), source: ui.add.image ? 'photo' : ui.add.fileName ? 'upload' : 'manual' }, v);
       if (ui.add.image) it.photo = ui.add.image;
       else if (ui.add.fileName) it.fileName = ui.add.fileName;
+      if ((ui.add.docs || []).length) it.docs = ui.add.docs;
       state.items.push(it);
       state.banner = false;
       save();
