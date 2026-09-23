@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'warranty-tracker-v2',
+    name: 'Warranty tracker v2',
+    deployed: '2026-09-23',
+    status: 'wip',
+    description:
+      'The warranty tracker redesigned in the spirit of Apple Wallet and Health: every item as a big-number reading, grouped by what needs doing, opening as a Wallet pass. Same features, new UI.',
+    tags: ['pwa', 'v2', 'apple canon', 'vanilla js'],
+    accent: '#0a6cf5',
+    art: 'receiptV2',
+  },
+  {
     slug: 'warranty-tracker',
     name: 'Warranty tracker',
     deployed: '2026-09-22',
@@ -83,6 +94,21 @@ const PIXEL_ART = {
       '.kwwwwwwk.',
       '.kwkwwkwk.',
       '.k.k..k.k.',
+    ],
+  },
+  receiptV2: {
+    palette: { b: '#0a6cf5', w: '#ffffff', k: '#06408f' },
+    rows: [
+      '.bbbbbbbb.',
+      'bbwwwwwwbb',
+      'bbwwwwwwbb',
+      'bbwwwwwbbb',
+      'bbwbwwbbwb',
+      'bbwbbbbwwb',
+      'bbwwbbwwwb',
+      'bbwwwwwwbb',
+      'bbwbwwbwbb',
+      '.bbbbbbbb.',
     ],
   },
   tomato: {
