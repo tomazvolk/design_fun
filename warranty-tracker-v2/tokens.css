@@ -27,11 +27,11 @@
   --color-brand: #9fe870;
   --color-on-brand: #163300;
 
-  /* The greeting band: bright green, forest-green type */
-  --color-band: #9fe870;
-  --color-on-band: #163300;
-  --color-on-band-2: rgba(22, 51, 0, 0.74);
-  --color-band-tint: rgba(22, 51, 0, 0.1);
+  /* The greeting band: a light warm grey, near-black type */
+  --color-band: #edefec;
+  --color-on-band: #0e0f0c;
+  --color-on-band-2: #454745;
+  --color-band-tint: rgba(14, 15, 12, 0.07);
 
   /* Status, used sparingly */
   --color-urgent: #cb272f;
@@ -53,7 +53,7 @@
   --color-chart-active: #163300;
   --color-chart-soon: #cb272f;
   --color-chart-expired: rgba(22, 51, 0, 0.32);
-  --color-chart-track: rgba(22, 51, 0, 0.12);
+  --color-chart-track: rgba(14, 15, 12, 0.1);
 
   /* Buttons, from Wise */
   --btn-accent: #9fe870;
@@ -152,11 +152,11 @@
   --color-focus: rgba(159, 232, 112, 0.5);
   --color-selection: rgba(159, 232, 112, 0.3);
 
-  /* At night the band turns forest green, with bright-green type */
-  --color-band: #163300;
-  --color-on-band: #9fe870;
-  --color-on-band-2: rgba(223, 247, 208, 0.78);
-  --color-band-tint: rgba(159, 232, 112, 0.14);
+  /* At night the band is a raised dark grey */
+  --color-band: #1b1f19;
+  --color-on-band: #f2f5ee;
+  --color-on-band-2: #c3c8bd;
+  --color-band-tint: rgba(223, 247, 208, 0.1);
 
   --color-urgent: #ff6b6b;
   --color-urgent-tint: rgba(255, 107, 107, 0.14);

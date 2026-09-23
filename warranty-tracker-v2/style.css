@@ -312,8 +312,8 @@ kbd {
 }
 .greet .large-title { color: var(--color-on-band); }
 .greet p { color: var(--color-on-band-2); }
-.greet .btn-secondary { background: var(--color-on-band); color: var(--color-band); }
-.greet .btn-secondary:hover:not(:disabled) { background: var(--color-on-band); opacity: 0.88; }
+.greet .btn-secondary { background-color: var(--btn-accent); border-color: var(--btn-accent); color: var(--btn-ink); }
+.greet .btn-secondary:hover:not(:disabled) { background-color: var(--btn-accent-hover); border-color: var(--btn-accent-hover); }
 @media (min-width: 760px) { .greet { margin-top: calc(-1 * var(--space-5xl)); padding: var(--space-5xl) 0; } }
 .page-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 .page-actions .btn span { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
@@ -615,7 +615,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: po
 }
 .hero-title { font-size: 48px; line-height: 0.88; font-weight: 900; letter-spacing: -0.05em; text-wrap: balance; overflow-wrap: normal; hyphens: none; min-width: 0; }
 .hero-sub { margin-top: var(--space-2xl); max-width: 28em; font-size: 19px; line-height: 1.5; color: var(--color-on-band-2); text-wrap: pretty; }
-.hero .btn-primary { background: var(--color-on-band); border-color: var(--color-on-band); color: var(--color-band); }
 .hero .btn-secondary { background: var(--color-band-tint); color: var(--color-on-band); }
 .hero-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-3xl); }
 .hero-note { margin-top: var(--space-2xl); color: var(--color-on-band-2); font-size: var(--text-footnote); }
