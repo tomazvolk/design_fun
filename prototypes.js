@@ -17,9 +17,9 @@ const PROTOTYPES = [
     deployed: '2026-09-23',
     status: 'wip',
     description:
-      'The warranty tracker redesigned in the spirit of Apple Wallet and Health: every item as a big-number reading, grouped by what needs doing, opening as a Wallet pass. Same features, new UI.',
-    tags: ['pwa', 'v2', 'apple canon', 'vanilla js'],
-    accent: '#0a6cf5',
+      'The warranty tracker redesigned as a fine stationery folio: leather covers with gilt tooling for what needs attention, a ruled ledger for the rest, engraved Bodoni numerals on Nile-blue paper. Same features, new UI.',
+    tags: ['pwa', 'v2', 'stationery', 'vanilla js'],
+    accent: '#1b2a4a',
     art: 'receiptV2',
   },
   {
@@ -97,7 +97,7 @@ const PIXEL_ART = {
     ],
   },
   receiptV2: {
-    palette: { b: '#0a6cf5', w: '#ffffff', k: '#06408f' },
+    palette: { b: '#1b2a4a', w: '#e3c98b', k: '#0f1a30' },
     rows: [
       '.bbbbbbbb.',
       'bbwwwwwwbb',

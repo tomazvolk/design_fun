@@ -147,9 +147,10 @@
   function logo(size) {
     const s = size || 28;
     return '<svg class="logo" width="' + s + '" height="' + s + '" viewBox="0 0 32 32" aria-hidden="true">' +
-      '<rect class="logo-tile" width="32" height="32" rx="8" />' +
-      '<path class="logo-body" d="M10 7h12a1 1 0 0 1 1 1v17l-2-1.3-2 1.3-2.5-1.3-2.5 1.3-2-1.3-2 1.3V8a1 1 0 0 1 1-1Z" />' +
-      '<path class="logo-mark" d="m12.6 15.6 2.3 2.3 4.6-4.8" /></svg>';
+      '<rect class="logo-tile" width="32" height="32" rx="7" />' +
+      '<rect class="logo-tool" x="2.75" y="2.75" width="26.5" height="26.5" rx="5" />' +
+      '<path class="logo-mark" d="M11 8.5h10v15l-1.7-1.1-1.6 1.1-1.7-1.1-1.7 1.1-1.6-1.1-1.7 1.1Z" />' +
+      '<path class="logo-mark" d="m13.3 15.6 1.9 1.9 3.6-3.9" /></svg>';
   }
 
   /* ==========================================================================
@@ -244,7 +245,7 @@
     const t = state.settings.theme;
     const dark = t === 'dark' || (t === 'system' && darkQuery.matches);
     document.documentElement.classList.toggle('dark', dark);
-    $$('meta[name="theme-color"]').forEach((m) => { m.setAttribute('content', dark ? '#0e0e11' : '#f2f2f7'); m.removeAttribute('media'); });
+    $$('meta[name="theme-color"]').forEach((m) => { m.setAttribute('content', dark ? '#101a26' : '#dbe9ee'); m.removeAttribute('media'); });
   }
   if (darkQuery.addEventListener) darkQuery.addEventListener('change', applyTheme);
 
@@ -439,22 +440,23 @@
   }
 
   function renderChrome(name) {
-    /* Desktop: the tabs float in the top bar. Phones: the same tabs float at the bottom. */
-    const tabs = (cls, size, short) => NAV.map((n) =>
+    const links = (cls) => NAV.map((n) =>
       '<a href="#/' + n.key + '" class="' + cls + '"' + (n.key === name ? ' aria-current="page"' : '') + '>' +
-      icon(n.icon, size) + '<span>' + (short && n.short ? n.short : n.label) + '</span></a>').join('');
+      (cls === 'tab' ? icon(n.icon, 22) : '') + '<span>' + (cls === 'tab' && n.short ? n.short : n.label) + '</span></a>').join('');
 
+    /* A letterhead: wordmark, the three places, a line to write a search on, and your monogram. */
     $('#topbar').innerHTML = '<div class="container topbar-inner">' +
-      '<a class="brand" href="#/vault" aria-label="Warranty tracker, home">' + logo(28) + '<span>Warranty tracker</span></a>' +
-      '<nav class="toptabs" aria-label="Main">' + tabs('toptab', 16) + '</nav>' +
+      '<a class="brand" href="#/vault" aria-label="Warranty tracker, home">' + logo(30) + '<span>Warranty tracker</span></a>' +
+      '<nav class="toptabs" aria-label="Main">' + links('toptab') + '</nav>' +
       '<div class="topbar-end">' +
         searchField('q') +
+        '<a class="icon-btn topbar-add" href="#/add" aria-label="Add receipt">' + icon('plus', 18) + '</a>' +
         '<div class="menu-wrap">' +
           '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button>' +
         '</div>' +
       '</div></div>';
 
-    $('#tabbar').innerHTML = '<div class="tabbar-pill">' + tabs('tab', 22, true) + '</div>';
+    $('#tabbar').innerHTML = '<div class="tabbar-inner">' + links('tab') + '</div>';
 
     $('#banner').innerHTML = state.banner
       ? '<div class="banner" role="status">' + icon('checkCircle') +
@@ -507,6 +509,7 @@
     const m = Math.round(days / 30.44), y = Math.floor(m / 12), mo = m % 12;
     return [y && [y, 'yr'], mo && [mo, 'mo']].filter(Boolean);
   }
+  function readingText(days) { return readingParts(days).map((p) => p[0] + ' ' + p[1]).join(' '); }
 
   /* The one reading an item leads with: what it's called, and how much time is on it. */
   function statusOf(i, returnFirst) {
@@ -535,24 +538,36 @@
       ? '<h2 id="' + o.titleId + '" class="pass-title">' + esc(it.name) + '</h2>'
       : '<p class="pass-title">' + esc(it.name) + '</p>';
     return '<div class="pass cat-' + esc(it.category) + (o.cls ? ' ' + o.cls : '') + '">' +
-      '<div class="pass-top"><span class="pass-cat">' + icon(it.category, 14) + '<span>' + catLabel(it.category) + '</span></span>' +
-        '<span class="pass-shop">' + esc(it.merchant) + '</span></div>' +
       title +
-      '<div class="pass-fields">' +
-        f('Bought', fmtDate(it.purchased, { short: true })) +
-        f('Paid', money(it.price)) +
-        f(i.status === 'expired' ? 'Ended' : 'Covered until', fmtDate(i.end, { short: true })) +
-      '</div>' +
+      '<p class="pass-cat">' + icon(it.category, 14) + '<span>' + catLabel(it.category) + ', ' + esc(it.merchant) + '</span></p>' +
+      (o.sub ? '<p class="pass-sub">' + o.sub + '</p>' : '') +
+      (o.fields === false ? '' :
+        '<div class="pass-fields">' +
+          f('Bought', fmtDate(it.purchased)) +
+          f('Paid', money(it.price)) +
+          f(i.status === 'expired' ? 'Warranty ended' : 'Covered until', fmtDate(i.end)) +
+        '</div>') +
       (o.foot || '') +
     '</div>';
   }
 
   /* A span of time as a capsule meter: how much of it has already gone. */
-  function meter(i, tone) {
-    const elapsed = Math.max(0, Math.min(i.total, daysFrom(i.bought, today())));
-    const pct = i.total > 0 ? (elapsed / i.total * 100).toFixed(2) : 100;
-    return '<span class="meter meter-' + tone + '" title="' + elapsed.toLocaleString('en') + ' of ' + i.total.toLocaleString('en') + ' days passed">' +
-      '<span class="meter-fill" style="--pct:' + pct + '%"></span></span>';
+  function meter(i, useReturn) {
+    const total = useReturn ? i.rDays : i.total;
+    const gone = Math.max(0, Math.min(total, daysFrom(i.bought, today())));
+    const pct = total > 0 ? Number((gone / total * 100).toFixed(2)) : 100;
+    const tone = useReturn ? 'return' : i.status;
+    return '<span class="meter meter-' + tone + '" title="' + (total - gone).toLocaleString('en') + ' of ' + total.toLocaleString('en') + ' days left">' +
+      '<span class="meter-gone" style="width:' + pct + '%"></span>' +
+      '<span class="meter-left" style="left:' + pct + '%"></span>' +
+      (pct > 0 && pct < 100 ? '<span class="meter-today" style="left:' + pct + '%"></span>' : '') +
+    '</span>';
+  }
+
+  /* What the meter above it measures, in words. */
+  function spanCaption(i, useReturn) {
+    if (useReturn) return plural(i.rDays, 'day') + ' to return it, until ' + fmtDate(i.rEnd, { short: true, weekday: true });
+    return monthsLabel(i.months) + ' warranty, ' + (i.status === 'expired' ? 'ended ' : 'until ') + fmtDate(i.end);
   }
 
   /* Three of the sample receipts, fanned like passes in a wallet. Dates stay relative to today. */
@@ -561,20 +576,42 @@
     return ['s6', 's4', 's1'].map((id, n) => {
       const it = all.find((x) => x.id === id);
       const i = info(it);
-      const st = statusOf(i, i.returnOpen && i.rLeft <= 7);
-      const tone = i.status === 'expiring' ? 'expiring' : 'active';
+      const useReturn = i.returnOpen && i.rLeft <= 7;
+      const st = statusOf(i, useReturn);
       return passCard(it, i, {
         cls: 'hero-pass hero-pass-' + n,
-        foot: '<div class="pass-foot"><div><span class="pass-foot-label">' + st.label + '</span>' + reading(st, 'value-pass') + '</div>' + meter(i, tone) + '</div>',
+        foot: '<div class="pass-foot"><div class="pass-reading"><span class="pass-foot-label">' + st.label + '</span>' + reading(st, 'value-pass') + '</div></div>' +
+          meter(i, useReturn) + '<span class="pass-span">' + spanCaption(i, useReturn) + '</span>',
       });
     }).join('');
   }
 
   function viewWelcome() {
+    const all = sampleItems();
+    const fryer = all.find((x) => x.id === 's1'), fi = info(fryer);
+    const bosch = all.find((x) => x.id === 's4'), bi = info(bosch);
+
+    /* The three things the product actually makes: a kept receipt, a reminder, a claim summary. */
+    const receipt = receiptPreview(fryer, fi);
+    const reminder = '<div class="letter">' +
+      '<p class="letter-from">' + logo(18) + '<span>Warranty tracker</span><span class="letter-time">09:00</span></p>' +
+      '<p class="letter-title">Return window closes in ' + plural(fi.rLeft, 'day') + '</p>' +
+      '<p class="letter-body">' + esc(fryer.name) + ' from ' + esc(fryer.merchant) + '. Send it back by ' + fmtDate(fi.rEnd, { weekday: true, short: true }) + ' if you’ve changed your mind.</p>' +
+    '</div>';
+    const slip = '<div class="slip">' +
+      '<p class="slip-title">' + esc(bosch.name) + '</p>' +
+      '<dl class="slip-dl">' +
+        '<div><dt>Shop</dt><dd>' + esc(bosch.merchant) + '</dd></div>' +
+        '<div><dt>Order</dt><dd class="num">' + esc(bosch.orderNo) + '</dd></div>' +
+        '<div><dt>Bought</dt><dd class="num">' + fmtDate(bosch.purchased) + '</dd></div>' +
+        '<div><dt>Covered until</dt><dd class="num">' + fmtDate(bi.end) + '</dd></div>' +
+      '</dl>' +
+      '<p class="slip-kind">Warranty claim summary, prepared ' + fmtDate(today(), { short: true }) + '</p>' +
+    '</div>';
     const steps = [
-      ['camera', 'Snap the receipt', 'Take a photo or upload the PDF. We read the shop, item, price and date.'],
-      ['bell', 'Get reminded in time', '30 and 7 days before a warranty ends, 2 days before a return window closes.'],
-      ['download', 'Ready for a claim', 'The original receipt stays with each item. Export a PDF when you need it.'],
+      [receipt, 'Keep the receipt', 'Take a photo or upload the PDF. We read the shop, item, price and date.'],
+      [reminder, 'Hear about it in time', '30 and 7 days before a warranty ends, 2 days before a return window closes.'],
+      [slip, 'Claim with proof', 'The original receipt stays with each item. Export a claim summary when you need it.'],
     ];
     return {
       html: publicNav() +
@@ -583,15 +620,16 @@
             '<h1 class="hero-title">Every receipt kept. Every warranty remembered.</h1>' +
             '<p class="hero-sub">Snap a receipt and we’ll note the warranty and return window, then remind you <b>before</b> either runs out.</p>' +
             '<div class="hero-actions"><a class="btn btn-primary btn-lg" href="#/signup">Get started</a>' +
-            '<a class="btn btn-gray btn-lg" href="#/login">Log in</a></div>' +
-            '<p class="hero-note">' + icon('shield', 14) + 'EU law gives you at least 2 years on new goods. We count every day of it.</p>' +
+            '<a class="btn btn-text btn-lg" href="#/login">Log in</a></div>' +
+            '<p class="hero-note">EU law gives you at least 2 years on new goods. We count every day of it.</p>' +
           '</div>' +
           '<div class="hero-stack" aria-hidden="true">' + heroPasses() + '</div>' +
         '</section>' +
         '<section class="steps" aria-labelledby="steps-title">' +
           '<h2 id="steps-title" class="steps-title">From the till to the claim</h2>' +
-          '<ol class="steps-list">' + steps.map((s) =>
-            '<li><span class="step-ic">' + icon(s[0], 20) + '</span><h3>' + s[1] + '</h3><p>' + s[2] + '</p></li>').join('') + '</ol>' +
+          '<ol class="steps-list">' + steps.map((s, n) =>
+            '<li><div class="step-art" aria-hidden="true">' + s[0] + '</div>' +
+            '<h3><span class="step-n">' + (n + 1) + '</span>' + s[1] + '</h3><p>' + s[2] + '</p></li>').join('') + '</ol>' +
         '</section>',
     };
   }
@@ -611,12 +649,13 @@
 
   /* Sign-up preview: the vault being made, with the name filled in as you type. */
   function skeletonPreview() {
-    const ghost = (cat, w) => '<div class="sk-tile">' + catIcon(cat) + '<span class="sk" style="width:' + w + '%"></span><span class="sk sk-big"></span><span class="sk sk-meter"></span></div>';
-    return '<div class="sk-app">' +
-      '<div class="sk-head"><span class="sk-avatar" id="pv-initials">A</span><b id="pv-name">Your vault</b></div>' +
-      '<p class="sk-hello">Hello, <span id="pv-hello">there</span></p>' +
-      '<p class="sk-sub">Your receipts will show up here, most urgent first.</p>' +
-      '<div class="sk-grid">' + ghost('kitchen', 62) + ghost('computers', 48) + ghost('appliances', 56) + ghost('furniture', 40) + '</div>' +
+    return '<div class="folio-preview">' +
+      '<div class="folio-cover">' +
+        '<span class="folio-monogram" id="pv-initials">A</span>' +
+        '<p class="folio-name" id="pv-name">Your vault</p>' +
+        '<p class="folio-sub">Warranties and receipts</p>' +
+      '</div>' +
+      '<p class="folio-caption">Hello, <span id="pv-hello">there</span>. Your receipts will be kept here, the most urgent on top.</p>' +
     '</div>';
   }
 
@@ -724,22 +763,24 @@
     let line, cta = '';
     if (!list.length) {
       line = 'Add your first receipt and we’ll track its warranty and return window for you.';
-      cta = btn('Try with sample items', 'load-samples', { icon: 'sparkle' });
+      cta = btn('Try with sample items', 'load-samples', { kind: 'text', icon: 'sparkle' });
     } else if (first) {
       const { it, i, next } = first;
       const what = next.tier === 0 ? esc(it.name) + ' has a detail to check'
         : next.tier === 1 ? 'the return window for ' + esc(it.name) + ' closes' + (i.rLeft === 0 ? ' today' : ' in ' + plural(i.rLeft, 'day'))
         : 'the warranty on ' + esc(it.name) + ' ends' + (i.left === 0 ? ' today' : ' in ' + plural(i.left, 'day'));
       line = (action.length === 1 ? 'One thing needs your attention: ' : plural(action.length, 'thing') + ' need your attention. First, ') + what + '.';
-      cta = '<a class="btn btn-tinted" href="#/item/' + it.id + '"><span>Open ' + esc(it.name) + '</span></a>';
+      cta = '<a class="btn btn-secondary" href="#/item/' + it.id + '"><span>Open ' + esc(it.name) + '</span></a>';
     } else {
       const soonest = list.filter((x) => x.next.tier === 3).sort((a, b) => a.i.left - b.i.left)[0];
       line = 'Everything is covered.' + (soonest ? ' Nothing to do until ' + fmtDate(soonest.i.end) + ', when the warranty on ' + esc(soonest.it.name) + ' ends.' : '');
     }
     return '<header class="page-head greet">' +
       '<div class="greet-text"><h1 class="large-title">' + greeting() + '</h1><p>' + line + '</p></div>' +
-      '<div class="page-actions">' + cta + '<a class="btn btn-primary" href="#/add">' + icon('plus') + '<span>Add receipt</span></a></div>' +
-    '</header>';
+      '<div class="page-actions">' + cta + '<a class="btn btn-primary greet-add" href="#/add">' + icon('plus') + '<span>Add receipt</span></a></div>' +
+    '</header>' +
+    (list.length ? '' : '<section class="first-add" aria-label="Add your first receipt">' + addChoices() +
+      '<p class="first-add-note">We read the shop, the price and the date, then remind you before the return window or the warranty runs out.</p></section>');
   }
 
   function viewVault() {
@@ -783,19 +824,31 @@
      then one big number for the time left, and a meter showing how much of the warranty has
      already passed. */
   function wcard(it, i, next, n) {
-    const tone = next.expired ? 'expired' : i.status === 'expiring' ? 'expiring' : 'active';
-    const st = statusOf(i, next.tier === 1);
-    return '<a class="tile' + (next.expired ? ' is-expired' : '') + '" href="#/item/' + it.id + '" style="--n:' + n + '">' +
-      '<div class="tile-head">' +
-        '<span class="cat-label cat-' + esc(it.category) + '">' + catIcon(it.category) + '<span>' + catLabel(it.category) + '</span></span>' +
-        '<span class="tile-date">' + fmtDate(it.purchased, { short: true }) + icon('chevron', 12) + '</span>' +
-      '</div>' +
-      '<div class="tile-id"><b>' + esc(it.name) + '</b><span><span>' + esc(it.merchant) + '</span><span class="num">' + money(it.price) + '</span></span></div>' +
-      '<div class="tile-reading">' +
-        '<div><span class="tile-label">' + st.label + '</span>' + reading(st) + '</div>' +
-        (next.tag ? '<span class="pill pill-' + next.tagTone + '">' + esc(next.tag) + '</span>' : '') +
-      '</div>' +
-      '<div class="tile-meter"><span class="tile-span">' + monthsLabel(i.months) + ' warranty</span>' + meter(i, tone) + '</div>' +
+    const useReturn = next.tier === 1;
+    const st = statusOf(i, useReturn);
+    const tag = next.tag && !useReturn ? '<span class="pass-tag">' + icon('alert', 12) + esc(next.tag) + '</span>' : '';
+    return '<a class="cover-link" href="#/item/' + it.id + '" style="--n:' + n + '">' +
+      passCard(it, i, {
+        cls: 'pass-tile', fields: false,
+        sub: '<span class="num">' + money(it.price) + '</span>, bought ' + fmtDate(it.purchased, { short: true }),
+        foot: '<div class="pass-foot"><div class="pass-reading"><span class="pass-foot-label">' + st.label + '</span>' + reading(st, 'value-pass') + '</div>' + tag + '</div>' +
+          meter(i, useReturn) + '<span class="pass-span">' + spanCaption(i, useReturn) + '</span>',
+      }) +
+    '</a>';
+  }
+
+  /* Everything that doesn't need you yet: one ruled ledger line per item. */
+  function wrow(it, i, next, n) {
+    const st = statusOf(i, false);
+    return '<a class="lrow' + (next.expired ? ' is-expired' : '') + '" href="#/item/' + it.id + '" style="--n:' + n + '">' +
+      '<span class="lrow-mark cat-' + esc(it.category) + '" aria-hidden="true"></span>' +
+      '<span class="lrow-id"><b>' + esc(it.name) + '</b>' +
+        '<span>' + esc(it.merchant) + ', ' + catLabel(it.category).toLowerCase() + ', <span class="num">' + money(it.price) + '</span></span>' +
+        (next.tag ? '<span class="lrow-tag">' + esc(next.tag) + '</span>' : '') +
+      '</span>' +
+      '<span class="lrow-span">' + meter(i, false) + '<span>' + spanCaption(i, false) + '</span></span>' +
+      '<span class="lrow-reading"><span class="lrow-label">' + st.label + '</span>' + reading(st) + '</span>' +
+      icon('chevron', 14) +
     '</a>';
   }
 
@@ -813,8 +866,8 @@
     el.classList.toggle('is-drawing', !!ui.drawIn && !reduceMotion);
 
     if (!list.length) {
-      el.innerHTML = '<div class="empty-note">' + icon('search', 20) + '<p>' + (ui.q ? 'No items match “' + esc(ui.q) + '”.' : 'No items match these filters.') + '</p>' +
-        '<button type="button" class="btn btn-tinted btn-sm" data-action="clear-filters">Clear filters</button></div>';
+      el.innerHTML = '<div class="empty-note"><p>' + (ui.q ? 'No items match “' + esc(ui.q) + '”.' : 'No items match these filters.') + '</p>' +
+        '<button type="button" class="btn btn-text btn-sm" data-action="clear-filters">Clear filters</button></div>';
       $('#list-foot').innerHTML = '';
       return;
     }
@@ -822,14 +875,16 @@
     const capped = !ui.showAll && list.length > VAULT_CAP;
     const shown = capped ? list.slice(0, VAULT_CAP) : list;
     let n = 0;
-    el.innerHTML = GROUPS.map((g) => {
+    el.innerHTML = GROUPS.map((g, gi) => {
       const rows = shown.filter(g.has);
       if (!rows.length) return '';
-      return '<section class="group"><h2 class="group-title">' + g.title + ' <span class="num">' + rows.length + '</span></h2>' +
-        '<div class="tiles">' + rows.map(({ it, i, next }) => wcard(it, i, next, n++)).join('') + '</div></section>';
+      const body = gi === 0
+        ? '<div class="covers">' + rows.map(({ it, i, next }) => wcard(it, i, next, n++)).join('') + '</div>'
+        : '<div class="ledger">' + rows.map(({ it, i, next }) => wrow(it, i, next, n++)).join('') + '</div>';
+      return '<section class="group"><h2 class="group-title">' + g.title + ' <span class="num">' + rows.length + '</span></h2>' + body + '</section>';
     }).join('');
     $('#list-foot').innerHTML = capped
-      ? btn('Show all ' + list.length + ' items', 'show-all', { kind: 'gray', icon: 'chevronDown' })
+      ? btn('Show all ' + list.length + ' items', 'show-all', { kind: 'text', icon: 'chevronDown' })
       : list.length === state.items.length ? '' : 'Showing ' + list.length + ' of ' + state.items.length;
   }
 
@@ -908,8 +963,8 @@
           '<span class="g-mark" style="left:' + todayPct + '%"></span></div></div>';
     }
     const wText = i.status === 'expired'
-      ? 'ended ' + fmtDate(i.end, { short: true }) + ', ' + span(i.left) + ' ago'
-      : 'until ' + fmtDate(i.end, { short: true }) + ', ' + (i.left === 0 ? 'last day' : span(i.left, true) + ' left');
+      ? 'ended ' + fmtDate(i.end, { short: true }) + ', ' + readingText(i.left) + ' ago'
+      : 'until ' + fmtDate(i.end, { short: true }) + ', ' + (i.left === 0 ? 'last day' : readingText(i.left) + ' left');
     rows += '<div class="g-row' + (i.status === 'expired' ? ' is-past' : '') + '">' +
       '<p class="g-head"><span>Warranty</span><span class="' + (i.status === 'expiring' ? 'tone-warning' : '') + '">' + wText + '</span></p>' +
       '<div class="g-track"><span class="g-bar g-bar-used" style="width:' + todayPct + '%"></span>' +
@@ -1088,6 +1143,20 @@
   /* ==========================================================================
      Add a receipt
      ========================================================================== */
+  /* The three ways in: photo, file, or by hand. Shared by the Add page and an empty vault. */
+  function addChoices() {
+    return '<div class="add-choices">' +
+        '<label class="add-choice"><span class="add-ic tint-blue">' + icon('camera', 22) + '</span>' +
+          '<span class="add-text"><b>Take a photo</b><span>Point your camera at a paper receipt</span></span>' + icon('chevron', 14) +
+          '<input type="file" accept="image/*" capture="environment" id="photo-input" class="sr-only" /></label>' +
+        '<label class="add-choice"><span class="add-ic tint-indigo">' + icon('upload', 22) + '</span>' +
+          '<span class="add-text"><b>Upload a file</b><span>PDF invoice or a screenshot</span></span>' + icon('chevron', 14) +
+          '<input type="file" accept="image/*,application/pdf" id="file-input" class="sr-only" /></label>' +
+        '<button type="button" class="add-choice" data-action="add-manual"><span class="add-ic tint-gray">' + icon('pencil', 22) + '</span>' +
+          '<span class="add-text"><b>Enter details</b><span>No receipt to hand? Type it in</span></span>' + icon('chevron', 14) + '</button>' +
+      '</div>';
+  }
+
   function viewAdd() {
     const a = ui.add || { stage: 'choose' };
     const head = '<header class="page-head"><h1 class="large-title">Add a receipt</h1><p>We’ll read the details and track the warranty and return window.</p></header>';
@@ -1102,16 +1171,7 @@
     if (a.stage === 'choose') {
       return {
         html: head +
-          '<div class="add-choices">' +
-            '<label class="add-choice"><span class="add-ic tint-blue">' + icon('camera', 22) + '</span>' +
-              '<span class="add-text"><b>Take a photo</b><span>Point your camera at a paper receipt</span></span>' + icon('chevron', 14) +
-              '<input type="file" accept="image/*" capture="environment" id="photo-input" class="sr-only" /></label>' +
-            '<label class="add-choice"><span class="add-ic tint-indigo">' + icon('upload', 22) + '</span>' +
-              '<span class="add-text"><b>Upload a file</b><span>PDF invoice or a screenshot</span></span>' + icon('chevron', 14) +
-              '<input type="file" accept="image/*,application/pdf" id="file-input" class="sr-only" /></label>' +
-            '<button type="button" class="add-choice" data-action="add-manual"><span class="add-ic tint-gray">' + icon('pencil', 22) + '</span>' +
-              '<span class="add-text"><b>Enter details</b><span>No receipt to hand? Type it in</span></span>' + icon('chevron', 14) + '</button>' +
-          '</div>',
+          addChoices(),
       };
     }
 
@@ -1165,7 +1225,8 @@
     const flags = { name: 'The receipt says “SAMS QE55Q80D 55IN”. We guessed the full name. Check it’s right.' };
     const begin = (image) => {
       ui.add = { stage: 'reading', image, fileName: file.name, values: extracted, flags, extracted: true };
-      paint('add');
+      /* An empty vault offers the same choices, so move to the Add page if we're not on it. */
+      if (route().name === 'add') paint('add'); else go('add');
     };
     if (!isImage) return begin(null);
     shrinkImage(file).then(begin).catch(() => begin(null));
@@ -1485,7 +1546,10 @@
     'view-proof': (el) => viewProof(findItem(el.dataset.id)),
     'export-one': (el) => exportPdf([findItem(el.dataset.id)], true),
     'export-all': () => exportPdf(filtered().map((x) => x.it), false),
-    'add-manual': () => { ui.add = { stage: 'form', values: {}, flags: {}, extracted: false }; paint('add'); },
+    'add-manual': () => {
+      ui.add = { stage: 'form', values: {}, flags: {}, extracted: false };
+      if (route().name === 'add') paint('add'); else go('add');
+    },
     'add-reset': () => { ui.add = null; paint('add'); },
     'show-plans': () => showPlans(),
     'pick-plan': (el) => {
@@ -1563,7 +1627,7 @@
       const last = $('#f-last').value.trim();
       $('#pv-hello').textContent = (first + ' ' + last).trim() || 'there';
       $('#pv-name').textContent = first ? first + '’s vault' : 'Your vault';
-      $('#pv-initials').textContent = (first[0] || 'A').toUpperCase();
+      $('#pv-initials').textContent = ((first[0] || '') + (last[0] || '')).toUpperCase() || 'A';
     }
     if (ui.base === 'signup' && t.id === 'f-email') {
       const ok = $('#email-ok');

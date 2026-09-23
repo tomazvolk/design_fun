@@ -38,7 +38,7 @@ EU-first: warranty lengths default to the region's legal minimum (2 years in the
 
 Name: Warranty tracker. Voice: plain, calm, specific, sentence case; errors name the problem and the fix.
 
-Standing preference (v2, 2026-09-23): the category standard played straight, at the craft level of Apple Wallet and Apple Health. Consumer-grade clarity, big numbers, rounded surfaces, a system feel on the phone. Not v1's Quiet SaaS look, and nothing that reads as AI-generated.
+Direction history (v2, 2026-09-23): the Apple Wallet/Health canon was built and rejected as cheap: generic and template-like, flat colors, default system typography, too many cards. The chosen direction is The Folio, fine stationery paper goods. It must feel expensive, tactile and ownable, with typography that has character, rich materials instead of flat fills, and few cards.
 
 ## Evidence on Hand
 

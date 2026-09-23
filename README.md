@@ -9,7 +9,7 @@ and a short description. Each prototype lives in its own folder.
 
 | Prototype | Folder | Deployed | What it is |
 | --- | --- | --- | --- |
-| Warranty tracker v2 | `warranty-tracker-v2/` | 2026-09-23 | Warranty tracker redesigned in the spirit of Apple Wallet and Health, same features |
+| Warranty tracker v2 | `warranty-tracker-v2/` | 2026-09-23 | Warranty tracker redesigned as a stationery folio: leather covers, Nile-blue paper, engraved numerals |
 | Warranty tracker | `warranty-tracker/` | 2026-09-22 | Receipt vault PWA: accounts, warranty and return reminders, claim PDFs |
 | Leaky v2 | `leaky-v2/` | 2026-09-21 | Leaky restyled as 80s arcade pixel art |
 | Leaky | `leaky/` | 2026-09-21 | Subscription tracker PWA: inbox scanning, budget, projection chart |
