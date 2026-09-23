@@ -224,7 +224,7 @@
 
   /* Things that only live for this session. */
   const ui = {
-    q: '', cat: 'all', merchant: 'all', showAll: false,
+    q: '', cat: 'all', merchant: 'all', showAll: false, attention: false,
     add: null, editing: null, base: null, drawerId: null,
   };
 
@@ -274,7 +274,7 @@
   }
 
   function statusText(i, short) {
-    if (i.status === 'expired') return 'Ended ' + span(i.left, short) + ' ago';
+    if (i.status === 'expired') return 'Expired ' + span(i.left, short) + ' ago';
     if (i.status === 'expiring') return i.left === 0 ? 'Ends today' : 'Ends in ' + plural(i.left, 'day');
     return span(i.left, short) + ' left';
   }
@@ -428,8 +428,8 @@
 
   /* One search field, rendered wherever it's needed; a shared class keeps them in sync. */
   function searchField(id) {
-    return '<label class="search"><span class="sr-only">Search receipts</span>' + icon('search') +
-      '<input type="search" class="search-input" id="' + id + '" placeholder="Search receipts…" value="' + esc(ui.q) + '" autocomplete="off" />' +
+    return '<label class="search' + (ui.q ? ' is-filled' : '') + '"><span class="sr-only">Search receipts</span>' + icon('search') +
+      '<input type="search" class="search-input" id="' + id + '" value="' + esc(ui.q) + '" autocomplete="off" spellcheck="false" />' +
       '<kbd>' + (isMac ? '⌘' : 'Ctrl&nbsp;') + 'K</kbd></label>';
   }
   function visibleSearchInput() {
@@ -507,7 +507,7 @@
         ? { label: 'Return closes', parts: null, tone: 'info' }
         : { label: 'Left to return', parts: readingParts(i.rLeft), tone: 'info' };
     }
-    if (i.status === 'expired') return { label: 'Warranty ended', parts: readingParts(i.left).concat([['', 'ago']]), tone: 'weak' };
+    if (i.status === 'expired') return { label: 'Warranty expired', parts: readingParts(i.left).concat([['', 'ago']]), tone: 'weak' };
     if (i.left === 0) return { label: 'Warranty ends', parts: null, tone: 'warning' };
     return { label: 'Warranty left', parts: readingParts(i.left), tone: i.status === 'expiring' ? 'warning' : null };
   }
@@ -534,7 +534,7 @@
         '<div class="pass-fields">' +
           f('Bought', fmtDate(it.purchased)) +
           f('Paid', money(it.price)) +
-          f(i.status === 'expired' ? 'Warranty ended' : 'Covered until', fmtDate(i.end)) +
+          f(i.status === 'expired' ? 'Warranty expired' : 'Covered until', fmtDate(i.end)) +
         '</div>') +
       (o.foot || '') +
     '</div>';
@@ -556,7 +556,7 @@
   /* What the meter above it measures, in words. */
   function spanCaption(i, useReturn) {
     if (useReturn) return plural(i.rDays, 'day') + ' to return it, until ' + fmtDate(i.rEnd, { short: true, weekday: true });
-    return monthsLabel(i.months) + ' warranty, ' + (i.status === 'expired' ? 'ended ' : 'until ') + fmtDate(i.end);
+    return monthsLabel(i.months) + ' warranty, ' + (i.status === 'expired' ? 'expired ' : 'until ') + fmtDate(i.end);
   }
 
   /* Three of the sample receipts, fanned like passes in a wallet. Dates stay relative to today. */
@@ -732,7 +732,11 @@
         : next.tier === 1 ? 'the return window for ' + esc(it.name) + ' closes' + (i.rLeft === 0 ? ' today' : ' in ' + plural(i.rLeft, 'day'))
         : 'the warranty on ' + esc(it.name) + ' ends' + (i.left === 0 ? ' today' : ' in ' + plural(i.left, 'day'));
       line = (action.length === 1 ? 'One thing needs your attention: ' : plural(action.length, 'thing') + ' need your attention. First, ') + what + '.';
-      cta = '<a class="btn btn-secondary" href="#/item/' + it.id + '"><span>Open ' + esc(it.name) + '</span></a>';
+      cta = action.length > 1
+        ? (ui.attention
+            ? btn('Show all items', 'inspect-off')
+            : btn('Inspect', 'inspect', { kind: 'secondary', icon: 'search' }))
+        : '<a class="btn btn-secondary" href="#/item/' + it.id + '"><span>Open ' + esc(it.name) + '</span></a>';
     } else {
       const soonest = list.filter((x) => x.next.tier === 3).sort((a, b) => a.i.left - b.i.left)[0];
       line = 'Everything is covered.' + (soonest ? ' Nothing to do until ' + fmtDate(soonest.i.end) + ', when the warranty on ' + esc(soonest.it.name) + ' ends.' : '');
@@ -758,6 +762,7 @@
       '<div class="toolbar">' +
         '<p class="vault-sum"><b>' + plural(items.length, 'item') + '</b>, <span class="num">' + money(covered) + '</span> still covered</p>' +
         '<div class="toolbar-controls">' +
+          (ui.attention ? '<button type="button" class="chip" data-action="inspect-off" aria-label="Stop showing only items that need attention">Needs attention' + icon('x', 12) + '</button>' : '') +
           '<div class="select select-sm"><label class="sr-only" for="flt-cat">Category</label><select id="flt-cat"><option value="all">All categories</option>' +
             cats.map((c) => '<option value="' + c.key + '"' + (ui.cat === c.key ? ' selected' : '') + '>' + c.label + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>' +
           '<div class="select select-sm"><label class="sr-only" for="flt-merchant">Shop</label><select id="flt-merchant"><option value="all">All shops</option>' +
@@ -779,6 +784,8 @@
     if (q) list = list.filter(({ it }) => [it.name, it.merchant, it.orderNo, catLabel(it.category), it.notes].join(' ').toLowerCase().includes(q));
     if (ui.cat !== 'all') list = list.filter(({ it }) => it.category === ui.cat);
     if (ui.merchant !== 'all') list = list.filter(({ it }) => it.merchant === ui.merchant);
+    /* Inspect: only what needs attention (a detail to check, a closing return, an ending warranty). */
+    if (ui.attention) list = list.filter(({ next }) => next.tier <= 2);
     return list.sort((a, b) => a.next.urgency - b.next.urgency);
   }
 
@@ -803,11 +810,11 @@
     '</a>';
   }
 
-  /* Most urgent first, in three groups: what needs you, what's covered, what has ended. */
+  /* Most urgent first, in three groups: what needs you, what's covered, what has expired. */
   const GROUPS = [
     { title: 'Needs attention', has: (x) => x.next.tier <= 2 },
     { title: 'Covered', has: (x) => x.next.tier === 3 },
-    { title: 'Ended', has: (x) => x.next.tier === 4 },
+    { title: 'Expired', has: (x) => x.next.tier === 4 },
   ];
 
   function renderList() {
@@ -846,7 +853,7 @@
       '<p class="rc-line"><span>' + esc(it.name) + '</span><span class="mono">' + money(it.price) + '</span></p>' +
       '<p class="rc-line rc-total"><span>Total</span><span class="mono">' + money(it.price) + '</span></p>' +
       '<span class="rc-rule"></span>' +
-      '<p class="rc-line rc-foot"><span>Warranty</span><span>' + (i.status === 'expired' ? 'Ended ' : 'Until ') + fmtDate(i.end) + '</span></p>' +
+      '<p class="rc-line rc-foot"><span>Warranty</span><span>' + (i.status === 'expired' ? 'Expired ' : 'Until ') + fmtDate(i.end) + '</span></p>' +
       (i.rDays ? '<p class="rc-line rc-foot"><span>Returns</span><span>' + (i.returnOpen ? 'Until ' : 'Closed ') + fmtDate(i.rEnd) + '</span></p>' : '') +
     '</div>';
   }
@@ -912,7 +919,7 @@
           '<span class="g-mark" style="left:' + todayPct + '%"></span></div></div>';
     }
     const wText = i.status === 'expired'
-      ? 'ended ' + fmtDate(i.end, { short: true }) + ', ' + readingText(i.left) + ' ago'
+      ? 'expired ' + fmtDate(i.end, { short: true }) + ', ' + readingText(i.left) + ' ago'
       : 'until ' + fmtDate(i.end, { short: true }) + ', ' + (i.left === 0 ? 'last day' : readingText(i.left) + ' left');
     rows += '<div class="g-row' + (i.status === 'expired' ? ' is-past' : '') + '">' +
       '<p class="g-head"><span>Warranty</span><span class="' + (i.status === 'expiring' ? 'tone-warning' : '') + '">' + wText + '</span></p>' +
@@ -1109,61 +1116,162 @@
   /* Add and Settings sit on top of the vault: one way back to it. */
   function backLink() { return '<a class="back-link" href="#/vault">' + icon('chevronLeft', 14) + '<span>Vault</span></a>'; }
 
+  /* Adding a receipt is four steps: the receipt, what it is, how long it's covered, done. */
+  const ADD_STEPS = ['Receipt', 'Details', 'Coverage', 'Done'];
+  const ADD_STEP_OF = { choose: 0, reading: 0, details: 1, coverage: 2, done: 3 };
+
+  function stepper(current) {
+    return '<ol class="stepper" aria-label="Steps">' + ADD_STEPS.map((label, n) =>
+      '<li class="step' + (n < current ? ' is-done' : n === current ? ' is-current' : '') + '"' + (n === current ? ' aria-current="step"' : '') + '>' +
+        '<span class="step-dot">' + (n < current ? icon('check', 12) : '<span class="num">' + (n + 1) + '</span>') + '</span>' +
+        '<span class="step-label">' + label + '</span>' +
+      '</li>').join('') + '</ol>';
+  }
+
+  /* The form values collected so far, as an item. */
+  function valuesToItem(v) {
+    const price = parsePrice(v.price == null ? '' : String(v.price));
+    return {
+      name: String(v.name || '').trim(),
+      merchant: String(v.merchant || '').trim() || 'Unknown shop',
+      category: v.category || 'electronics',
+      price: isNaN(price) ? 0 : Math.round(price * 100) / 100,
+      purchased: v.purchased || iso(today()),
+      orderNo: String(v.orderNo || '').trim(),
+      warrantyMonths: v.warrantyMonths ? Number(v.warrantyMonths) : null,
+      returnDays: v.returnDays === '' || v.returnDays == null ? null : Number(v.returnDays),
+      notes: String(v.notes || '').trim(),
+    };
+  }
+
+  /* Keep whatever this step's form holds, so Back never loses anything. */
+  function mergeStep(form) {
+    const f = new FormData(form);
+    ui.add.values = ui.add.values || {};
+    f.forEach((value, key) => { ui.add.values[key] = value; });
+  }
+
+  /* Step 3's live answer: when cover ends, when the return window closes, drawn from the purchase date. */
+  function coveragePreview() {
+    const it = valuesToItem(ui.add.values || {});
+    const i = info(it);
+    return '<div class="cov-figs">' +
+        '<div><span>Covered until</span><b class="num">' + fmtDate(i.end) + '</b><em>' + monthsLabel(i.months) + (it.warrantyMonths ? '' : ', your default for ' + catLabel(it.category).toLowerCase()) + '</em></div>' +
+        '<div><span>Return by</span><b class="num">' + (i.rDays ? fmtDate(i.rEnd) : 'No returns') + '</b><em>' + (i.rDays ? plural(i.rDays, 'day') + ' from purchase' : 'This shop takes nothing back') + '</em></div>' +
+      '</div>' + timeline(i);
+  }
+
   function viewAdd() {
     const a = ui.add || { stage: 'choose' };
-    const head = backLink() + '<header class="page-head"><h1 class="large-title">Add a receipt</h1><p>We’ll read the details and track the warranty and return window.</p></header>';
+    const step = ADD_STEP_OF[a.stage] == null ? 0 : ADD_STEP_OF[a.stage];
+    const titles = {
+      choose: ['Add a receipt', 'How would you like to add it?'],
+      reading: ['Reading your receipt', 'This takes a moment.'],
+      details: ['What did you buy?', a.extracted ? 'We read these from your receipt. Check them, then continue.' : 'The basics, so you can find it and prove the purchase.'],
+      coverage: ['How long is it covered?', 'We’ve filled in the usual lengths. Change them if the shop or maker gives more.'],
+      done: ['Added to your vault', 'We’ll remind you before anything runs out.'],
+    }[a.stage] || ['Add a receipt', ''];
+    const head = backLink() + stepper(step) +
+      '<header class="page-head add-head"><h1 class="large-title">' + titles[0] + '</h1>' + (titles[1] ? '<p>' + titles[1] + '</p>' : '') + '</header>';
+    const panel = (html) => '<section class="step-panel">' + html + '</section>';
 
-    if (state.plan === 'free' && state.items.length >= FREE_LIMIT) {
+    if (state.plan === 'free' && state.items.length >= FREE_LIMIT && a.stage !== 'done') {
       return {
-        html: head + '<section class="empty"><p>Your vault is full. The free plan holds ' + FREE_LIMIT + ' items.</p>' +
+        html: backLink() + '<header class="page-head"><h1 class="large-title">Add a receipt</h1></header>' +
+          '<section class="empty"><p>Your vault is full. The free plan holds ' + FREE_LIMIT + ' items.</p>' +
           '<div class="empty-actions">' + btn('See Plus', 'show-plans', { kind: 'primary' }) + '</div></section>',
       };
     }
 
-    if (a.stage === 'choose') {
-      return {
-        html: head +
-          addChoices(),
-      };
-    }
+    if (a.stage === 'choose') return { html: head + panel(addChoices()) };
 
     if (a.stage === 'reading') {
       return {
-        html: head +
-          '<section class="reading">' +
+        html: head + panel(
+          '<div class="reading">' +
             '<div class="reading-img">' + (a.image ? '<img src="' + a.image + '" alt="Your receipt" />' : '<span class="reading-file">' + icon('file', 24) + '<span class="mono">' + esc(a.fileName || '') + '</span></span>') +
               '<span class="scanline" aria-hidden="true"></span></div>' +
-            '<p class="reading-text" role="status"><span class="spinner" aria-hidden="true"></span>Reading your receipt…</p>' +
-          '</section>',
+            '<p class="reading-text" role="status"><span class="spinner" aria-hidden="true"></span>Finding the shop, the item, the price and the date…</p>' +
+          '</div>'),
         after: () => {
           setTimeout(() => {
             if (!ui.add || ui.add.stage !== 'reading') return;
-            ui.add.stage = 'form';
+            ui.add.stage = 'details';
             if (route().name === 'add') paint('add');
-          }, reduceMotion ? 300 : 1600);
+          }, reduceMotion ? 300 : 1800);
         },
       };
     }
 
-    const flags = a.flags || {};
-    const flagCount = Object.keys(flags).length;
-    return {
-      html: head +
-        '<div class="add-form-wrap">' +
-          (a.image ? '<aside class="add-thumb"><img src="' + a.image + '" alt="Your receipt" /></aside>' : '') +
-          '<form class="card form add-form" id="add-form" novalidate>' +
-            (a.extracted ? '<p class="inline-ok">' + icon('checkCircle') + '<span><b>We read your receipt.</b> ' +
-              (flagCount ? 'Check the field marked below, then save.' : 'Check the details, then save.') + '</span></p>' : '') +
-            (flagCount ? '<p class="callout callout-warning">' + icon('alert') + '<span>' + Object.keys(flags).map((k) => esc(flags[k])).join(' ') + '</span></p>' : '') +
-            itemForm(a.values || {}, flags) +
-            '<div class="form-actions">' +
-              btn('Start over', 'add-reset', { kind: 'plain' }) +
-              btn('Save to vault', null, { kind: 'primary', type: 'submit' }) +
+    if (a.stage === 'details') {
+      const v = a.values || {};
+      const flags = a.flags || {};
+      const flagCount = Object.keys(flags).length;
+      return {
+        html: head + panel(
+          '<div class="add-form-wrap">' +
+            (a.image ? '<aside class="add-thumb"><img src="' + a.image + '" alt="Your receipt" /></aside>' : '') +
+            '<form class="form add-form" id="add-details" novalidate>' +
+              (flagCount ? '<p class="callout callout-warning">' + icon('alert') + '<span>' + Object.keys(flags).map((k) => esc(flags[k])).join(' ') + '</span></p>' : '') +
+              '<div class="form-grid">' +
+                field({ name: 'name', label: 'Item', value: v.name || '', placeholder: 'Bosch dishwasher…', flag: flags.name, wide: true, attrs: ' autocomplete="off"' }) +
+                field({ name: 'merchant', label: 'Shop', value: v.merchant || '', placeholder: 'MediaMarkt…', flag: flags.merchant, attrs: ' autocomplete="off"' }) +
+                field({ name: 'category', label: 'Category', type: 'select', value: v.category || 'electronics', options: CATS.map((c) => ({ value: c.key, label: c.label })), flag: flags.category }) +
+                field({ name: 'price', label: 'Price paid (€)', value: v.price != null && v.price !== '' ? String(v.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal" autocomplete="off"', flag: flags.price }) +
+                field({ name: 'purchased', label: 'Purchase date', type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
+                field({ name: 'orderNo', label: 'Order number', value: v.orderNo || '', placeholder: 'Optional', flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
+              '</div>' +
+              '<div class="step-actions">' +
+                btn('Back', 'add-back', { kind: 'plain', icon: 'chevronLeft' }) +
+                '<button type="submit" class="btn btn-primary btn-lg"><span>Continue</span>' + icon('chevron') + '</button>' +
+              '</div>' +
+              (a.extracted ? '<p class="fineprint">Prototype: reading the receipt is simulated, so these details are sample data.</p>' : '') +
+            '</form>' +
+          '</div>'),
+        after: () => { if (!a.extracted) { const n = $('#f-name'); if (n) n.focus(); } },
+      };
+    }
+
+    if (a.stage === 'coverage') {
+      const v = a.values || {};
+      const catDefault = state.settings.defaults[v.category || 'electronics'];
+      return {
+        html: head + panel(
+          '<form class="form add-form" id="add-coverage" novalidate>' +
+            '<div class="cov-preview" id="cov-preview" aria-live="polite">' + coveragePreview() + '</div>' +
+            '<div class="form-grid">' +
+              field({ name: 'warrantyMonths', label: 'Warranty', type: 'select', value: v.warrantyMonths || '',
+                options: [{ value: '', label: 'Default (' + monthsLabel(catDefault) + ')' }].concat(WARRANTY_OPTIONS.map((m) => ({ value: m, label: monthsLabel(m) }))) }) +
+              field({ name: 'returnDays', label: 'Return window', type: 'select', value: v.returnDays == null ? '' : v.returnDays,
+                options: [{ value: '', label: 'Default (' + plural(state.settings.returnDays, 'day') + ')' }].concat(RETURN_OPTIONS.map((d) => ({ value: d, label: d ? plural(d, 'day') : 'No returns' }))) }) +
+              field({ name: 'notes', label: 'Notes', type: 'textarea', value: v.notes || '', placeholder: 'Serial number, where it’s kept, anything useful for a claim…', wide: true }) +
             '</div>' +
-            (a.extracted ? '<p class="fineprint">Prototype: reading the receipt is simulated, so the details above are sample data.</p>' : '') +
-          '</form>' +
-        '</div>',
-      after: () => { if (!a.extracted) { const n = $('#f-name'); if (n) n.focus(); } },
+            '<div class="step-actions">' +
+              btn('Back', 'add-back', { kind: 'plain', icon: 'chevronLeft' }) +
+              '<button type="submit" class="btn btn-primary btn-lg">' + icon('check') + '<span>Save to vault</span></button>' +
+            '</div>' +
+          '</form>'),
+      };
+    }
+
+    /* Done: the check draws itself, then the new item's reading and what happens next. */
+    const it = findItem(a.savedId);
+    if (!it) { ui.add = null; return viewAdd(); }
+    const i = info(it);
+    const st = statusOf(i, i.returnOpen && i.rLeft <= 7);
+    return {
+      html: backLink() + stepper(3) + panel(
+        '<div class="done">' +
+          '<svg class="done-mark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" /><path d="m15 27 7.5 7.5L37.5 19" /></svg>' +
+          '<h1 class="large-title">Added to your vault</h1>' +
+          '<p class="done-name">' + esc(it.name) + '<span>' + esc(it.merchant) + ', <span class="num">' + money(it.price) + '</span></span></p>' +
+          '<div class="done-reading"><span class="lrow-label">' + st.label + '</span>' + reading(st, 'value-lg') + '</div>' +
+          '<p class="done-remind">' + icon('bell', 14) + '<span>Reminders: ' + reminderLine(it) + '</span></p>' +
+          '<div class="done-actions">' +
+            '<a class="btn btn-primary btn-lg" href="#/item/' + it.id + '"><span>Open item</span></a>' +
+            btn('Add another', 'add-reset', { kind: 'secondary', cls: 'btn-lg', icon: 'plus' }) +
+          '</div>' +
+        '</div>'),
     };
   }
 
@@ -1340,7 +1448,7 @@
           '<tr><th>Purchase date</th><td>' + fmtDate(it.purchased) + '</td></tr>' +
           '<tr><th>Price paid</th><td>' + money(it.price) + '</td></tr>' +
           '<tr><th>Warranty</th><td>' + monthsLabel(i.months) + (it.warrantyNote ? ' (' + esc(it.warrantyNote) + ')' : '') + ', until ' + fmtDate(i.end) + '</td></tr>' +
-          '<tr><th>Status on ' + printed + '</th><td>' + (i.status === 'expired' ? 'Ended ' + span(i.left) + ' ago' : 'Covered, ' + span(i.left) + ' left') + '</td></tr>' +
+          '<tr><th>Status on ' + printed + '</th><td>' + (i.status === 'expired' ? 'Expired ' + span(i.left) + ' ago' : 'Covered, ' + span(i.left) + ' left') + '</td></tr>' +
           (it.notes ? '<tr><th>Notes</th><td>' + esc(it.notes) + '</td></tr>' : '') +
         '</tbody></table>' +
         '<h2>Proof of purchase</h2>' +
@@ -1460,8 +1568,10 @@
     'load-samples': loadSamples,
     'close-drawer': () => go('vault'),
     'close-modal': () => closeModal(),
+    'inspect': () => { ui.attention = true; ui.showAll = true; paint('vault', null, true); },
+    'inspect-off': () => { ui.attention = false; ui.showAll = false; paint('vault', null, true); },
     'clear-filters': () => {
-      ui.q = ''; ui.cat = 'all'; ui.merchant = 'all'; ui.showAll = false;
+      ui.q = ''; ui.cat = 'all'; ui.merchant = 'all'; ui.showAll = false; ui.attention = false;
       paint('vault');
     },
     'show-all': () => { ui.showAll = true; renderList(); },
@@ -1499,10 +1609,18 @@
     'export-one': (el) => exportPdf([findItem(el.dataset.id)], true),
     'export-all': () => exportPdf(filtered().map((x) => x.it), false),
     'add-manual': () => {
-      ui.add = { stage: 'form', values: {}, flags: {}, extracted: false };
+      ui.add = { stage: 'details', values: {}, flags: {}, extracted: false };
       if (route().name === 'add') paint('add'); else go('add');
     },
     'add-reset': () => { ui.add = null; paint('add'); },
+    'add-back': () => {
+      const a = ui.add;
+      if (!a || a.stage === 'details') { ui.add = null; return paint('add'); }
+      const form = $('#add-coverage');
+      if (form) mergeStep(form);
+      a.stage = 'details';
+      paint('add');
+    },
     'show-plans': () => showPlans(),
     'pick-plan': (el) => {
       state.plan = 'plus';
@@ -1570,6 +1688,7 @@
     if (t.classList.contains('search-input')) {
       ui.q = t.value;
       ui.showAll = false;
+      t.closest('.search').classList.toggle('is-filled', !!t.value);
       $$('.search-input').forEach((el) => { if (el !== t) el.value = t.value; });
       if (ui.base !== 'vault') { ui.refocusSearch = true; go('vault'); } else renderList();
     }
@@ -1593,6 +1712,10 @@
     if (t.id === 'flt-cat') { ui.cat = t.value; ui.showAll = false; renderList(); }
     if (t.id === 'flt-merchant') { ui.merchant = t.value; ui.showAll = false; renderList(); }
     if (t.id === 'photo-input' || t.id === 'file-input') onReceiptFile(t.files[0]);
+    if (t.form && t.form.id === 'add-coverage' && ui.add) {
+      mergeStep(t.form);
+      $('#cov-preview').innerHTML = coveragePreview();
+    }
     if (t.dataset.attach) {
       const it = findItem(t.dataset.attach);
       shrinkImage(t.files[0]).then((img) => { it.photo = img; save(); refreshDrawer(); toast('Photo added.'); });
@@ -1723,19 +1846,25 @@
       return;
     }
 
-    if (f.id === 'add-form') {
-      const v = readForm(f);
-      if (!validateItem(v)) return;
-      delete v.priceRaw;
+    if (f.id === 'add-details') {
+      if (!validateItem(readForm(f))) return;
+      mergeStep(f);
+      ui.add.stage = 'coverage';
+      paint('add');
+      return;
+    }
+
+    if (f.id === 'add-coverage') {
+      mergeStep(f);
+      const v = valuesToItem(ui.add.values);
       const it = Object.assign({ id: uid(), added: iso(today()), source: ui.add.image ? 'photo' : ui.add.fileName ? 'upload' : 'manual' }, v);
       if (ui.add.image) it.photo = ui.add.image;
       else if (ui.add.fileName) it.fileName = ui.add.fileName;
       state.items.push(it);
       state.banner = false;
       save();
-      ui.add = null;
-      go('item/' + it.id);
-      toast('Added to your vault.');
+      ui.add = { stage: 'done', savedId: it.id };
+      paint('add');
     }
   });
 
@@ -1752,10 +1881,14 @@
         if (ui.editing) { ui.editing = null; return refreshDrawer(); }
         return go('vault');
       }
-      if (document.activeElement && document.activeElement.classList.contains('search-input') && ui.q) {
-        ui.q = '';
-        $$('.search-input').forEach((el) => { el.value = ''; });
-        renderList();
+      const a = document.activeElement;
+      if (a && a.classList.contains('search-input')) {
+        /* First Esc clears the search, the next folds it away. */
+        if (ui.q) {
+          ui.q = '';
+          $$('.search-input').forEach((el) => { el.value = ''; el.closest('.search').classList.remove('is-filled'); });
+          renderList();
+        } else a.blur();
       }
       return;
     }

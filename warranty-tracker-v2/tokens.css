@@ -39,6 +39,10 @@
   --color-cat-sports: oklch(55% 0.13 145);
   --color-cat-other: oklch(55% 0.01 265);
 
+  /* The glow behind the greeting */
+  --color-glow-1: oklch(58% 0.22 266 / 0.16);
+  --color-glow-2: oklch(66% 0.17 305 / 0.12);
+
   --color-primary: var(--color-ink);
   --color-primary-hover: oklch(30% 0.006 265);
 
@@ -129,6 +133,9 @@
   --color-ok: oklch(74% 0.14 152);
 
   --color-primary-hover: oklch(86% 0.003 265);
+
+  --color-glow-1: oklch(55% 0.22 266 / 0.3);
+  --color-glow-2: oklch(58% 0.18 305 / 0.22);
 
   --color-cat-electronics: oklch(72% 0.14 305);
   --color-cat-computers: oklch(74% 0.11 235);
