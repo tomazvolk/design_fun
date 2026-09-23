@@ -27,11 +27,16 @@
   --color-brand: #9fe870;
   --color-on-brand: #163300;
 
-  /* The greeting band: a light warm grey, near-black type */
-  --color-band: #edefec;
-  --color-on-band: #0e0f0c;
-  --color-on-band-2: #454745;
-  --color-band-tint: rgba(14, 15, 12, 0.07);
+  /* Deep green for the top navigation and the greeting band beneath it */
+  --color-nav: #083400;
+  --color-on-nav: #ffffff;
+  --color-on-nav-2: rgba(255, 255, 255, 0.72);
+  --color-nav-tint: rgba(255, 255, 255, 0.12);
+  --color-nav-tint-strong: rgba(255, 255, 255, 0.2);
+  --color-band: #083400;
+  --color-on-band: #9fe870;
+  --color-on-band-2: rgba(255, 255, 255, 0.84);
+  --color-band-tint: rgba(255, 255, 255, 0.12);
 
   /* Status, used sparingly */
   --color-urgent: #cb272f;
@@ -49,11 +54,11 @@
   --color-cat-sports: oklch(55% 0.13 145);
   --color-cat-other: oklch(55% 0.01 265);
 
-  /* Coverage chart, drawn on the green band: forest, red, and a faint forest for expired */
-  --color-chart-active: #163300;
-  --color-chart-soon: #cb272f;
-  --color-chart-expired: rgba(22, 51, 0, 0.32);
-  --color-chart-track: rgba(14, 15, 12, 0.1);
+  /* Coverage chart, drawn on the deep-green band */
+  --color-chart-active: #9fe870;
+  --color-chart-soon: #ff8577;
+  --color-chart-expired: rgba(255, 255, 255, 0.36);
+  --color-chart-track: rgba(255, 255, 255, 0.14);
 
   /* Buttons, from Wise */
   --btn-accent: #9fe870;
@@ -152,11 +157,6 @@
   --color-focus: rgba(159, 232, 112, 0.5);
   --color-selection: rgba(159, 232, 112, 0.3);
 
-  /* At night the band is a raised dark grey */
-  --color-band: #1b1f19;
-  --color-on-band: #f2f5ee;
-  --color-on-band-2: #c3c8bd;
-  --color-band-tint: rgba(223, 247, 208, 0.1);
 
   --color-urgent: #ff6b6b;
   --color-urgent-tint: rgba(255, 107, 107, 0.14);
@@ -167,10 +167,6 @@
   --btn-neutral-hover: rgba(223, 247, 208, 0.16);
   --btn-neutral-active: rgba(223, 247, 208, 0.22);
 
-  --color-chart-active: #9fe870;
-  --color-chart-soon: #ff8577;
-  --color-chart-expired: rgba(223, 247, 208, 0.32);
-  --color-chart-track: rgba(223, 247, 208, 0.12);
 
   --color-cat-electronics: oklch(72% 0.14 305);
   --color-cat-computers: oklch(74% 0.11 235);

@@ -194,8 +194,7 @@ kbd {
 
 .topbar {
   position: sticky; top: 0; z-index: 20;
-  background: var(--color-ground);
-  border-bottom: 1px solid var(--color-rule);
+  background: var(--color-nav); color: var(--color-on-nav);
 }
 .topbar-inner { display: flex; align-items: center; gap: var(--space-md); height: 60px; }
 .brand {
@@ -247,6 +246,21 @@ kbd {
 .back-link:hover { color: var(--color-ink); background: var(--color-paper-2); }
 
 .menu-wrap { position: relative; }
+
+/* Everything on the deep-green bar reads light */
+.topbar .brand, .pub-nav .brand { color: var(--color-on-nav); }
+.topbar .logo-tile, .pub-nav .logo-tile { fill: var(--color-brand); }
+.topbar .logo-mark, .pub-nav .logo-mark { stroke: var(--color-nav); }
+.topbar .search { background: var(--color-nav-tint); color: var(--color-on-nav); }
+.topbar .search:hover { background: var(--color-nav-tint-strong); color: var(--color-on-nav); }
+.topbar .search input { color: var(--color-on-nav); }
+.topbar .search kbd { color: var(--color-on-nav-2); box-shadow: inset 0 0 0 1px var(--color-nav-tint-strong); }
+.topbar .search:focus-within, .topbar .search.is-filled { background: var(--color-nav-tint-strong); box-shadow: inset 0 0 0 1.5px var(--color-brand); }
+.topbar .search:focus-within .i { color: var(--color-brand); }
+.topbar .avatar { background: var(--color-nav-tint); color: var(--color-on-nav); }
+.topbar .avatar:hover { box-shadow: inset 0 0 0 1px var(--color-nav-tint-strong); }
+.pub-nav .btn-plain { color: var(--color-on-nav); }
+.pub-nav .btn-plain:hover:not(:disabled) { background: var(--color-nav-tint); }
 .user-pop {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 50;
   min-width: 240px; padding: 4px;
@@ -310,8 +324,11 @@ kbd {
   background: var(--color-band); color: var(--color-on-band);
   box-shadow: 0 0 0 100vmax var(--color-band); clip-path: inset(0 -100vmax);
 }
+.greet { justify-items: center; text-align: center; }
+.greet .greet-text { display: grid; justify-items: center; }
 .greet .large-title { color: var(--color-on-band); }
-.greet p { color: var(--color-on-band-2); }
+.greet-text > p { margin-top: var(--space-lg); max-width: 34em; font-size: 20px; line-height: 1.5; color: var(--color-on-band-2); }
+.greet .page-actions { justify-content: center; }
 .greet .btn-secondary { background-color: var(--btn-accent); border-color: var(--btn-accent); color: var(--btn-ink); }
 .greet .btn-secondary:hover:not(:disabled) { background-color: var(--btn-accent-hover); border-color: var(--btn-accent-hover); }
 @media (min-width: 760px) { .greet { margin-top: calc(-1 * var(--space-5xl)); padding: var(--space-5xl) 0; } }
@@ -319,15 +336,15 @@ kbd {
 .page-actions .btn span { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 
 @media (min-width: 760px) { .large-title { font-size: 64px; } }
-@media (min-width: 960px) { .greet { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-4xl); } }
+@media (min-width: 960px) { .greet { gap: var(--space-4xl); } }
 .greet-text .page-actions { margin-top: var(--space-xl); }
 
 /* Coverage overview: a ring for the share, a legend with the counts */
-.overview { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3xl); }
-.ov-title { font-size: var(--text-headline); font-weight: 600; letter-spacing: -0.015em; }
+.overview { display: flex; align-items: center; justify-content: center; gap: var(--space-4xl); text-align: left; }
+.ov-title { font-size: var(--text-headline); font-weight: 700; letter-spacing: -0.015em; color: var(--color-on-nav); }
 .greet .ov-sub { margin-top: 2px; color: var(--color-on-band-2); font-size: var(--text-footnote); }
 .ov-legend { display: grid; gap: 10px; margin-top: var(--space-lg); }
-.ov-legend li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: var(--text-sub); font-weight: 500; cursor: default; }
+.ov-legend li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 200px; font-size: var(--text-sub); font-weight: 500; color: var(--color-on-nav); cursor: default; }
 .ov-dot { width: 8px; height: 8px; border-radius: 50%; }
 .ov-legend b {
   min-width: 36px; height: 28px; padding: 0 12px; border-radius: var(--radius-full);
@@ -352,6 +369,7 @@ kbd {
 .ov-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
 .ov-center b { font-size: 34px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
 .ov-center span { color: var(--color-on-band-2); font-size: var(--text-caption); font-weight: 600; }
+.ov-center b { color: var(--color-on-nav); }
 @media (prefers-reduced-motion: no-preference) {
   .ov-ring svg { animation: ring-in 1000ms var(--ease-out) both; }
 }
@@ -602,6 +620,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: po
 .pub-nav {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);
   max-width: 1160px; margin: 0 auto; height: 64px; padding: 0 var(--space-xl);
+  background: var(--color-nav); box-shadow: 0 0 0 100vmax var(--color-nav); clip-path: inset(0 -100vmax);
 }
 .pub-nav .brand span { display: inline; }
 .pub-actions { display: flex; align-items: center; gap: var(--space-sm); }
