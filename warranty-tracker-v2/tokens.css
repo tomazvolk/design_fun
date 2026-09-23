@@ -1,85 +1,60 @@
-/* Warranty tracker v2 tokens. The Folio: fine stationery, light first.
- * Every color, texture, font, size, radius and curve lives here; style.css only references names. */
+/* Warranty tracker v2 tokens. Bright, minimal, white: black type, hairlines, one bold colour.
+ * Every color, font, size, radius and curve lives here; style.css only references names. */
 
 :root {
-  /* Paper: Nile-blue writing paper, and the lighter sheets laid on it */
-  --color-ground: oklch(93.4% 0.019 222);
-  --color-paper: oklch(97.8% 0.008 222);
-  --color-paper-2: oklch(95.4% 0.013 222);
-  --color-thermal: oklch(99.4% 0.003 95);
-  --color-rule: oklch(86% 0.018 228);
-  --color-rule-strong: oklch(75% 0.024 236);
-  --color-scrim: oklch(22% 0.04 258 / 0.36);
+  /* Surfaces */
+  --color-ground: oklch(99.4% 0 0);
+  --color-paper: oklch(99.4% 0 0);
+  --color-paper-2: oklch(97.4% 0.002 265);
+  --color-paper-3: oklch(95.2% 0.003 265);
+  --color-rule: oklch(92.4% 0.003 265);
+  --color-rule-strong: oklch(86% 0.004 265);
+  --color-scrim: oklch(20% 0.01 265 / 0.22);
 
-  /* Ink: navy fountain-pen ink */
-  --color-ink: oklch(25% 0.055 262);
-  --color-ink-2: oklch(42% 0.04 255);
-  --color-ink-3: oklch(50% 0.03 250);
+  /* Ink */
+  --color-ink: oklch(18% 0.006 265);
+  --color-ink-2: oklch(44% 0.008 265);
+  --color-ink-3: oklch(53% 0.008 265);
+  --color-on-ink: oklch(99.4% 0 0);
 
-  /* Action is written in ink; urgency is sealing wax */
-  --color-accent: oklch(29% 0.075 262);
-  --color-accent-hover: oklch(35% 0.085 262);
-  --color-accent-ink: oklch(33% 0.09 262);
-  --color-on-accent: oklch(97.8% 0.008 222);
-  --color-accent-tint: oklch(29% 0.075 262 / 0.07);
-  --color-accent-tint-strong: oklch(29% 0.075 262 / 0.12);
-  --color-focus: oklch(42% 0.12 262 / 0.35);
-  --color-wax: oklch(47% 0.16 27);
-  --color-wax-hover: oklch(42% 0.15 27);
-  --color-wax-tint: oklch(47% 0.16 27 / 0.1);
-  --color-ochre: oklch(47% 0.16 27);
-  --color-ochre-tint: oklch(47% 0.16 27 / 0.1);
-  --color-moss: oklch(46% 0.08 150);
+  /* The one bold colour: ultramarine, for the return window, links, focus and what needs you */
+  --color-accent: oklch(50% 0.25 266);
+  --color-accent-hover: oklch(45% 0.23 266);
+  --color-accent-tint: oklch(50% 0.25 266 / 0.08);
+  --color-focus: oklch(50% 0.25 266 / 0.4);
+  --color-selection: oklch(50% 0.25 266 / 0.16);
 
-  /* Gilt: foil on leather, and a deeper gold for the rare mark on paper */
-  --color-gilt: oklch(80% 0.095 85);
-  --color-gilt-soft: oklch(80% 0.095 85 / 0.55);
-  --color-gilt-deep: oklch(58% 0.1 78);
+  /* Urgency only */
+  --color-urgent: oklch(55% 0.21 27);
+  --color-urgent-tint: oklch(55% 0.21 27 / 0.08);
+  --color-ok: oklch(52% 0.13 152);
 
-  /* Leather covers, one per category */
-  --color-leather-electronics: oklch(34% 0.075 330);
-  --color-leather-computers: oklch(30% 0.07 262);
-  --color-leather-appliances: oklch(34% 0.06 170);
-  --color-leather-kitchen: oklch(49% 0.1 70);
-  --color-leather-tools: oklch(42% 0.1 48);
-  --color-leather-furniture: oklch(33% 0.1 20);
-  --color-leather-sports: oklch(40% 0.07 135);
-  --color-leather-other: oklch(31% 0.012 255);
-  --color-on-leather: oklch(96.5% 0.018 85);
-  --color-on-leather-2: oklch(96.5% 0.018 85 / 0.74);
-  --color-on-leather-faint: oklch(96.5% 0.018 85 / 0.22);
-  --color-leather-sheen: oklch(100% 0 0 / 0.07);
-
-  --color-selection: oklch(80% 0.095 85 / 0.45);
+  --color-primary: var(--color-ink);
+  --color-primary-hover: oklch(30% 0.006 265);
 
   /* Print (the claim PDF is always light) */
-  --color-print-ink: oklch(22% 0.03 262);
-  --color-print-muted: oklch(46% 0.025 255);
-  --color-print-rule: oklch(88% 0.01 240);
-  --color-print-accent: oklch(58% 0.1 78);
+  --color-print-ink: oklch(18% 0.006 265);
+  --color-print-muted: oklch(46% 0.008 265);
+  --color-print-rule: oklch(88% 0.004 265);
+  --color-print-accent: oklch(50% 0.25 266);
 
-  /* Material: grain for leather, a whisper of tooth for paper */
-  --texture-leather: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  --texture-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.25 0 0 0 0 0.4 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-
-  /* Type: an engraved Bodoni for headings and numerals, a precise grotesk for everything read at a glance */
-  --font-display: 'Bodoni Moda', 'Bodoni 72', Didot, Georgia, serif;
-  --font-text: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  /* Type: Geist throughout; tabular numerals for every figure */
+  --font-text: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --text-caption: 12px;
   --text-footnote: 13px;
   --text-sub: 14px;
   --text-body: 15px;
-  --text-headline: 17px;
-  --text-title-3: 21px;
-  --text-title-2: 26px;
-  --text-title-1: 34px;
-  --text-display: 56px;
-  --text-reading: 30px;
-  --text-reading-lg: 42px;
-  --text-reading-xl: 80px;
-  --text-hero: 76px;
+  --text-headline: 16px;
+  --text-title-3: 20px;
+  --text-title-2: 24px;
+  --text-title-1: 32px;
+  --text-display: 52px;
+  --text-reading: 26px;
+  --text-reading-xl: 88px;
+  --text-hero: 72px;
 
   /* Space: 4pt scale */
   --space-2xs: 2px;
@@ -90,84 +65,62 @@
   --space-xl: 20px;
   --space-2xl: 24px;
   --space-3xl: 32px;
-  --space-4xl: 40px;
-  --space-5xl: 56px;
-  --space-6xl: 88px;
+  --space-4xl: 48px;
+  --space-5xl: 64px;
+  --space-6xl: 112px;
 
-  /* Radius: cut paper and bound corners, never capsules */
-  --radius-xs: 3px;
-  --radius-sm: 5px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
+  --radius-lg: 12px;
   --radius-full: 999px;
 
-  /* Depth: paper lies flat, leather sits proud */
-  --shadow-paper: 0 1px 0 oklch(25% 0.05 262 / 0.04), 0 1px 2px oklch(25% 0.05 262 / 0.06), 0 10px 28px -14px oklch(25% 0.05 262 / 0.22);
-  --shadow-lift: 0 1px 2px oklch(25% 0.05 262 / 0.08), 0 18px 40px -16px oklch(25% 0.05 262 / 0.32);
-  --shadow-leather: 0 1px 1px oklch(15% 0.03 262 / 0.25), 0 12px 26px -12px oklch(15% 0.03 262 / 0.5);
-  --shadow-sheet: 0 2px 6px oklch(20% 0.04 262 / 0.12), 0 30px 70px -20px oklch(20% 0.04 262 / 0.45);
-  --shadow-press: inset 0 1px 0 oklch(100% 0 0 / 0.12), 0 1px 2px oklch(15% 0.03 262 / 0.3);
+  /* Depth: almost none. Hairlines do the work; overlays get one soft shadow. */
+  --shadow-float: 0 1px 2px oklch(20% 0.01 265 / 0.06), 0 16px 48px -12px oklch(20% 0.01 265 / 0.18);
+  --shadow-control: 0 1px 1px oklch(20% 0.01 265 / 0.04);
 
   /* Motion */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --dur-press: 140ms;
-  --dur-fast: 160ms;
-  --dur-base: 220ms;
-  --dur-sheet: 420ms;
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-sheet: 380ms;
 
-  --layout-max: 1120px;
-  --tabbar-h: 62px;
+  --layout-max: 1080px;
+  --tabbar-h: 60px;
 
   color-scheme: light;
 }
 
-/* The folio at night: deep ink-blue paper, light ink, the same leathers */
 :root.dark {
-  --color-ground: oklch(18.5% 0.024 256);
-  --color-paper: oklch(22.5% 0.025 256);
-  --color-paper-2: oklch(26% 0.026 256);
-  --color-thermal: oklch(93% 0.006 95);
-  --color-rule: oklch(31% 0.026 256);
-  --color-rule-strong: oklch(42% 0.03 250);
-  --color-scrim: oklch(8% 0.02 256 / 0.62);
+  --color-ground: oklch(15.5% 0.004 265);
+  --color-paper: oklch(15.5% 0.004 265);
+  --color-paper-2: oklch(19.5% 0.005 265);
+  --color-paper-3: oklch(23% 0.006 265);
+  --color-rule: oklch(25% 0.006 265);
+  --color-rule-strong: oklch(33% 0.007 265);
+  --color-scrim: oklch(5% 0 0 / 0.6);
 
-  --color-ink: oklch(94% 0.012 222);
-  --color-ink-2: oklch(79% 0.02 225);
-  --color-ink-3: oklch(69% 0.022 228);
+  --color-ink: oklch(96% 0.002 265);
+  --color-ink-2: oklch(76% 0.006 265);
+  --color-ink-3: oklch(66% 0.006 265);
+  --color-on-ink: oklch(15.5% 0.004 265);
 
-  --color-accent: oklch(90% 0.022 222);
-  --color-accent-hover: oklch(96% 0.012 222);
-  --color-accent-ink: oklch(84% 0.06 240);
-  --color-on-accent: oklch(22% 0.05 262);
-  --color-accent-tint: oklch(90% 0.022 222 / 0.08);
-  --color-accent-tint-strong: oklch(90% 0.022 222 / 0.14);
-  --color-focus: oklch(80% 0.08 240 / 0.45);
-  --color-wax: oklch(68% 0.15 27);
-  --color-wax-hover: oklch(73% 0.14 27);
-  --color-wax-tint: oklch(68% 0.15 27 / 0.16);
-  --color-ochre: oklch(70% 0.15 27);
-  --color-ochre-tint: oklch(68% 0.15 27 / 0.16);
-  --color-moss: oklch(76% 0.09 150);
-  --color-gilt-deep: oklch(80% 0.095 85);
+  --color-accent: oklch(68% 0.18 266);
+  --color-accent-hover: oklch(74% 0.16 266);
+  --color-accent-tint: oklch(68% 0.18 266 / 0.14);
+  --color-focus: oklch(68% 0.18 266 / 0.5);
+  --color-selection: oklch(68% 0.18 266 / 0.3);
 
-  --color-leather-electronics: oklch(38% 0.075 330);
-  --color-leather-computers: oklch(35% 0.07 262);
-  --color-leather-appliances: oklch(38% 0.06 170);
-  --color-leather-kitchen: oklch(52% 0.1 70);
-  --color-leather-tools: oklch(46% 0.1 48);
-  --color-leather-furniture: oklch(38% 0.1 20);
-  --color-leather-sports: oklch(44% 0.07 135);
-  --color-leather-other: oklch(36% 0.012 255);
+  --color-urgent: oklch(70% 0.17 27);
+  --color-urgent-tint: oklch(70% 0.17 27 / 0.14);
+  --color-ok: oklch(74% 0.14 152);
 
-  --color-selection: oklch(80% 0.095 85 / 0.3);
+  --color-primary-hover: oklch(86% 0.003 265);
 
-  --shadow-paper: 0 1px 0 oklch(0% 0 0 / 0.2), 0 12px 28px -14px oklch(0% 0 0 / 0.6);
-  --shadow-lift: 0 1px 2px oklch(0% 0 0 / 0.3), 0 18px 40px -16px oklch(0% 0 0 / 0.7);
-  --shadow-leather: 0 1px 1px oklch(0% 0 0 / 0.4), 0 12px 26px -12px oklch(0% 0 0 / 0.75);
-  --shadow-sheet: 0 2px 6px oklch(0% 0 0 / 0.4), 0 30px 70px -20px oklch(0% 0 0 / 0.8);
+  --shadow-float: 0 1px 2px oklch(0% 0 0 / 0.4), 0 16px 48px -12px oklch(0% 0 0 / 0.7);
 
   color-scheme: dark;
 }

@@ -245,7 +245,7 @@
     const t = state.settings.theme;
     const dark = t === 'dark' || (t === 'system' && darkQuery.matches);
     document.documentElement.classList.toggle('dark', dark);
-    $$('meta[name="theme-color"]').forEach((m) => { m.setAttribute('content', dark ? '#101a26' : '#dbe9ee'); m.removeAttribute('media'); });
+    $$('meta[name="theme-color"]').forEach((m) => { m.setAttribute('content', dark ? '#111216' : '#fcfcfc'); m.removeAttribute('media'); });
   }
   if (darkQuery.addEventListener) darkQuery.addEventListener('change', applyTheme);
 
@@ -572,64 +572,37 @@
 
   /* Three of the sample receipts, fanned like passes in a wallet. Dates stay relative to today. */
   function heroPasses() {
-    const all = sampleItems();
-    return ['s6', 's4', 's1'].map((id, n) => {
-      const it = all.find((x) => x.id === id);
-      const i = info(it);
-      const useReturn = i.returnOpen && i.rLeft <= 7;
-      const st = statusOf(i, useReturn);
-      return passCard(it, i, {
-        cls: 'hero-pass hero-pass-' + n,
-        foot: '<div class="pass-foot"><div class="pass-reading"><span class="pass-foot-label">' + st.label + '</span>' + reading(st, 'value-pass') + '</div></div>' +
-          meter(i, useReturn) + '<span class="pass-span">' + spanCaption(i, useReturn) + '</span>',
-      });
-    }).join('');
+    /* The vault itself, filled with the sample receipts: the product is the picture. */
+    const list = sampleItems().map((it) => { const i = info(it); return { it, i, next: cardMeta(it, i) }; })
+      .sort((a, b) => a.next.urgency - b.next.urgency).slice(0, 5);
+    return '<div class="ledger">' + list.map(({ it, i, next }, n) => wrow(it, i, next, n)).join('') + '</div>';
   }
 
   function viewWelcome() {
-    const all = sampleItems();
-    const fryer = all.find((x) => x.id === 's1'), fi = info(fryer);
-    const bosch = all.find((x) => x.id === 's4'), bi = info(bosch);
-
-    /* The three things the product actually makes: a kept receipt, a reminder, a claim summary. */
-    const receipt = receiptPreview(fryer, fi);
-    const reminder = '<div class="letter">' +
-      '<p class="letter-from">' + logo(18) + '<span>Warranty tracker</span><span class="letter-time">09:00</span></p>' +
-      '<p class="letter-title">Return window closes in ' + plural(fi.rLeft, 'day') + '</p>' +
-      '<p class="letter-body">' + esc(fryer.name) + ' from ' + esc(fryer.merchant) + '. Send it back by ' + fmtDate(fi.rEnd, { weekday: true, short: true }) + ' if you’ve changed your mind.</p>' +
-    '</div>';
-    const slip = '<div class="slip">' +
-      '<p class="slip-title">' + esc(bosch.name) + '</p>' +
-      '<dl class="slip-dl">' +
-        '<div><dt>Shop</dt><dd>' + esc(bosch.merchant) + '</dd></div>' +
-        '<div><dt>Order</dt><dd class="num">' + esc(bosch.orderNo) + '</dd></div>' +
-        '<div><dt>Bought</dt><dd class="num">' + fmtDate(bosch.purchased) + '</dd></div>' +
-        '<div><dt>Covered until</dt><dd class="num">' + fmtDate(bi.end) + '</dd></div>' +
-      '</dl>' +
-      '<p class="slip-kind">Warranty claim summary, prepared ' + fmtDate(today(), { short: true }) + '</p>' +
-    '</div>';
     const steps = [
-      [receipt, 'Keep the receipt', 'Take a photo or upload the PDF. We read the shop, item, price and date.'],
-      [reminder, 'Hear about it in time', '30 and 7 days before a warranty ends, 2 days before a return window closes.'],
-      [slip, 'Claim with proof', 'The original receipt stays with each item. Export a claim summary when you need it.'],
+      ['Keep the receipt', 'Take a photo or upload the PDF. We read the shop, item, price and date.'],
+      ['Hear about it in time', '30 and 7 days before a warranty ends, 2 days before a return window closes.'],
+      ['Claim with proof', 'The original receipt stays with each item. Export a claim summary when you need it.'],
     ];
     return {
       html: publicNav() +
         '<section class="hero">' +
           '<div class="hero-copy">' +
             '<h1 class="hero-title">Every receipt kept. Every warranty remembered.</h1>' +
-            '<p class="hero-sub">Snap a receipt and we’ll note the warranty and return window, then remind you <b>before</b> either runs out.</p>' +
+            '<p class="hero-sub">Snap a receipt and we’ll note the warranty and return window, then remind you before either runs out.</p>' +
             '<div class="hero-actions"><a class="btn btn-primary btn-lg" href="#/signup">Get started</a>' +
-            '<a class="btn btn-text btn-lg" href="#/login">Log in</a></div>' +
+            '<a class="btn btn-secondary btn-lg" href="#/login">Log in</a></div>' +
             '<p class="hero-note">EU law gives you at least 2 years on new goods. We count every day of it.</p>' +
           '</div>' +
-          '<div class="hero-stack" aria-hidden="true">' + heroPasses() + '</div>' +
+          '<figure class="hero-shot" aria-hidden="true" inert>' +
+            '<p class="shot-head"><b>Vault</b><span>Sample receipts, dated from today</span></p>' +
+            heroPasses() +
+          '</figure>' +
         '</section>' +
         '<section class="steps" aria-labelledby="steps-title">' +
           '<h2 id="steps-title" class="steps-title">From the till to the claim</h2>' +
           '<ol class="steps-list">' + steps.map((s, n) =>
-            '<li><div class="step-art" aria-hidden="true">' + s[0] + '</div>' +
-            '<h3><span class="step-n">' + (n + 1) + '</span>' + s[1] + '</h3><p>' + s[2] + '</p></li>').join('') + '</ol>' +
+            '<li><span class="step-n num">' + (n + 1) + '</span><h3>' + s[0] + '</h3><p>' + s[1] + '</p></li>').join('') + '</ol>' +
         '</section>',
     };
   }
@@ -649,14 +622,14 @@
 
   /* Sign-up preview: the vault being made, with the name filled in as you type. */
   function skeletonPreview() {
-    return '<div class="folio-preview">' +
-      '<div class="folio-cover">' +
-        '<span class="folio-monogram" id="pv-initials">A</span>' +
-        '<p class="folio-name" id="pv-name">Your vault</p>' +
-        '<p class="folio-sub">Warranties and receipts</p>' +
-      '</div>' +
-      '<p class="folio-caption">Hello, <span id="pv-hello">there</span>. Your receipts will be kept here, the most urgent on top.</p>' +
-    '</div>';
+    const list = sampleItems().map((it) => { const i = info(it); return { it, i, next: cardMeta(it, i) }; })
+      .sort((a, b) => a.next.urgency - b.next.urgency).slice(0, 3);
+    return '<figure class="su-preview" inert>' +
+      '<p class="su-who"><span class="avatar avatar-sm" id="pv-initials">A</span><b id="pv-name">Your vault</b></p>' +
+      '<p class="su-hello">Hello, <span id="pv-hello">there</span></p>' +
+      '<p class="su-sub">This is how your receipts will look, most urgent first.</p>' +
+      '<div class="ledger">' + list.map(({ it, i, next }, n) => wrow(it, i, next, n)).join('') + '</div>' +
+    '</figure>';
   }
 
   function viewSignup() {
@@ -763,7 +736,7 @@
     let line, cta = '';
     if (!list.length) {
       line = 'Add your first receipt and we’ll track its warranty and return window for you.';
-      cta = btn('Try with sample items', 'load-samples', { kind: 'text', icon: 'sparkle' });
+      cta = btn('Try with sample items', 'load-samples', { kind: 'secondary', icon: 'sparkle' });
     } else if (first) {
       const { it, i, next } = first;
       const what = next.tier === 0 ? esc(it.name) + ' has a detail to check'
@@ -823,30 +796,19 @@
   /* One item, as a Health-style reading: category and purchase date on top, then the item,
      then one big number for the time left, and a meter showing how much of the warranty has
      already passed. */
-  function wcard(it, i, next, n) {
+  function wcard(it, i, next, n) { return wrow(it, i, next, n); }
+
+  /* One item, one line: what it is, the span with today marked, and the time left. */
+  function wrow(it, i, next, n) {
     const useReturn = next.tier === 1;
     const st = statusOf(i, useReturn);
-    const tag = next.tag && !useReturn ? '<span class="pass-tag">' + icon('alert', 12) + esc(next.tag) + '</span>' : '';
-    return '<a class="cover-link" href="#/item/' + it.id + '" style="--n:' + n + '">' +
-      passCard(it, i, {
-        cls: 'pass-tile', fields: false,
-        sub: '<span class="num">' + money(it.price) + '</span>, bought ' + fmtDate(it.purchased, { short: true }),
-        foot: '<div class="pass-foot"><div class="pass-reading"><span class="pass-foot-label">' + st.label + '</span>' + reading(st, 'value-pass') + '</div>' + tag + '</div>' +
-          meter(i, useReturn) + '<span class="pass-span">' + spanCaption(i, useReturn) + '</span>',
-      }) +
-    '</a>';
-  }
-
-  /* Everything that doesn't need you yet: one ruled ledger line per item. */
-  function wrow(it, i, next, n) {
-    const st = statusOf(i, false);
     return '<a class="lrow' + (next.expired ? ' is-expired' : '') + '" href="#/item/' + it.id + '" style="--n:' + n + '">' +
-      '<span class="lrow-mark cat-' + esc(it.category) + '" aria-hidden="true"></span>' +
+      '<span class="lrow-mark" aria-hidden="true">' + icon(it.category, 16) + '</span>' +
       '<span class="lrow-id"><b>' + esc(it.name) + '</b>' +
-        '<span>' + esc(it.merchant) + ', ' + catLabel(it.category).toLowerCase() + ', <span class="num">' + money(it.price) + '</span></span>' +
-        (next.tag ? '<span class="lrow-tag">' + esc(next.tag) + '</span>' : '') +
+        '<span>' + esc(it.merchant) + ', <span class="num">' + money(it.price) + '</span></span>' +
+        (next.tag ? '<span class="lrow-tag lrow-tag-' + next.tagTone + '">' + esc(next.tag) + '</span>' : '') +
       '</span>' +
-      '<span class="lrow-span">' + meter(i, false) + '<span>' + spanCaption(i, false) + '</span></span>' +
+      '<span class="lrow-span">' + meter(i, useReturn) + '<span>' + spanCaption(i, useReturn) + '</span></span>' +
       '<span class="lrow-reading"><span class="lrow-label">' + st.label + '</span>' + reading(st) + '</span>' +
       icon('chevron', 14) +
     '</a>';
@@ -867,7 +829,7 @@
 
     if (!list.length) {
       el.innerHTML = '<div class="empty-note"><p>' + (ui.q ? 'No items match “' + esc(ui.q) + '”.' : 'No items match these filters.') + '</p>' +
-        '<button type="button" class="btn btn-text btn-sm" data-action="clear-filters">Clear filters</button></div>';
+        '<button type="button" class="btn btn-secondary btn-sm" data-action="clear-filters">Clear filters</button></div>';
       $('#list-foot').innerHTML = '';
       return;
     }
@@ -878,13 +840,11 @@
     el.innerHTML = GROUPS.map((g, gi) => {
       const rows = shown.filter(g.has);
       if (!rows.length) return '';
-      const body = gi === 0
-        ? '<div class="covers">' + rows.map(({ it, i, next }) => wcard(it, i, next, n++)).join('') + '</div>'
-        : '<div class="ledger">' + rows.map(({ it, i, next }) => wrow(it, i, next, n++)).join('') + '</div>';
-      return '<section class="group"><h2 class="group-title">' + g.title + ' <span class="num">' + rows.length + '</span></h2>' + body + '</section>';
+      return '<section class="group' + (gi === 0 ? ' group-urgent' : '') + '"><h2 class="group-title">' + g.title + ' <span class="num">' + rows.length + '</span></h2>' +
+        '<div class="ledger">' + rows.map(({ it, i, next }) => wrow(it, i, next, n++)).join('') + '</div></section>';
     }).join('');
     $('#list-foot').innerHTML = capped
-      ? btn('Show all ' + list.length + ' items', 'show-all', { kind: 'text', icon: 'chevronDown' })
+      ? btn('Show all ' + list.length + ' items', 'show-all', { kind: 'secondary', icon: 'chevronDown' })
       : list.length === state.items.length ? '' : 'Showing ' + list.length + ' of ' + state.items.length;
   }
 

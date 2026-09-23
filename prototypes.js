@@ -17,9 +17,9 @@ const PROTOTYPES = [
     deployed: '2026-09-23',
     status: 'wip',
     description:
-      'The warranty tracker redesigned as a fine stationery folio: leather covers with gilt tooling for what needs attention, a ruled ledger for the rest, engraved Bodoni numerals on Nile-blue paper. Same features, new UI.',
-    tags: ['pwa', 'v2', 'stationery', 'vanilla js'],
-    accent: '#1b2a4a',
+      'The warranty tracker redesigned bright and minimal: white page, black type, hairlines instead of cards, one list grouped by what needs you, with ultramarine only where it matters. Same features, new UI.',
+    tags: ['pwa', 'v2', 'minimal', 'vanilla js'],
+    accent: '#2f3de8',
     art: 'receiptV2',
   },
   {
@@ -97,7 +97,7 @@ const PIXEL_ART = {
     ],
   },
   receiptV2: {
-    palette: { b: '#1b2a4a', w: '#e3c98b', k: '#0f1a30' },
+    palette: { b: '#16171b', w: '#ffffff', k: '#2f3de8' },
     rows: [
       '.bbbbbbbb.',
       'bbwwwwwwbb',

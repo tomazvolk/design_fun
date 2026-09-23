@@ -38,7 +38,10 @@ EU-first: warranty lengths default to the region's legal minimum (2 years in the
 
 Name: Warranty tracker. Voice: plain, calm, specific, sentence case; errors name the problem and the fix.
 
-Direction history (v2, 2026-09-23): the Apple Wallet/Health canon was built and rejected as cheap: generic and template-like, flat colors, default system typography, too many cards. The chosen direction is The Folio, fine stationery paper goods. It must feel expensive, tactile and ownable, with typography that has character, rich materials instead of flat fills, and few cards.
+Direction history (v2, 2026-09-23):
+- Apple Wallet/Health canon: rejected as cheap. It was generic and template-like, with flat colours, default system typography and too many cards.
+- The Folio (stationery, leather, Bodoni serif, Nile-blue paper): rejected as old-fashioned, with the wrong colours, and too busy.
+- Pinned by the user: bright, minimal, white, in the Stripe/Vercel/Notion territory. Black type, generous space, hairlines, one bold colour used sparingly. No texture, no ornament, no serif.
 
 ## Evidence on Hand
 
