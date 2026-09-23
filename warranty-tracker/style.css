@@ -32,6 +32,14 @@
   --surface-hover: var(--black-a1);
   --surface-hover-strong: var(--black-a2);
 
+  /* The icon rail is a fixed dark chrome, independent of light/dark content */
+  --rail-bg: #111318;
+  --rail-icon: rgba(255, 255, 255, 0.6);
+  --rail-icon-hover: rgba(255, 255, 255, 0.92);
+  --rail-active: var(--brand-9);
+  --rail-sep: rgba(255, 255, 255, 0.12);
+  --rail-hover-bg: rgba(255, 255, 255, 0.08);
+
   /* Strokes */
   --stroke-weak: var(--grey-3);
   --stroke-base: var(--grey-4);
@@ -72,7 +80,7 @@
   --mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
   --serif: 'Instrument Serif', Georgia, serif;
 
-  --rail: 56px;
+  --rail: 68px;
   --tabbar-h: 60px;
 
   color-scheme: light;
@@ -101,6 +109,7 @@
   --brand-2: rgba(134, 234, 212, 0.08); --brand-3: rgba(134, 234, 212, 0.14);
   --shadow-inset-top: inset 0 0 0 var(--hairline) rgba(255, 255, 255, 0.04);
   --black-a4: rgba(0, 0, 0, 0.4);
+  --rail-bg: #000000;
   color-scheme: dark;
 }
 
@@ -240,23 +249,22 @@ kbd {
   position: fixed; left: 0; top: 0; bottom: 0; z-index: 30;
   display: flex; flex-direction: column; align-items: center; gap: 16px;
   width: var(--rail); padding: 12px 0;
-  background: var(--surface-page);
-  box-shadow: inset calc(-1 * var(--hairline)) 0 0 var(--hair);
+  background: var(--rail-bg);
 }
 .rail-logo { display: grid; place-items: center; width: 40px; height: 40px; }
 .rail-group { display: flex; flex-direction: column; gap: 4px; }
-.rail-sep { width: 20px; height: var(--hairline); background: var(--hair); }
+.rail-sep { width: 24px; height: var(--hairline); background: var(--rail-sep); }
 .rail-spacer { flex: 1; }
 .menu-rail { display: none; }
 .menu-rail .user-pop { left: calc(100% + 8px); right: auto; top: auto; bottom: 0; transform-origin: bottom left; }
 .rail-link {
   position: relative; display: grid; place-items: center;
-  width: 36px; height: 36px; border-radius: var(--radius-md);
-  color: var(--icon-base);
+  width: 40px; height: 40px; border-radius: var(--radius-md);
+  color: var(--rail-icon);
   transition: background-color 120ms ease, color 120ms ease;
 }
-.rail-link:hover { text-decoration: none; background: var(--surface-hover-strong); color: var(--icon-strong); }
-.rail-link[aria-current="page"] { color: var(--text-brand); }
+.rail-link:hover { text-decoration: none; background: var(--rail-hover-bg); color: var(--rail-icon-hover); }
+.rail-link[aria-current="page"] { color: var(--rail-active); background: var(--rail-hover-bg); }
 .rail-link::after {
   content: attr(data-tip);
   position: absolute; left: calc(100% + 8px); top: 50%;
