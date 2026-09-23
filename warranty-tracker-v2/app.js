@@ -745,7 +745,6 @@
     const pct = Math.round((parts[0].n / total) * 100);
     return '<aside class="overview" aria-label="Coverage overview">' +
       '<div class="ov-text">' +
-        '<h2 class="ov-title">Coverage</h2><p class="ov-sub">All your warranties in one place</p>' +
         '<ul class="ov-legend">' + parts.map((p) =>
           '<li class="ov-' + p.key + '"><span class="ov-dot" aria-hidden="true"></span><span>' + p.label + '</span><b class="num">' + p.n + '</b></li>').join('') + '</ul>' +
       '</div>' +
@@ -772,7 +771,7 @@
         (soon ? (action.length === soon ? (soon === 1 ? ': a warranty expires within a month.' : ': ' + plural(soon, 'warranty', 'warranties') + ' expire within a month.') : ', including ' + expiring + '.') : '.');
       cta = ui.status === 'attention'
         ? btn('Show all items', 'inspect-off')
-        : btn('Inspect', 'inspect', { kind: 'secondary', icon: 'search' });
+        : btn('Inspect', 'inspect', { kind: 'secondary' });
     } else {
       line = 'Everything is covered. Nothing needs your attention.';
     }
@@ -805,7 +804,6 @@
             cats.map((c) => '<option value="' + c.key + '"' + (ui.cat === c.key ? ' selected' : '') + '>' + c.label + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>' +
           '<div class="select select-sm"><label class="sr-only" for="flt-merchant">Shop</label><select id="flt-merchant"><option value="all">All shops</option>' +
             merchants.map((m) => '<option' + (ui.merchant === m ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>' +
-          btn('Export PDF', 'export-all', { kind: 'plain', icon: 'download', cls: 'btn-sm' }) +
         '</div>' +
       '</div>' +
       '<div class="wlist" id="items" role="region" aria-label="Items"></div>' +
