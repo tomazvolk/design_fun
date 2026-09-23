@@ -11,9 +11,11 @@ simulated with sample data. There's no inbox scanning.
 
 - **Landing, sign up, log in, reset password.** Sign up shows a live preview of your vault
   next to the form. Log out and delete account from the avatar menu and Settings.
-- **Vault:** one list, grouped by what needs doing: *Needs action* (return windows closing,
-  warranties ending within 30 days, details to check), *Covered* and *Expired*. Each row has
-  one status line, coloured only when urgent. Search (⌘K), category and shop filters.
+- **Vault:** opens with a greeting and one sentence about what needs doing, with a button
+  straight to the most urgent item. Below it, every item as a landscape card — what, paid,
+  where and when it was bought, the warranty length and days left, and a bar showing how
+  much of the warranty has already passed — sorted by urgency, capped at 8 with "Show all".
+  Search (⌘K), category and shop filters.
 - **Item panel:** one headline fact, Returns and Warranty drawn as two aligned spans with today marked, details, reminders in
   a sentence, the receipt drawn as a paper document, edit and delete (with undo), claim PDF.
 - **Add a receipt:** take a photo, upload a file, or type it in. Unsure fields are

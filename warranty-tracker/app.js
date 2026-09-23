@@ -216,7 +216,7 @@
 
   /* Things that only live for this session. */
   const ui = {
-    q: '', cat: 'all', merchant: 'all',
+    q: '', cat: 'all', merchant: 'all', showAll: false,
     add: null, editing: null, base: null, drawerId: null,
   };
 
@@ -634,43 +634,35 @@
   }
 
   /* ==========================================================================
-     Vault: every item, grouped by what needs doing
+     Vault: every item, as a landscape card, most urgent first
      ========================================================================== */
-  /* What to say about an item in the list, and how loudly. */
-  function nextStep(it, i) {
+  const VAULT_CAP = 8;
+
+  /* How urgent an item is (for sorting), and what to call out on its card. The "days
+     left" tone always matches the progress bar's, so the two never disagree. */
+  function cardMeta(it, i) {
     const flags = Object.keys(it.review || {});
+    const tier = (n, x) => n * 100000 + Math.max(0, x);
+    const leftTone = i.status === 'expired' ? 'weak' : i.status === 'expiring' ? 'warning' : 'base';
     if (flags.length) {
-      return { group: 'action', tone: 'warning', urgency: 15,
-        main: 'Check ' + flags.map((f) => (FIELD_NAMES[f] || f).toLowerCase()).join(' and '),
-        sub: 'We weren’t sure when reading the receipt' };
-    }
-    if (i.returnOpen && i.rLeft <= 7) {
-      return { group: 'action', tone: 'info', urgency: i.rLeft,
-        main: 'Return by ' + fmtDate(i.rEnd, { short: true, weekday: true }),
-        sub: i.rLeft === 0 ? 'Last day' : plural(i.rLeft, 'day') + ' left' };
+      return { tier: 0, urgency: tier(0, i.left), leftTone,
+        tag: 'Check ' + flags.map((f) => (FIELD_NAMES[f] || f).toLowerCase()).join(' and '), tagTone: 'warning', expired: false };
     }
     if (i.status === 'expired') {
-      return { group: 'expired', tone: 'weak', urgency: -i.left, main: 'Ended ' + fmtDate(i.end, { short: true }), sub: span(i.left) + ' ago' };
+      return { tier: 4, urgency: tier(4, -i.left), leftTone, tag: null, tagTone: null, expired: true };
+    }
+    if (i.returnOpen && i.rLeft <= 7) {
+      return { tier: 1, urgency: tier(1, i.rLeft), leftTone,
+        tag: i.rLeft === 0 ? 'Return closes today' : 'Return closes in ' + plural(i.rLeft, 'day'), tagTone: 'info', expired: false };
     }
     if (i.left <= 30) {
-      return { group: 'action', tone: 'warning', urgency: i.left + 0.5,
-        main: 'Warranty ends ' + fmtDate(i.end, { short: true, weekday: true }),
-        sub: i.left === 0 ? 'Today' : plural(i.left, 'day') + ' left' };
+      return { tier: 2, urgency: tier(2, i.left), leftTone, tag: null, tagTone: null, expired: false };
     }
     if (i.returnOpen) {
-      return { group: 'covered', tone: 'base', urgency: i.left, main: 'Return by ' + fmtDate(i.rEnd, { short: true }), sub: 'Warranty until ' + fmtDate(i.end, { short: true }) };
+      return { tier: 3, urgency: tier(3, i.left), leftTone, tag: 'Return by ' + fmtDate(i.rEnd, { short: true }), tagTone: 'neutral', expired: false };
     }
-    if (i.left <= 90) {
-      return { group: 'covered', tone: 'base', urgency: i.left, main: 'Warranty ends ' + fmtDate(i.end, { short: true }), sub: plural(i.left, 'day') + ' left' };
-    }
-    return { group: 'covered', tone: 'base', urgency: i.left, main: 'Covered until ' + MONTHS[i.end.getMonth()] + ' ' + i.end.getFullYear(), sub: span(i.left) + ' left' };
+    return { tier: 3, urgency: tier(3, i.left), leftTone, tag: null, tagTone: null, expired: false };
   }
-
-  const GROUPS = [
-    { key: 'action', label: 'Needs action' },
-    { key: 'covered', label: 'Covered' },
-    { key: 'expired', label: 'Expired' },
-  ];
 
   function greeting() {
     const h = new Date().getHours();
@@ -679,22 +671,21 @@
 
   /* The greeting: one sentence about right now, and the actions that follow from it. */
   function greetingBlock(list) {
-    const action = list.filter((x) => x.next.group === 'action');
+    const action = list.filter((x) => x.next.tier <= 2);
     const first = action[0];
     let line, cta = '';
     if (!list.length) {
       line = 'Add your first receipt and we’ll track its warranty and return window for you.';
       cta = btn('Try with sample items', 'load-samples', { icon: 'sparkle' });
     } else if (first) {
-      const f = first.next;
-      const what = f.group === 'action' && f.tone === 'info' ? 'the return window for ' + esc(first.it.name) + ' closes'
-        : f.main.indexOf('Check') === 0 ? esc(first.it.name) + ' has a detail to check'
-        : 'the warranty on ' + esc(first.it.name) + ' ends';
-      const when = f.tone === 'warning' && f.main.indexOf('Check') === 0 ? '' : ' ' + f.sub.toLowerCase().replace(' left', '').replace('last day', 'today').replace(/^(\d)/, 'in $1');
-      line = (action.length === 1 ? 'One thing needs your attention: ' : plural(action.length, 'thing') + ' need your attention. First, ') + what + when + '.';
-      cta = '<a class="btn btn-secondary" href="#/item/' + first.it.id + '">' + icon('receipt') + '<span>Open ' + esc(first.it.name) + '</span></a>';
+      const { it, i, next } = first;
+      const what = next.tier === 0 ? esc(it.name) + ' has a detail to check'
+        : next.tier === 1 ? 'the return window for ' + esc(it.name) + ' closes' + (i.rLeft === 0 ? ' today' : ' in ' + plural(i.rLeft, 'day'))
+        : 'the warranty on ' + esc(it.name) + ' ends' + (i.left === 0 ? ' today' : ' in ' + plural(i.left, 'day'));
+      line = (action.length === 1 ? 'One thing needs your attention: ' : plural(action.length, 'thing') + ' need your attention. First, ') + what + '.';
+      cta = '<a class="btn btn-secondary" href="#/item/' + it.id + '">' + icon('receipt') + '<span>Open ' + esc(it.name) + '</span></a>';
     } else {
-      const soonest = list.filter((x) => x.next.group === 'covered').sort((a, b) => a.i.left - b.i.left)[0];
+      const soonest = list.filter((x) => x.next.tier === 3).sort((a, b) => a.i.left - b.i.left)[0];
       line = 'Everything is covered.' + (soonest ? ' Nothing to do until ' + fmtDate(soonest.i.end) + ', when the warranty on ' + esc(soonest.it.name) + ' ends.' : '');
     }
     return '<header class="page-head greet">' +
@@ -707,7 +698,7 @@
     const items = state.items;
     if (!items.length) return { html: greetingBlock([]) };
 
-    const list = state.items.map((it) => { const i = info(it); return { it, i, next: nextStep(it, i) }; }).sort((a, b) => a.next.urgency - b.next.urgency);
+    const list = items.map((it) => { const i = info(it); return { it, i, next: cardMeta(it, i) }; }).sort((a, b) => a.next.urgency - b.next.urgency);
     const covered = list.filter((x) => x.i.status !== 'expired').reduce((a, x) => a + Number(x.it.price || 0), 0);
     const merchants = Array.from(new Set(items.map((it) => it.merchant))).sort((a, b) => a.localeCompare(b));
     const cats = CATS.filter((c) => items.some((it) => it.category === c.key));
@@ -722,11 +713,8 @@
         '<span class="toolbar-gap"></span>' +
         btn('Export PDF', 'export-all', { icon: 'download', cls: 'btn-sm' }) +
       '</div>' +
-      '<div class="table" role="table" aria-label="Items">' +
-        '<div class="thead" role="row"><span role="columnheader">Item</span><span role="columnheader">Status</span><span role="columnheader" class="t-right">Paid</span><span></span></div>' +
-        '<div id="items"></div>' +
-      '</div>' +
-      '<p class="list-foot" id="list-foot"></p>' +
+      '<div class="wlist" id="items" aria-label="Items"></div>' +
+      '<div class="list-foot" id="list-foot"></div>' +
       (state.plan === 'free' ? '<p class="plan-note">' + items.length + ' of ' + FREE_LIMIT + ' items on the free plan. <a href="#/settings/plan">See Plus</a></p>' : '');
 
     return { html, after: renderList };
@@ -734,11 +722,37 @@
 
   function filtered() {
     const q = ui.q.trim().toLowerCase();
-    let list = state.items.map((it) => { const i = info(it); return { it, i, next: nextStep(it, i) }; });
+    let list = state.items.map((it) => { const i = info(it); return { it, i, next: cardMeta(it, i) }; });
     if (q) list = list.filter(({ it }) => [it.name, it.merchant, it.orderNo, catLabel(it.category), it.notes].join(' ').toLowerCase().includes(q));
     if (ui.cat !== 'all') list = list.filter(({ it }) => it.category === ui.cat);
     if (ui.merchant !== 'all') list = list.filter(({ it }) => it.merchant === ui.merchant);
     return list.sort((a, b) => a.next.urgency - b.next.urgency);
+  }
+
+  /* One item, as a landscape card: what, paid, where, when, days of warranty, days left,
+     and a bar showing how much of the warranty has already passed. */
+  function wcard(it, i, next, n) {
+    const elapsed = Math.max(0, Math.min(i.total, daysFrom(i.bought, today())));
+    const pct = i.total > 0 ? (elapsed / i.total * 100).toFixed(2) : 100;
+    const barTone = next.expired ? 'expired' : i.status === 'expiring' ? 'expiring' : 'active';
+    const leftLabel = next.expired ? 'Ended' : 'Left';
+    const leftValue = next.expired ? plural(Math.abs(i.left), 'day') + ' ago' : i.left === 0 ? 'Today' : plural(i.left, 'day');
+    return '<a class="wcard' + (next.expired ? ' is-expired' : '') + '" href="#/item/' + it.id + '" style="--n:' + n + '">' +
+      '<div class="wcard-top">' +
+        catIcon(it.category) +
+        '<div class="wcard-id"><b>' + esc(it.name) + '</b><span>' + esc(it.merchant) + ' · bought ' + fmtDate(it.purchased, { short: true }) + '</span></div>' +
+        (next.tag ? '<span class="pill pill-' + next.tagTone + ' wcard-tag">' + esc(next.tag) + '</span>' : '') +
+        '<div class="wcard-stats">' +
+          '<div class="wcard-stat"><span>Paid</span><b class="num">' + money(it.price) + '</b></div>' +
+          '<div class="wcard-stat"><span>Warranty</span><b class="num">' + i.total.toLocaleString('en') + ' days</b></div>' +
+          '<div class="wcard-stat"><span>' + leftLabel + '</span><b class="num tone-' + next.leftTone + '">' + leftValue + '</b></div>' +
+        '</div>' +
+        '<span class="wcard-go" aria-hidden="true">' + icon('chevron') + '</span>' +
+      '</div>' +
+      '<div class="wcard-bar" title="' + elapsed.toLocaleString('en') + ' of ' + i.total.toLocaleString('en') + ' days passed">' +
+        '<span class="wcard-fill wcard-fill-' + barTone + '" style="width:' + pct + '%"></span>' +
+      '</div>' +
+    '</a>';
   }
 
   function renderList() {
@@ -747,28 +761,18 @@
     const list = filtered();
 
     if (!list.length) {
-      el.innerHTML = '<div class="t-empty">' + (ui.q ? 'No items match “' + esc(ui.q) + '”.' : 'No items match these filters.') + ' ' +
+      el.innerHTML = '<div class="empty-note">' + (ui.q ? 'No items match “' + esc(ui.q) + '”.' : 'No items match these filters.') + ' ' +
         '<button type="button" class="link-btn" data-action="clear-filters">Clear filters</button></div>';
-      $('#list-foot').textContent = '';
+      $('#list-foot').innerHTML = '';
       return;
     }
 
-    el.innerHTML = GROUPS.map((g) => {
-      const rows = list.filter((x) => x.next.group === g.key);
-      if (!rows.length) return '';
-      return '<div role="rowgroup">' +
-        '<div class="tgroup" role="row"><span role="cell">' + g.label + ' <span class="tgroup-n">' + rows.length + '</span></span></div>' +
-        rows.map(({ it, next }, n) =>
-          '<a class="trow" role="row" href="#/item/' + it.id + '" style="--n:' + n + '">' +
-            '<span class="t-item" role="cell">' + catIcon(it.category) +
-              '<span class="t-text"><b>' + esc(it.name) + '</b><span>' + esc(it.merchant) + ' · ' + fmtDate(it.purchased, { short: true }) + '</span></span></span>' +
-            '<span class="t-next tone-' + next.tone + '" role="cell"><b>' + next.main + '</b><span>' + next.sub + '</span></span>' +
-            '<span class="t-price num" role="cell">' + money(it.price) + '</span>' +
-            '<span class="t-go" aria-hidden="true">' + icon('chevron') + '</span>' +
-          '</a>').join('') +
-      '</div>';
-    }).join('');
-    $('#list-foot').textContent = list.length === state.items.length ? '' : 'Showing ' + list.length + ' of ' + state.items.length;
+    const capped = !ui.showAll && list.length > VAULT_CAP;
+    const shown = capped ? list.slice(0, VAULT_CAP) : list;
+    el.innerHTML = shown.map(({ it, i, next }, n) => wcard(it, i, next, n)).join('');
+    $('#list-foot').innerHTML = capped
+      ? btn('Show all ' + list.length + ' items', 'show-all', { kind: 'ghost', icon: 'chevronDown' })
+      : list.length === state.items.length ? '' : 'Showing ' + list.length + ' of ' + state.items.length;
   }
 
   /* A small paper receipt, drawn from the item's details. */
@@ -1370,9 +1374,10 @@
     'close-drawer': () => go('vault'),
     'close-modal': () => closeModal(),
     'clear-filters': () => {
-      ui.q = ''; ui.cat = 'all'; ui.merchant = 'all';
+      ui.q = ''; ui.cat = 'all'; ui.merchant = 'all'; ui.showAll = false;
       paint('vault');
     },
+    'show-all': () => { ui.showAll = true; renderList(); },
     'edit': (el) => { ui.editing = el.dataset.id; openDrawer(el.dataset.id); },
     'cancel-edit': () => { ui.editing = null; refreshDrawer(); },
     'review-ok': (el) => {
@@ -1474,6 +1479,7 @@
     if (t.getAttribute('aria-invalid') === 'true') showError(t.id, '');
     if (t.id === 'q') {
       ui.q = t.value;
+      ui.showAll = false;
       if (ui.base !== 'vault') { ui.refocusSearch = true; go('vault'); } else renderList();
     }
     /* Live preview next to the sign-up form. */
@@ -1493,8 +1499,8 @@
 
   document.addEventListener('change', (e) => {
     const t = e.target;
-    if (t.id === 'flt-cat') { ui.cat = t.value; renderList(); }
-    if (t.id === 'flt-merchant') { ui.merchant = t.value; renderList(); }
+    if (t.id === 'flt-cat') { ui.cat = t.value; ui.showAll = false; renderList(); }
+    if (t.id === 'flt-merchant') { ui.merchant = t.value; ui.showAll = false; renderList(); }
     if (t.id === 'photo-input' || t.id === 'file-input') onReceiptFile(t.files[0]);
     if (t.dataset.attach) {
       const it = findItem(t.dataset.attach);
