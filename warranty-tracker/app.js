@@ -399,7 +399,7 @@
     if (out.after) out.after();
     if (ui.refocusSearch) {
       ui.refocusSearch = false;
-      const q = $('#q');
+      const q = visibleSearchInput();
       if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
       return;
     }
@@ -419,19 +419,32 @@
     { key: 'add', label: 'Add receipt', icon: 'plusCircle' },
   ];
 
-  function renderChrome(name, arg) {
-    const railLink = (n) => '<a href="#/' + n.key + '" class="rail-link"' + (n.key === name ? ' aria-current="page"' : '') +
-      ' aria-label="' + n.label + '" data-tip="' + n.label + '">' + icon(n.icon, 20) + '</a>';
+  /* One search field, rendered wherever it's needed; a shared class keeps them in sync. */
+  function searchField(id) {
+    return '<label class="search"><span class="sr-only">Search receipts</span>' + icon('search') +
+      '<input type="search" class="search-input" id="' + id + '" placeholder="Search" value="' + esc(ui.q) + '" autocomplete="off" />' +
+      '<kbd>' + (isMac ? '⌘' : 'Ctrl ') + 'K</kbd></label>';
+  }
+  function visibleSearchInput() {
+    return $$('.search-input').find((el) => el.offsetParent !== null) || $('.search-input');
+  }
 
-    const avatarBtn = (cls) => '<div class="menu-wrap ' + cls + '">' +
-      '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button></div>';
+  function renderChrome(name, arg) {
+    const navLink = (n) => '<a href="#/' + n.key + '" class="rail-link"' + (n.key === name ? ' aria-current="page"' : '') + '>' +
+      icon(n.icon, 18) + '<span>' + n.label + '</span></a>';
 
     $('#rail').innerHTML =
-      '<a class="rail-logo" href="#/vault" aria-label="Warranty tracker, home">' + logo(28) + '</a>' +
-      '<nav class="rail-group" aria-label="Main">' + NAV.map(railLink).join('') + '</nav>' +
-      '<span class="rail-sep" aria-hidden="true"></span>' +
-      '<nav class="rail-group" aria-label="Account">' + railLink({ key: 'settings', label: 'Settings', icon: 'sliders' }) + '</nav>' +
-      '<span class="rail-spacer"></span>' + avatarBtn('menu-rail');
+      '<a class="rail-logo" href="#/vault" aria-label="Warranty tracker, home">' + logo(26) + '<span>Warranty tracker</span></a>' +
+      '<div class="rail-search">' + searchField('rail-q') + '</div>' +
+      '<div class="rail-mid">' +
+        '<nav class="rail-group" aria-label="Main">' + NAV.map(navLink).join('') + '</nav>' +
+        '<span class="rail-sep" aria-hidden="true"></span>' +
+        '<nav class="rail-group" aria-label="Account">' + navLink({ key: 'settings', label: 'Settings', icon: 'sliders' }) + '</nav>' +
+      '</div>' +
+      '<div class="menu-wrap menu-rail">' +
+        '<button type="button" class="rail-user" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' +
+          '<span class="avatar">' + esc(initials()) + '</span><span class="rail-user-name">' + esc(state.account.first) + '</span>' + icon('chevronDown', 14) +
+        '</button></div>';
 
     const crumbs = {
       add: ['Add receipt'],
@@ -446,11 +459,10 @@
       '<a class="topbar-logo" href="#/vault" aria-label="Warranty tracker, home">' + logo(24) + '</a>' +
       crumbHtml +
       '<div class="topbar-end">' +
-        '<label class="search">' + icon('search') + '<span class="sr-only">Search receipts</span>' +
-          '<input type="search" id="q" placeholder="Search" value="' + esc(ui.q) + '" autocomplete="off" />' +
-          '<kbd>' + (isMac ? '⌘' : 'Ctrl ') + 'K</kbd></label>' +
-        (name === 'add' || name === 'vault' ? '' : '<a class="btn btn-primary topbar-add" href="#/add">' + icon('plus') + '<span>Add receipt</span></a>') +
-        avatarBtn('menu-top') +
+        searchField('q') +
+        '<div class="menu-wrap menu-top">' +
+          '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button>' +
+        '</div>' +
       '</div></div>';
 
     const tabs = [NAV[0], { key: 'add', label: 'Add', icon: 'plusCircle' }, { key: 'settings', label: 'Settings', icon: 'sliders' }];
@@ -1477,9 +1489,10 @@
     const t = e.target;
     /* Typing into a field with an error clears it; it's checked again on submit. */
     if (t.getAttribute('aria-invalid') === 'true') showError(t.id, '');
-    if (t.id === 'q') {
+    if (t.classList.contains('search-input')) {
       ui.q = t.value;
       ui.showAll = false;
+      $$('.search-input').forEach((el) => { if (el !== t) el.value = t.value; });
       if (ui.base !== 'vault') { ui.refocusSearch = true; go('vault'); } else renderList();
     }
     /* Live preview next to the sign-up form. */
@@ -1650,7 +1663,7 @@
 
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && state.session) {
-      const q = $('#q');
+      const q = visibleSearchInput();
       if (q) { e.preventDefault(); q.focus(); q.select(); }
       return;
     }
@@ -1661,9 +1674,9 @@
         if (ui.editing) { ui.editing = null; return refreshDrawer(); }
         return go('vault');
       }
-      if (document.activeElement && document.activeElement.id === 'q' && ui.q) {
+      if (document.activeElement && document.activeElement.classList.contains('search-input') && ui.q) {
         ui.q = '';
-        document.activeElement.value = '';
+        $$('.search-input').forEach((el) => { el.value = ''; });
         renderList();
       }
       return;
