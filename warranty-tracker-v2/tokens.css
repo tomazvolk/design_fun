@@ -43,8 +43,10 @@
   --color-glow-1: oklch(58% 0.22 266 / 0.16);
   --color-glow-2: oklch(66% 0.17 305 / 0.12);
 
-  --color-primary: var(--color-ink);
-  --color-primary-hover: oklch(30% 0.006 265);
+  /* Primary actions: Wise-style lime with deep forest-green text */
+  --color-primary: oklch(86.5% 0.176 134);
+  --color-primary-hover: oklch(82% 0.19 134);
+  --color-on-primary: oklch(27% 0.075 135);
 
   /* Print (the claim PDF is always light) */
   --color-print-ink: oklch(18% 0.006 265);
@@ -132,7 +134,6 @@
   --color-urgent-tint: oklch(70% 0.17 27 / 0.14);
   --color-ok: oklch(74% 0.14 152);
 
-  --color-primary-hover: oklch(86% 0.003 265);
 
   --color-glow-1: oklch(55% 0.22 266 / 0.3);
   --color-glow-2: oklch(58% 0.18 305 / 0.22);

@@ -131,17 +131,21 @@
     database: '<ellipse cx="8" cy="4" rx="5" ry="1.8"/><path d="M3 4v8c0 1 2.2 1.8 5 1.8s5-.8 5-1.8V4M3 8c0 1 2.2 1.8 5 1.8s5-.8 5-1.8"/>',
     logout: '<path d="M6 13.5H3.5a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1H6M10.5 11 13.5 8l-3-3M13.5 8H6"/>',
     sparkle: '<path d="M8 2.5 9.3 6.7 13.5 8 9.3 9.3 8 13.5 6.7 9.3 2.5 8l4.2-1.3Z"/>',
-    electronics: '<path d="M3 11V8.5a5 5 0 0 1 10 0V11"/><rect x="2.5" y="9.5" width="2.5" height="4" rx="1"/><rect x="11" y="9.5" width="2.5" height="4" rx="1"/>',
-    appliances: '<rect x="3" y="2" width="10" height="12" rx="1.5"/><circle cx="8" cy="9" r="2.75"/><path d="M5 4.5h1.5"/>',
-    computers: '<rect x="3" y="3.5" width="10" height="7" rx="1"/><path d="M1.5 12.5h13"/>',
-    kitchen: '<path d="M3 6.5h10v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3Z"/><path d="M1.5 7.5H3M13 7.5h1.5M6 4V2.5M10 4V2.5"/>',
-    tools: '<path d="M10.5 2.5a3 3 0 0 0-2.8 4L2.8 11.4a1.2 1.2 0 0 0 1.8 1.8l4.9-4.9a3 3 0 0 0 4-2.8l-1.8 1.8-1.8-.6-.6-1.8Z"/>',
-    furniture: '<path d="M3.5 7V5.5A1.5 1.5 0 0 1 5 4h6a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M2 8a1 1 0 0 1 2 0v1.5h8V8a1 1 0 0 1 2 0v4H2Z"/><path d="M3.5 12v1.5M12.5 12v1.5"/>',
-    sports: '<rect x="4.5" y="4.5" width="7" height="7" rx="2"/><path d="M6 4.5 6.5 2h3l.5 2.5M6 11.5l.5 2.5h3l.5-2.5"/>',
-    other: '<path d="M2.5 5 8 2.5 13.5 5v6L8 13.5 2.5 11Z"/><path d="M2.5 5 8 7.5 13.5 5M8 7.5v6"/>',
+  };
+  /* Category icons: Lucide v1.47.0 (ISC licence, lucide.dev), one 24px grid and stroke for all eight. */
+  const CAT_ICONS = {
+    electronics: '<path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3" />',
+    computers: '<path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z" /><path d="M20.054 15.987H3.946" />',
+    appliances: '<path d="M3 6h3" /><path d="M17 6h.01" /><rect width="18" height="20" x="3" y="2" rx="2" /><circle cx="12" cy="13" r="5" /><path d="M12 18a2.5 2.5 0 0 0 0-5 2.5 2.5 0 0 1 0-5" />',
+    kitchen: '<path d="M2 12h20" /><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" /><path d="m4 8 16-4" /><path d="m8.86 6.78-.45-1.81a2 2 0 0 1 1.45-2.43l1.94-.48a2 2 0 0 1 2.43 1.46l.45 1.8" />',
+    tools: '<path d="M10 18a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H5a3 3 0 0 1-3-3 1 1 0 0 1 1-1z" /><path d="M13 10H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1l-.81 3.242a1 1 0 0 1-.97.758H8" /><path d="M14 4h3a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-3" /><path d="M18 6h4" /><path d="m5 10-2 8" /><path d="m7 18 2-8" />',
+    furniture: '<path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3" /><path d="M2 16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z" /><path d="M4 18v2" /><path d="M20 18v2" /><path d="M12 4v9" />',
+    sports: '<path d="M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z" /><path d="m2.5 21.5 1.4-1.4" /><path d="m20.1 3.9 1.4-1.4" /><path d="M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z" /><path d="m9.6 14.4 4.8-4.8" />',
+    other: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="M12 22V12" /><polyline points="3.29 7 12 12 20.71 7" /><path d="m7.5 4.27 9 5.15" />',
   };
   function icon(name, size) {
     const s = size || 16;
+    if (CAT_ICONS[name]) return '<svg class="i i-cat" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" aria-hidden="true">' + CAT_ICONS[name] + '</svg>';
     return '<svg class="i" width="' + s + '" height="' + s + '" viewBox="0 0 16 16" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
   }
   /* The app icon: a receipt with a check, on a rounded square. */
@@ -799,7 +803,7 @@
     const useReturn = next.tier === 1;
     const st = statusOf(i, useReturn);
     return '<a class="lrow' + (next.expired ? ' is-expired' : '') + '" href="#/item/' + it.id + '" style="--n:' + n + '">' +
-      '<span class="lrow-mark cat-' + esc(it.category) + '" aria-hidden="true">' + icon(it.category, 16) + '</span>' +
+      '<span class="lrow-mark cat-' + esc(it.category) + '" aria-hidden="true">' + icon(it.category, 18) + '</span>' +
       '<span class="lrow-id"><b>' + esc(it.name) + '</b>' +
         '<span>' + esc(it.merchant) + ', <span class="num">' + money(it.price) + '</span></span>' +
         (next.tag ? '<span class="lrow-tag lrow-tag-' + next.tagTone + '">' + esc(next.tag) + '</span>' : '') +
