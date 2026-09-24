@@ -34,12 +34,12 @@
   --color-nav-tint: rgba(255, 255, 255, 0.12);
   --color-nav-tint-strong: rgba(255, 255, 255, 0.2);
   --color-band: #083400;
-  --color-on-band: #ef26d5;
-  --color-on-band-2: #ef26d5;
-  --color-greet-accent: #ef26d5;
+  --color-on-band: #ddf8d2;
+  --color-on-band-2: #ddf8d2;
+  --color-greet-accent: #ddf8d2;
   --color-hero-ink: #9fe870;
   --color-hero-ink-2: rgba(255, 255, 255, 0.84);
-  --color-greet-accent-hover: #f552de;
+  --color-greet-accent-hover: #c8f0b8;
   --color-band-tint: rgba(255, 255, 255, 0.12);
 
   /* Status, used sparingly */
