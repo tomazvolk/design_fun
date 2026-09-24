@@ -722,38 +722,41 @@
   }
 
   /* The greeting: one sentence about right now, and the actions that follow from it. */
-  /* Coverage at a glance: how many warranties are active, expire within a month, or have expired.
-     A ring for the share, a legend with the counts, so no colour has to be read on its own. */
-  function coverageOverview(list) {
-    const parts = [
-      { key: 'active', label: 'Active', n: list.filter((x) => x.i.status !== 'expired' && x.i.left > 30).length },
-      { key: 'soon', label: 'Expiring soon', n: list.filter((x) => x.i.status !== 'expired' && x.i.left <= 30).length },
-      { key: 'expired', label: 'Expired', n: list.filter((x) => x.i.status === 'expired').length },
-    ];
+  /* Status at a glance, beside the list: a ring and a legend in the same three statuses the
+     filter uses. Clicking a segment or a row filters the list to it; clicking again clears it. */
+  function coverageOverview() {
+    const list = state.items.map((it) => { const i = info(it); return { it, i, next: cardMeta(it, i) }; });
     const total = list.length;
+    const parts = STATUSES.filter((o) => o.has).map((o) => ({ key: o.key, label: o.label, n: list.filter(o.has).length }));
     const R = 52, C = 2 * Math.PI * R;
     const shown = parts.filter((p) => p.n);
     const gap = shown.length > 1 ? 3 : 0;
+    const picked = ui.status !== 'all' ? ui.status : null;
     let at = 0;
     const segs = shown.map((p) => {
       const len = (p.n / total) * C;
-      const seg = '<circle class="ov-seg ov-' + p.key + '" cx="60" cy="60" r="' + R + '" stroke-dasharray="' + Math.max(0.01, len - gap).toFixed(2) + ' ' + C.toFixed(2) + '" stroke-dashoffset="' + (-at).toFixed(2) + '">' +
-        '<title>' + p.label + ': ' + p.n + ' of ' + total + '</title></circle>';
+      const seg = '<circle class="ov-seg ov-' + p.key + (picked === p.key ? ' is-picked' : '') + '" cx="60" cy="60" r="' + R + '" data-action="status-pick" data-v="' + p.key + '"' +
+        ' stroke-dasharray="' + Math.max(0.01, len - gap).toFixed(2) + ' ' + C.toFixed(2) + '" stroke-dashoffset="' + (-at).toFixed(2) + '">' +
+        '<title>' + p.label + ': ' + p.n + ' of ' + total + '. Click to show only these.</title></circle>';
       at += len;
       return seg;
     }).join('');
-    const pct = Math.round((parts[0].n / total) * 100);
-    return '<aside class="overview" aria-label="Coverage overview">' +
-      '<div class="ov-text">' +
-        '<ul class="ov-legend">' + parts.map((p) =>
-          '<li class="ov-' + p.key + '"><span class="ov-dot" aria-hidden="true"></span><span>' + p.label + '</span><b class="num">' + p.n + '</b></li>').join('') + '</ul>' +
-      '</div>' +
+    const covered = total - parts.find((p) => p.key === 'expired').n;
+    const pct = total ? Math.round((covered / total) * 100) : 0;
+    const first = !ui.ringSeen;
+    ui.ringSeen = true;
+    return '<section class="overview' + (picked ? ' has-pick' : '') + (first ? ' is-first' : '') + '" aria-labelledby="ov-title">' +
+      '<div class="ov-head"><h2 class="ov-title" id="ov-title">Status</h2>' +
+        (picked ? '<button type="button" class="link-btn ov-clear" data-action="status-pick" data-v="all">Show all</button>' : '') + '</div>' +
       '<div class="ov-ring">' +
-        '<svg viewBox="0 0 120 120" role="img" aria-label="' + pct + '% of your warranties are active">' +
+        '<svg viewBox="0 0 120 120" role="img" aria-label="' + pct + '% of your warranties are still covered">' +
           '<circle class="ov-track" cx="60" cy="60" r="' + R + '" />' + segs + '</svg>' +
-        '<p class="ov-center"><b class="num">' + pct + '%</b><span>Active</span></p>' +
+        '<p class="ov-center"><b class="num">' + pct + '%</b><span>Covered</span></p>' +
       '</div>' +
-    '</aside>';
+      '<ul class="ov-legend">' + parts.map((p) =>
+        '<li><button type="button" class="ov-row ov-' + p.key + '" data-action="status-pick" data-v="' + p.key + '" aria-pressed="' + (picked === p.key) + '">' +
+          '<span class="ov-dot" aria-hidden="true"></span><span class="ov-label">' + p.label + '</span><b class="num">' + p.n + '</b></button></li>').join('') + '</ul>' +
+    '</section>';
   }
 
   function greetingBlock(list) {
@@ -778,7 +781,6 @@
     return '<header class="page-head greet">' +
       '<div class="greet-text"><h1 class="large-title">' + greeting() + '</h1><p>' + line + '</p>' +
         (cta ? '<div class="page-actions">' + cta + '</div>' : '') + '</div>' +
-      (list.length ? coverageOverview(list) : '') +
     '</header>' +
     (list.length ? '' : '<section class="first-add" aria-label="Add your first receipt">' + addChoices() +
       '<p class="first-add-note">We read the shop, the price and the date, then remind you before the return window or the warranty runs out.</p></section>');
@@ -806,9 +808,11 @@
             merchants.map((m) => '<option' + (ui.merchant === m ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>' +
         '</div>' +
       '</div>' +
+      '<div class="vault-body"><div class="vault-list">' +
       '<div class="wlist" id="items" role="region" aria-label="Items"></div>' +
       '<div class="list-foot" id="list-foot" aria-live="polite"></div>' +
-      (state.plan === 'free' ? '<p class="plan-note">' + items.length + ' of ' + FREE_LIMIT + ' items on the free plan. <a href="#/settings/plan">See Plus</a></p>' : '');
+      (state.plan === 'free' ? '<p class="plan-note">' + items.length + ' of ' + FREE_LIMIT + ' items on the free plan. <a href="#/settings/plan">See Plus</a></p>' : '') +
+      '</div><aside class="vault-side" aria-label="Status overview">' + coverageOverview() + '</aside></div>';
 
     /* The meters draw in once when the vault opens, never again while you search or filter. */
     return { html, after: () => { ui.drawIn = true; renderList(); ui.drawIn = false; } };
@@ -1678,6 +1682,14 @@
     'load-samples': loadSamples,
     'close-drawer': () => go('vault'),
     'close-modal': () => closeModal(),
+    'status-pick': (el) => {
+      const v = el.dataset.v;
+      ui.status = v === 'all' || ui.status === v ? 'all' : v;
+      ui.showAll = ui.status !== 'all';
+      paint('vault', null, true);
+      const again = $('.ov-row[data-v="' + v + '"]') || $('.ov-row');
+      if (again && el.tagName === 'BUTTON') again.focus({ preventScroll: true });
+    },
     'inspect': () => { ui.status = 'attention'; ui.showAll = true; paint('vault', null, true); },
     'inspect-off': () => { ui.status = 'all'; ui.showAll = false; paint('vault', null, true); },
     'clear-filters': () => {

@@ -332,8 +332,8 @@ kbd {
 .greet .large-title { color: var(--color-on-band); }
 .greet-text > p { margin-top: var(--space-lg); max-width: 34em; font-size: 20px; line-height: 1.5; font-weight: 600; color: var(--color-on-band-2); }
 .greet .page-actions { justify-content: center; }
-.greet .btn-secondary { background-color: var(--btn-accent); border-color: var(--btn-accent); color: var(--btn-ink); }
-.greet .btn-secondary:hover:not(:disabled) { background-color: var(--btn-accent-hover); border-color: var(--btn-accent-hover); }
+.greet .btn-secondary, .greet .btn-gray { background-color: var(--btn-accent); border-color: var(--btn-accent); color: var(--btn-ink); }
+.greet .btn-secondary:hover:not(:disabled), .greet .btn-gray:hover:not(:disabled) { background-color: var(--btn-accent-hover); border-color: var(--btn-accent-hover); }
 @media (min-width: 760px) { .greet { margin-top: calc(-1 * var(--space-5xl)); padding: var(--space-5xl) 0; } }
 .page-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 .page-actions .btn span { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
@@ -343,47 +343,73 @@ kbd {
 .greet-text .page-actions { margin-top: var(--space-xl); }
 
 /* Coverage overview: a ring for the share, a legend with the counts */
-.overview { display: flex; flex-direction: column; align-items: center; gap: var(--space-2xl); }
-.ov-title { font-size: var(--text-headline); font-weight: 700; letter-spacing: -0.015em; color: var(--color-on-nav); }
-.greet .ov-sub { margin-top: 2px; color: var(--color-on-band-2); font-size: var(--text-footnote); }
-/* The legend: one row under the ring, each entry a dot, its name and the count */
-.ov-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 24px; }
-.ov-legend li { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-body); font-weight: 500; color: var(--color-on-nav); cursor: default; }
-.ov-dot { width: 10px; height: 10px; border-radius: 50%; }
-.ov-legend b {
-  min-width: 30px; height: 26px; margin-left: 4px; padding: 0 10px; border-radius: var(--radius-full);
-  display: grid; place-items: center; font-size: var(--text-sub); font-weight: 700;
-  background: var(--color-band-tint);
+/* The vault: the list, and the status panel floating beside it */
+.main-vault { max-width: var(--layout-vault); }
+.vault-body { display: grid; gap: var(--space-3xl); align-items: start; }
+.vault-list { min-width: 0; }
+.vault-side { order: -1; }
+@media (min-width: 1100px) {
+  .vault-body { grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-4xl); }
+  .vault-side { order: 0; position: sticky; top: calc(60px + var(--space-2xl)); }
 }
-.ov-active { --ov: var(--color-chart-active); }
-.ov-soon { --ov: var(--color-chart-soon); }
-.ov-expired { --ov: var(--color-chart-expired); }
-.ov-dot { background: var(--ov); }
 
-.ov-ring { position: relative; flex: none; order: -1; width: 200px; height: 200px; }
+.overview { display: grid; justify-items: center; gap: var(--space-xl); padding: var(--space-2xl); border-radius: 28px; background: var(--color-paper-2); }
+.ov-head { display: flex; align-items: baseline; justify-content: space-between; width: 100%; }
+.ov-title { font-size: var(--text-headline); font-weight: 700; letter-spacing: -0.015em; }
+.ov-clear { font-size: var(--text-sub); color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+
+.ov-attention { --ov: var(--color-chart-attention); }
+.ov-active { --ov: var(--color-chart-active); }
+.ov-expired { --ov: var(--color-chart-expired); }
+
+.ov-ring { position: relative; flex: none; width: 188px; height: 188px; }
 .ov-ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
-.ov-track { fill: none; stroke: var(--color-chart-track); stroke-width: 10; }
-.ov-seg { fill: none; stroke: var(--ov); stroke-width: 10; transition: opacity var(--dur-fast) ease, stroke-width var(--dur-fast) var(--ease-out); }
-.ov-seg:hover { stroke-width: 13; }
-/* Point at a legend row or a segment and the others step back */
-.overview:has(.ov-legend li:hover) .ov-seg, .ov-ring:has(.ov-seg:hover) .ov-seg:not(:hover) { opacity: 0.25; }
-.overview:has(.ov-legend .ov-active:hover) .ov-seg.ov-active,
-.overview:has(.ov-legend .ov-soon:hover) .ov-seg.ov-soon,
-.overview:has(.ov-legend .ov-expired:hover) .ov-seg.ov-expired { opacity: 1; }
+.ov-track { fill: none; stroke: var(--color-chart-track); stroke-width: 12; }
+.ov-seg { fill: none; stroke: var(--ov); stroke-width: 12; cursor: pointer; transition: opacity var(--dur-fast) ease, stroke-width var(--dur-fast) var(--ease-out); }
+.ov-seg:hover, .ov-seg.is-picked { stroke-width: 16; }
+/* Picked, or pointed at: the others step back */
+.has-pick .ov-seg:not(.is-picked) { opacity: 0.22; }
+.ov-ring:has(.ov-seg:hover) .ov-seg:not(:hover) { opacity: 0.3; }
+.overview:has(.ov-row.ov-attention:hover) .ov-seg:not(.ov-attention),
+.overview:has(.ov-row.ov-active:hover) .ov-seg:not(.ov-active),
+.overview:has(.ov-row.ov-expired:hover) .ov-seg:not(.ov-expired) { opacity: 0.3; }
 .ov-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
-.ov-center b { font-size: 48px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
-.ov-center span { color: var(--color-on-band-2); font-size: var(--text-caption); font-weight: 600; }
-.ov-center b { color: var(--color-on-nav); }
+.ov-center b { font-size: 44px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
+.ov-center span { color: var(--color-ink-3); font-size: var(--text-caption); font-weight: 600; }
+
+.ov-legend { display: grid; gap: 2px; width: 100%; }
+.ov-row {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  width: 100%; height: 44px; padding: 0 8px 0 12px; border: 0; border-radius: var(--radius-full);
+  background: none; color: var(--color-ink); font-size: var(--text-sub); font-weight: 600; text-align: left; cursor: pointer;
+  transition: background-color var(--dur-fast) ease;
+}
+.ov-row:hover { background: var(--btn-neutral); }
+.ov-row[aria-pressed="true"] { background: var(--color-paper); box-shadow: inset 0 0 0 1.5px var(--ov); }
+.ov-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ov); }
+.ov-row b {
+  min-width: 30px; height: 26px; padding: 0 10px; border-radius: var(--radius-full);
+  display: grid; place-items: center; font-size: var(--text-sub); font-weight: 700; background: var(--btn-neutral);
+}
 @media (prefers-reduced-motion: no-preference) {
-  .ov-ring svg { animation: ring-in 1000ms var(--ease-out) both; }
+  .is-first .ov-ring svg { animation: ring-in 1000ms var(--ease-out) both; }
 }
 @keyframes ring-in { from { opacity: 0; transform: rotate(-150deg); } }
-@media (max-width: 599px) {
-  .ov-ring { width: 184px; height: 184px; }
-  .ov-legend { flex-wrap: nowrap; gap: 12px; }
-  .ov-legend li { gap: 5px; font-size: 13px; white-space: nowrap; }
-  .ov-legend b { min-width: 24px; height: 22px; margin-left: 2px; padding: 0 7px; font-size: 12px; }
-  .ov-dot { width: 8px; height: 8px; }
+
+/* Below the wide layout the panel sits above the list, ring and legend side by side */
+@media (max-width: 1099px) {
+  .overview { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "head head" "ring legend"; align-items: center; justify-items: stretch; column-gap: var(--space-2xl); }
+  .ov-head { grid-area: head; }
+  .ov-ring { grid-area: ring; width: 148px; height: 148px; }
+  .ov-center b { font-size: 34px; }
+  .ov-legend { grid-area: legend; }
+}
+@media (max-width: 479px) {
+  .overview { padding: var(--space-xl); column-gap: var(--space-lg); }
+  .ov-ring { width: 112px; height: 112px; }
+  .ov-center b { font-size: 26px; }
+  .ov-row { height: 38px; padding: 0 4px 0 8px; gap: 6px; font-size: 13px; }
+  .ov-row b { min-width: 24px; height: 22px; padding: 0 7px; font-size: 12px; }
 }
 
 .card { border-top: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); }
