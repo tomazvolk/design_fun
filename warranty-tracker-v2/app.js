@@ -724,7 +724,7 @@
   /* The greeting: one sentence about right now, and the actions that follow from it. */
   /* Status at a glance, beside the list: a ring and a legend in the same three statuses the
      filter uses. Clicking a segment or a row filters the list to it; clicking again clears it. */
-  function coverageOverview(coveredValue) {
+  function coverageOverview() {
     const list = state.items.map((it) => { const i = info(it); return { it, i, next: cardMeta(it, i) }; });
     const total = list.length;
     const parts = STATUSES.filter((o) => o.has).map((o) => ({ key: o.key, label: o.label, n: list.filter(o.has).length }));
@@ -753,10 +753,6 @@
           '<circle class="ov-track" cx="60" cy="60" r="' + R + '" />' + segs + '</svg>' +
         '<p class="ov-center"><b class="num">' + pct + '%</b><span>Covered</span></p>' +
       '</div>' +
-      '<dl class="ov-sum">' +
-        '<div><dt>Items</dt><dd class="num">' + total + '</dd></div>' +
-        '<div><dt>Still covered</dt><dd class="num">' + money(coveredValue || 0) + '</dd></div>' +
-      '</dl>' +
       '<ul class="ov-legend">' + parts.map((p) =>
         '<li><button type="button" class="ov-row ov-' + p.key + '" data-action="status-pick" data-v="' + p.key + '" aria-pressed="' + (picked === p.key) + '">' +
           '<span class="ov-dot" aria-hidden="true"></span><span class="ov-label">' + p.label + '</span><b class="num">' + p.n + '</b></button></li>').join('') + '</ul>' +
@@ -815,7 +811,13 @@
       '<div class="wlist" id="items" role="region" aria-label="Items"></div>' +
       '<div class="list-foot" id="list-foot" aria-live="polite"></div>' +
       (state.plan === 'free' ? '<p class="plan-note">' + items.length + ' of ' + FREE_LIMIT + ' items on the free plan. <a href="#/settings/plan">See Plus</a></p>' : '') +
-      '</div><aside class="vault-side" aria-label="Status overview">' + coverageOverview(covered) + '</aside></div>';
+      '</div><aside class="vault-side" aria-label="Overview">' +
+        '<dl class="side-stats">' +
+          '<div class="stat"><dt>Items</dt><dd class="num">' + items.length + '</dd></div>' +
+          '<div class="stat"><dt>Still covered</dt><dd class="num">' + money(covered) + '</dd></div>' +
+        '</dl>' +
+        coverageOverview() +
+      '</aside></div>';
 
     /* The meters draw in once when the vault opens, never again while you search or filter. */
     return { html, after: () => { ui.drawIn = true; renderList(); ui.drawIn = false; } };
