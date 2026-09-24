@@ -339,8 +339,8 @@ kbd {
 .greet .large-title { color: var(--color-on-band); }
 .greet-text > p { margin-top: var(--space-lg); max-width: 34em; font-size: 20px; line-height: 1.5; font-weight: 600; color: var(--color-on-band-2); }
 .greet .page-actions { justify-content: center; }
-.greet .btn-secondary, .greet .btn-gray { background-color: var(--btn-accent); border-color: var(--btn-accent); color: var(--btn-ink); }
-.greet .btn-secondary:hover:not(:disabled), .greet .btn-gray:hover:not(:disabled) { background-color: var(--btn-accent-hover); border-color: var(--btn-accent-hover); }
+.greet .btn-secondary, .greet .btn-gray { background-color: var(--color-greet-accent); border-color: var(--color-greet-accent); color: var(--color-band); }
+.greet .btn-secondary:hover:not(:disabled), .greet .btn-gray:hover:not(:disabled) { background-color: var(--color-greet-accent-hover); border-color: var(--color-greet-accent-hover); }
 @media (min-width: 760px) { .greet { margin-top: calc(-1 * var(--space-5xl)); padding: var(--space-5xl) 0; } }
 .page-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 .page-actions .btn span { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
@@ -681,14 +681,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: po
 .hero {
   display: grid; gap: var(--space-4xl); align-items: center;
   max-width: 1160px; margin: 0 auto; padding: var(--space-4xl) var(--space-xl) var(--space-5xl);
-  background: var(--color-band); color: var(--color-on-band);
+  background: var(--color-band); color: var(--color-hero-ink);
   box-shadow: 0 0 0 100vmax var(--color-band); clip-path: inset(0 calc((100% - 100cqw) / 2 + var(--edge)) 0 round 0 0 var(--edge-r) var(--edge-r));
 }
 .hero-title { font-size: 48px; line-height: 0.88; font-weight: 900; letter-spacing: -0.05em; text-wrap: balance; overflow-wrap: normal; hyphens: none; min-width: 0; }
-.hero-sub { margin-top: var(--space-2xl); max-width: 28em; font-size: 19px; line-height: 1.5; color: var(--color-on-band-2); text-wrap: pretty; }
-.hero .btn-secondary { background: var(--color-band-tint); color: var(--color-on-band); }
+.hero-sub { margin-top: var(--space-2xl); max-width: 28em; font-size: 19px; line-height: 1.5; color: var(--color-hero-ink-2); text-wrap: pretty; }
+.hero .btn-secondary { background: var(--color-band-tint); color: var(--color-hero-ink); }
 .hero-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-3xl); }
-.hero-note { margin-top: var(--space-2xl); color: var(--color-on-band-2); font-size: var(--text-footnote); }
+.hero-note { margin-top: var(--space-2xl); color: var(--color-hero-ink-2); font-size: var(--text-footnote); }
 
 /* The product is the picture: the real vault list with sample receipts */
 .hero-shot {
