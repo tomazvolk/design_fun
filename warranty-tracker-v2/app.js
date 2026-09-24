@@ -814,7 +814,7 @@
       '</div><aside class="vault-side" aria-label="Overview">' +
         '<dl class="side-stats">' +
           '<div class="stat"><dt>Items</dt><dd class="num">' + items.length + '</dd></div>' +
-          '<div class="stat"><dt>Still covered</dt><dd class="num">' + money(covered) + '</dd></div>' +
+          '<div class="stat"><dt>Still covered</dt><dd class="num">' + moneyWhole.format(Math.floor(covered)) + '</dd></div>' +
         '</dl>' +
         coverageOverview() +
       '</aside></div>';
