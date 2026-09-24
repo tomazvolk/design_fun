@@ -377,6 +377,10 @@ kbd {
 .ov-center b { font-size: 44px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
 .ov-center span { color: var(--color-ink-3); font-size: var(--text-caption); font-weight: 600; }
 
+.ov-sum { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); width: 100%; padding: var(--space-lg) 0; border-top: 1px solid var(--color-rule-strong); border-bottom: 1px solid var(--color-rule-strong); }
+.ov-sum div { display: grid; gap: 2px; min-width: 0; }
+.ov-sum dt { color: var(--color-ink-3); font-size: var(--text-caption); font-weight: 600; }
+.ov-sum dd { font-size: 22px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.1; }
 .ov-legend { display: grid; gap: 2px; width: 100%; }
 .ov-row {
   display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 8px;
@@ -403,6 +407,8 @@ kbd {
   .ov-ring { grid-area: ring; width: 148px; height: 148px; }
   .ov-center b { font-size: 34px; }
   .ov-legend { grid-area: legend; }
+  .overview { grid-template-areas: "head head" "ring legend" "sum sum"; }
+  .ov-sum { grid-area: sum; }
 }
 @media (max-width: 479px) {
   .overview { padding: var(--space-xl); column-gap: var(--space-lg); }
@@ -443,7 +449,7 @@ kbd {
 .seg button[aria-pressed="true"], .seg button[aria-checked="true"] { background: var(--color-paper); color: var(--color-ink); box-shadow: 0 0 0 1px var(--color-rule-strong), var(--shadow-control); }
 .seg-fixed { min-width: 280px; }
 
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-md) var(--space-lg); margin-bottom: var(--space-3xl); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-md) var(--space-lg); margin-bottom: var(--space-3xl); }
 .vault-sum { color: var(--color-ink-2); }
 .vault-sum b { color: var(--color-ink); }
 .toolbar-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
