@@ -1053,20 +1053,30 @@
      already passed. */
   function wcard(it, i, next, n) { return wrow(it, i, next, n); }
 
-  /* One item, one line: what it is, the span with today marked, and the time left. */
+  /* One item, one line: what it is, the warranty span with today marked, and the warranty
+     left. Every row reads the same way; an open return window gets its own line under the span. */
   function wrow(it, i, next, n) {
-    const useReturn = next.tier === 1;
-    const st = statusOf(i, useReturn);
+    const st = statusOf(i, false);
+    const tag = next.tagTone === 'warning' ? next.tag : null;
     return '<a class="lrow' + (next.expired ? ' is-expired' : '') + '" href="#/item/' + it.id + '" style="--n:' + n + '">' +
       '<span class="lrow-mark cat-' + esc(it.category) + '" aria-hidden="true">' + icon(it.category, 18) + '</span>' +
       '<span class="lrow-id"><b>' + esc(it.name) + '</b>' +
         '<span>' + esc(it.merchant) + ', <span class="num">' + money(it.price) + '</span></span>' +
-        (next.tag ? '<span class="lrow-tag lrow-tag-' + next.tagTone + '">' + esc(next.tag) + '</span>' : '') +
+        (tag ? '<span class="lrow-tag lrow-tag-warning">' + esc(tag) + '</span>' : '') +
       '</span>' +
-      '<span class="lrow-span">' + meter(i, useReturn) + '<span>' + spanCaption(i, useReturn) + '</span></span>' +
+      '<span class="lrow-span">' + meter(i, false) + '<span class="lrow-cap">' + spanCaption(i, false) + '</span>' + returnLine(i) + '</span>' +
       '<span class="lrow-reading"><span class="lrow-label">' + st.label + '</span>' + reading(st) + '</span>' +
       icon('chevron', 14) +
     '</a>';
+  }
+
+  /* The return window, when one is still open: when it closes and how long is left. */
+  function returnLine(i) {
+    if (!i.returnOpen) return '';
+    const soon = i.rLeft <= 7;
+    const text = i.rLeft === 0 ? 'Return closes today'
+      : 'Return by ' + fmtDate(i.rEnd, { short: true, weekday: true }) + ', ' + plural(i.rLeft, 'day') + ' left';
+    return '<span class="lrow-return' + (soon ? ' is-soon' : '') + '">' + icon('return', 12) + '<span>' + text + '</span></span>';
   }
 
   /* The status filter: what needs you, what's covered, what has expired. */
