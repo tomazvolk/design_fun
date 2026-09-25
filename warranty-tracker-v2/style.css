@@ -324,7 +324,7 @@ kbd {
 /* The greeting is a full-width band of bright green, like a Wise hero */
 .greet {
   position: relative; display: grid; gap: var(--space-2xl);
-  margin: calc(-1 * var(--space-4xl)) 0 var(--space-4xl); padding: calc(var(--nav-space) + var(--space-3xl)) 0 var(--space-4xl);
+  margin: calc(-1 * var(--space-4xl)) 0 var(--space-4xl); padding: calc(var(--nav-space) + var(--space-3xl) + 32px) 0 calc(var(--space-4xl) + 32px);
   background: var(--color-band); color: var(--color-on-band);
   box-shadow: 0 0 0 100vmax var(--color-band); clip-path: inset(0 calc((100% - 100cqw) / 2) 0);
 }
@@ -335,11 +335,12 @@ kbd {
   font-family: var(--font-greet); font-weight: 800; font-style: italic; text-transform: uppercase;
   letter-spacing: -0.01em; line-height: 0.95;
 }
+@media (min-width: 960px) { .greet-text > p { max-width: none !important; white-space: nowrap; } }
 .greet-text > p { margin-top: var(--space-lg); max-width: 34em; font-size: 20px; line-height: 1.5; font-weight: 600; color: var(--color-on-band-2); }
 .greet .page-actions { justify-content: center; }
 .greet .btn-secondary, .greet .btn-gray { background-color: var(--color-greet-accent); border-color: var(--color-greet-accent); color: var(--color-band); }
 .greet .btn-secondary:hover:not(:disabled), .greet .btn-gray:hover:not(:disabled) { background-color: var(--color-greet-accent-hover); border-color: var(--color-greet-accent-hover); }
-@media (min-width: 760px) { .greet { margin-top: calc(-1 * var(--space-5xl)); padding: calc(var(--nav-space) + var(--space-4xl)) 0 var(--space-5xl); } }
+@media (min-width: 760px) { .greet { margin-top: calc(-1 * var(--space-5xl)); padding: calc(var(--nav-space) + var(--space-4xl) + 64px) 0 calc(var(--space-5xl) + 64px); } }
 .page-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 .page-actions .btn span { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 
