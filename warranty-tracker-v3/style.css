@@ -385,7 +385,6 @@ kbd {
 .overview:has(.ov-row.ov-expired:hover) .ov-seg:not(.ov-expired) { opacity: 0.3; }
 .ov-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
 .ov-center b { font-size: 48px; line-height: 1; }
-.ov-center span { color: var(--color-ink-3); font-size: var(--text-caption); font-weight: 600; }
 
 /* Two figures, each in its own tile, above the status panel */
 .vault-side { display: grid; gap: var(--space-md); }

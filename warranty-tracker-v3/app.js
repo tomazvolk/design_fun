@@ -938,7 +938,7 @@
       '<div class="ov-ring">' +
         '<svg viewBox="0 0 120 120" role="img" aria-label="' + pct + '% of your warranties are still covered">' +
           '<circle class="ov-track" cx="60" cy="60" r="' + R + '" />' + segs + '</svg>' +
-        '<p class="ov-center"><b class="num">' + pct + '%</b><span>Covered</span></p>' +
+        '<p class="ov-center"><b class="num">' + pct + '%</b></p>' +
       '</div>' +
       '<ul class="ov-legend">' + parts.map((p) =>
         '<li><button type="button" class="ov-row ov-' + p.key + '" data-action="status-pick" data-v="' + p.key + '" aria-pressed="' + (picked === p.key) + '">' +
