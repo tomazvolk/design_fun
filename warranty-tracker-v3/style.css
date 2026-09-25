@@ -567,7 +567,8 @@ kbd {
 .value span { font-size: var(--text-sub); font-weight: 500; color: var(--color-ink-3); }
 .value.tone-info b { color: var(--color-accent); }
 .value.tone-warning b { color: var(--color-urgent); }
-.value.tone-weak b { color: var(--color-ink-3); }
+/* Expired: the figure steps further back, still large enough to read (~3.5:1) */
+.value.tone-weak b { color: color-mix(in srgb, var(--color-ink-3) 78%, var(--color-paper)); }
 
 /* The span: what's left drawn in ink, what's gone in grey, today ticked */
 .meter { --meter-gone: var(--color-rule-strong); --meter-left: var(--color-ink); position: relative; display: block; height: 2px; }
