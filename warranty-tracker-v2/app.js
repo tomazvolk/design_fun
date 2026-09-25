@@ -718,7 +718,7 @@
 
   function greeting() {
     const h = new Date().getHours();
-    return (h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening') + ', ' + esc(state.account.first);
+    return (h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening') + ', <span class="greet-name">' + esc(state.account.first) + '</span>';
   }
 
   /* The greeting: one sentence about right now, and the actions that follow from it. */
