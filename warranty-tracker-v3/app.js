@@ -1038,7 +1038,14 @@
     /* Status: needs attention (a detail to check, a closing return, an ending warranty), active, or expired. */
     const status = STATUSES.find((o) => o.key === ui.status);
     if (status && status.has) list = list.filter(status.has);
-    return list.sort((a, b) => a.next.urgency - b.next.urgency);
+    return list.sort(byWarrantyEnd);
+  }
+
+  /* The list runs by when the warranty ends: soonest first, expired at the end (most recent first). */
+  function byWarrantyEnd(a, b) {
+    const ax = a.i.left < 0, bx = b.i.left < 0;
+    if (ax !== bx) return ax ? 1 : -1;
+    return (ax ? b.i.left - a.i.left : a.i.left - b.i.left) || a.it.name.localeCompare(b.it.name);
   }
 
   /* One item, as a Health-style reading: category and purchase date on top, then the item,
