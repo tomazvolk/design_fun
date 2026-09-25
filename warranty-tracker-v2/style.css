@@ -332,7 +332,7 @@ kbd {
 .greet .greet-text { display: grid; justify-items: center; }
 .greet .large-title {
   color: var(--color-on-band);
-  font-family: var(--font-greet); font-weight: 800; font-style: italic; text-transform: uppercase;
+  font-family: var(--font-greet); font-weight: 600; font-style: italic; text-transform: uppercase;
   letter-spacing: -0.01em; line-height: 0.95;
 }
 @media (min-width: 960px) { .greet-text > p { max-width: none !important; white-space: nowrap; } }
