@@ -241,7 +241,7 @@ kbd {
 .search input:focus-visible { outline: none; }
 .search kbd { display: none; position: absolute; right: var(--search-pad); width: 28px; padding: 0; text-align: center; transition: opacity var(--dur-fast) ease, transform var(--dur-base) var(--ease-out); }
 .search:focus-within kbd, .search.is-filled kbd { opacity: 0; transform: translateX(6px); pointer-events: none; }
-.topbar-add { flex: none; height: 40px; padding: 8px 18px; font-size: 15px; }
+.topbar-add { flex: none; height: 40px; padding: 8px 18px; font-size: 15px; font-weight: 600; }
 /* On phones the primary action is a square +; the label returns with room */
 @media (max-width: 599px) {
   .topbar-add { width: 40px; height: 40px; padding: 0; }
@@ -352,6 +352,9 @@ kbd {
 /* Coverage overview: a ring for the share, a legend with the counts */
 /* The vault: the list, and the status panel floating beside it */
 .main-vault { max-width: var(--layout-vault); }
+/* With no greeting band, the vault clears the floating nav itself. */
+.main-vault { padding-top: calc(var(--nav-space) + var(--space-2xl)); }
+@media (min-width: 760px) { .main-vault { padding-top: calc(var(--nav-space) + var(--space-3xl)); } }
 .vault-body { display: grid; gap: var(--space-3xl); align-items: start; }
 .vault-list { min-width: 0; }
 .vault-side { order: -1; }
@@ -458,11 +461,22 @@ kbd {
 .seg button[aria-pressed="true"], .seg button[aria-checked="true"] { background: var(--color-paper); color: var(--color-ink); box-shadow: 0 0 0 1px var(--color-rule-strong), var(--shadow-control); }
 .seg-fixed { min-width: 280px; }
 
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-md) var(--space-lg); margin-bottom: var(--space-3xl); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-sm); margin-bottom: var(--space-3xl); }
+/* The vault's search: always open, first in the row, taking whatever the filters leave */
+.search.search-bar, .search.search-bar:focus-within, .search.search-bar.is-filled {
+  flex: 1 1 280px; width: auto; height: 36px; padding: 0 var(--search-pad) 0 14px; cursor: text;
+}
+.search.search-bar:not(:focus-within):not(.is-filled) { background: var(--btn-neutral); box-shadow: none; }
+.search.search-bar kbd { display: none; }
+@media (min-width: 760px) {
+  .search.search-bar { padding-left: 14px; }
+  .search.search-bar kbd { display: inline-block; }
+}
 .vault-sum { color: var(--color-ink-2); }
 .vault-sum b { color: var(--color-ink); }
 .toolbar-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
 @media (max-width: 599px) {
+  .search.search-bar { flex-basis: 100%; height: 40px; }
   .toolbar-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; }
   .toolbar-controls .select-sm, .toolbar-controls .select-sm select { width: 100%; min-width: 0; }
   .toolbar-controls .select-sm select { padding: 0 24px 0 12px; font-size: 13px; text-overflow: ellipsis; }
@@ -486,18 +500,8 @@ kbd {
 .select-sm .i { right: 14px; color: var(--color-ink); }
 
 /* ==========================================================================
-   Vault: one list, three groups, hairlines between
+   Vault: one list, most urgent first, hairlines between
    ========================================================================== */
-.wlist { display: grid; gap: var(--space-4xl); }
-.group-title {
-  display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-sm);
-  font-size: var(--text-sub); font-weight: 600; letter-spacing: -0.01em; color: var(--color-ink);
-}
-.group-title .num { font-weight: 500; color: var(--color-ink-3); }
-.group-urgent .group-title .num {
-  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--radius-full);
-  background: var(--color-accent); color: var(--color-on-accent); font-size: var(--text-caption); font-weight: 700;
-}
 
 .ledger { border-top: 1px solid var(--color-rule); }
 .lrow {
@@ -540,7 +544,8 @@ kbd {
 
 /* A reading: the figure large, the unit small and grey */
 .value { line-height: 1; white-space: nowrap; }
-.value b { font-size: 28px; font-weight: 800; letter-spacing: -0.045em; font-variant-numeric: tabular-nums; }
+/* The figure is set like the sidebar's: Barlow ExtraBold Italic */
+.value b { font-family: var(--font-greet); font-size: 30px; font-weight: 800; font-style: italic; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 .value span { font-size: var(--text-sub); font-weight: 500; color: var(--color-ink-3); }
 .value.tone-info b { color: var(--color-accent); }
 .value.tone-warning b { color: var(--color-urgent); }
@@ -797,7 +802,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: po
 
 .d-status { padding: var(--space-2xl); border-radius: 28px; background: var(--color-paper-2); }
 .d-label { color: var(--color-ink-3); font-size: var(--text-sub); margin-bottom: var(--space-sm); }
-.value-xl b { font-size: var(--text-reading-xl); letter-spacing: -0.06em; }
+.value-xl b { font-size: var(--text-reading-xl); letter-spacing: -0.02em; }
 .value-xl span { font-size: var(--text-title-3); }
 .d-note { margin-top: var(--space-md); color: var(--color-ink-2); }
 .d-sec h3 { margin-bottom: var(--space-sm); font-size: var(--text-sub); font-weight: 600; }

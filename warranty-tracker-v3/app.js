@@ -600,9 +600,9 @@
      ========================================================================== */
 
   /* One search field, rendered wherever it's needed; a shared class keeps them in sync. */
-  function searchField(id) {
-    return '<label class="search' + (ui.q ? ' is-filled' : '') + '"><span class="sr-only">Search receipts</span>' + icon('search') +
-      '<input type="search" class="search-input" id="' + id + '" value="' + esc(ui.q) + '" autocomplete="off" spellcheck="false" />' +
+  function searchField(id, cls) {
+    return '<label class="search' + (cls ? ' ' + cls : '') + (ui.q ? ' is-filled' : '') + '"><span class="sr-only">Search receipts</span>' + icon('search') +
+      '<input type="search" class="search-input" id="' + id + '" value="' + esc(ui.q) + '"' + (cls ? ' placeholder="Search items, shops, order numbers"' : '') + ' autocomplete="off" spellcheck="false" />' +
       '<kbd>' + (isMac ? '⌘' : 'Ctrl&nbsp;') + 'K</kbd></label>';
   }
   function visibleSearchInput() {
@@ -613,7 +613,7 @@
     $('#topbar').innerHTML = '<div class="container topbar-inner">' +
       '<a class="brand" href="#/vault" aria-label="Warranty tracker, home">' + logo(30) + '<span>Warranty tracker</span></a>' +
       '<div class="topbar-end">' +
-        (name === 'add' ? '' : searchField('q') + '<a class="btn btn-primary topbar-add" href="#/add" aria-label="Add receipt">' + icon('plus') + '<span>Add receipt</span></a>') +
+        (name === 'add' ? '' : (name === 'vault' ? '' : searchField('q')) + '<a class="btn btn-primary topbar-add" href="#/add" aria-label="Add new warranty">' + icon('plus') + '<span>Add new warranty</span></a>') +
         '<div class="menu-wrap">' +
           '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button>' +
         '</div>' +
@@ -982,9 +982,10 @@
     const merchants = Array.from(new Set(items.map((it) => it.merchant))).sort((a, b) => a.localeCompare(b));
     const cats = CATS.filter((c) => items.some((it) => it.category === c.key));
 
-    const html = greetingBlock(list) +
-      '<div class="vault-body"><div class="vault-list">' +
+    /* No greeting: the page opens on search and the three filters, then one list. */
+    const html = '<h1 class="sr-only">Your vault</h1>' +
       '<div class="toolbar">' +
+        searchField('q-vault', 'search-bar') +
         '<div class="toolbar-controls">' +
           '<div class="select select-sm"><label class="sr-only" for="flt-status">Status</label><select id="flt-status">' +
             STATUSES.map((o) => '<option value="' + o.key + '"' + (ui.status === o.key ? ' selected' : '') + '>' + o.label + '</option>').join('') +
@@ -995,6 +996,7 @@
             merchants.map((m) => '<option' + (ui.merchant === m ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>' +
         '</div>' +
       '</div>' +
+      '<div class="vault-body"><div class="vault-list">' +
       '<div class="wlist" id="items" role="region" aria-label="Items"></div>' +
       '<div class="list-foot" id="list-foot" aria-live="polite"></div>' +
       (state.plan === 'free' ? '<p class="plan-note">' + items.length + ' of ' + FREE_LIMIT + ' items on the free plan. <a href="#/settings/plan">See Plus</a></p>' : '') +
@@ -1043,19 +1045,12 @@
     '</a>';
   }
 
-  /* The status filter uses the same three groups as the list. */
+  /* The status filter: what needs you, what's covered, what has expired. */
   const STATUSES = [
     { key: 'all', label: 'All statuses' },
     { key: 'attention', label: 'Needs attention', has: (x) => x.next.tier <= 2 },
     { key: 'active', label: 'Active warranty', has: (x) => x.next.tier === 3 },
     { key: 'expired', label: 'Expired', has: (x) => x.next.tier === 4 },
-  ];
-
-  /* Most urgent first, in three groups: what needs you, what's covered, what has expired. */
-  const GROUPS = [
-    { title: 'Needs attention', has: (x) => x.next.tier <= 2 },
-    { title: 'Active warranty', has: (x) => x.next.tier === 3 },
-    { title: 'Expired', has: (x) => x.next.tier === 4 },
   ];
 
   function renderList() {
@@ -1073,13 +1068,8 @@
 
     const capped = !ui.showAll && list.length > VAULT_CAP;
     const shown = capped ? list.slice(0, VAULT_CAP) : list;
-    let n = 0;
-    el.innerHTML = GROUPS.map((g, gi) => {
-      const rows = shown.filter(g.has);
-      if (!rows.length) return '';
-      return '<section class="group' + (gi === 0 ? ' group-urgent' : '') + '"><h2 class="group-title">' + g.title + ' <span class="num">' + rows.length + '</span></h2>' +
-        '<div class="ledger">' + rows.map(({ it, i, next }) => wrow(it, i, next, n++)).join('') + '</div></section>';
-    }).join('');
+    /* One list, most urgent first. Each row's tag and reading say what needs you. */
+    el.innerHTML = '<div class="ledger">' + shown.map(({ it, i, next }, n) => wrow(it, i, next, n)).join('') + '</div>';
     $('#list-foot').innerHTML = capped
       ? btn('Show all ' + list.length + ' items', 'show-all', { kind: 'secondary', icon: 'chevronDown' })
       : list.length === state.items.length ? '' : 'Showing ' + list.length + ' of ' + state.items.length;
