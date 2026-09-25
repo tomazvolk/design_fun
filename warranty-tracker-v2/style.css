@@ -335,7 +335,7 @@ kbd {
   font-family: var(--font-greet); font-weight: 600; font-style: italic; text-transform: uppercase;
   letter-spacing: -0.01em; line-height: 0.95;
 }
-.greet .greet-name { font-weight: 800; }
+.greet .greet-name { font-weight: 900; }
 @media (min-width: 960px) { .greet-text > p { max-width: none !important; white-space: nowrap; } }
 .greet-text > p { margin-top: var(--space-lg); max-width: 34em; font-size: 20px; line-height: 1.5; font-weight: 600; color: var(--color-on-band-2); }
 .greet .page-actions { justify-content: center; }
