@@ -195,7 +195,7 @@ kbd {
 /* The deep-green top (navigation + greeting) is one card, inset from the page edges with round corners.
    Bands inside it reach the card's edges: 100cqw is the frame's width, so each side extends by
    (frame - element) / 2 minus the inset. */
-:root { --edge: 32px; --edge-r: 48px; --nav-float: 16px; --nav-h: 64px; --nav-w: calc((100% - 2 * var(--edge)) / 2); }
+:root { --edge: 32px; --edge-r: 48px; --nav-float: 32px; --nav-h: 64px; --nav-w: calc((100% - 2 * var(--edge)) / 4); }
 @media (max-width: 959px) { :root { --nav-w: calc(100% - 2 * var(--edge)); } }
 @media (max-width: 599px) { :root { --edge: 12px; --edge-r: 36px; --nav-float: 12px; } }
 /* The space the floating nav takes at the top; the green section starts under it */
@@ -203,7 +203,7 @@ kbd {
 .frame, .main-public { container-type: inline-size; }
 .topbar {
   position: sticky; top: var(--nav-float); z-index: 20;
-  width: var(--nav-w); margin: var(--nav-float) auto calc(-1 * var(--nav-space)); border-radius: var(--radius-full);
+  width: var(--nav-w); min-width: max-content; margin: var(--nav-float) auto calc(-1 * var(--nav-space)); border-radius: var(--radius-full);
   background: var(--color-paper); color: var(--color-ink);
   box-shadow: 0 1px 2px rgba(14, 15, 12, 0.08), 0 8px 24px -8px rgba(14, 15, 12, 0.18);
 }
@@ -379,7 +379,7 @@ kbd {
 .overview:has(.ov-row.ov-active:hover) .ov-seg:not(.ov-active),
 .overview:has(.ov-row.ov-expired:hover) .ov-seg:not(.ov-expired) { opacity: 0.3; }
 .ov-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
-.ov-center b { font-size: 44px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
+.ov-center b { font-size: 48px; line-height: 1; }
 .ov-center span { color: var(--color-ink-3); font-size: var(--text-caption); font-weight: 600; }
 
 /* Two figures, each in its own tile, above the status panel */
@@ -387,8 +387,9 @@ kbd {
 .side-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
 .stat { display: grid; gap: 4px; align-content: start; min-width: 0; padding: var(--space-xl); border-radius: 24px; background: var(--color-side); }
 .stat dt { color: var(--color-ink-3); font-size: var(--text-footnote); font-weight: 600; }
-.stat dd { font-size: 26px; font-weight: 900; letter-spacing: -0.045em; line-height: 1.05; white-space: nowrap; }
-@media (min-width: 1100px) { .stat { padding: var(--space-lg) 18px; } .stat dd { font-size: 20px; letter-spacing: -0.05em; } }
+.stat dd, .ov-center b { font-family: var(--font-greet); font-weight: 800; font-style: italic; letter-spacing: -0.01em; }
+.stat dd { font-size: 30px; line-height: 1.05; white-space: nowrap; }
+@media (min-width: 1100px) { .stat { padding: var(--space-lg) 18px; } .stat dd { font-size: 26px; } }
 .ov-legend { display: grid; gap: 2px; width: 100%; }
 .ov-row {
   display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 8px;
@@ -670,7 +671,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: po
 .pub-nav {
   position: sticky; top: var(--nav-float); z-index: 20;
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);
-  width: var(--nav-w); margin: var(--nav-float) auto calc(-1 * var(--nav-space)); height: var(--nav-h); padding: 0 12px 0 16px;
+  width: var(--nav-w); min-width: max-content; margin: var(--nav-float) auto calc(-1 * var(--nav-space)); height: var(--nav-h); padding: 0 12px 0 16px;
   border-radius: var(--radius-full); background: var(--color-paper);
   box-shadow: 0 1px 2px rgba(14, 15, 12, 0.08), 0 8px 24px -8px rgba(14, 15, 12, 0.18);
 }
