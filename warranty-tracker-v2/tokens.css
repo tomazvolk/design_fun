@@ -88,6 +88,7 @@
   /* Type: Geist throughout; tabular numerals for every figure */
   --font-text: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-greet: 'Barlow', 'Geist', -apple-system, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --text-caption: 12px;

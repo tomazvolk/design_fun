@@ -100,7 +100,7 @@ h1:focus, h2:focus, .main:focus { outline: none; }
   height: 48px; padding: 12px 24px;
   border: 1px solid transparent; border-radius: var(--radius-full);
   background: none; color: var(--btn-ink);
-  font-size: 18px; font-weight: 600; line-height: 24px; letter-spacing: -0.01em; white-space: nowrap;
+  font-family: var(--font-text); font-size: 18px; font-weight: 600; line-height: 24px; letter-spacing: -0.01em; white-space: nowrap;
   text-decoration: none !important; cursor: pointer; user-select: none;
   transition: color 150ms ease-in-out, background-color 150ms ease-in-out, border-color 150ms ease-in-out, transform var(--dur-press) var(--ease-out);
 }
@@ -195,16 +195,20 @@ kbd {
 /* The deep-green top (navigation + greeting) is one card, inset from the page edges with round corners.
    Bands inside it reach the card's edges: 100cqw is the frame's width, so each side extends by
    (frame - element) / 2 minus the inset. */
-:root { --edge: 32px; --edge-r: 48px; --nav-float: 16px; --card-gap: 12px; }
-@media (max-width: 599px) { :root { --edge: 16px; --edge-r: 36px; --nav-float: 12px; --card-gap: 10px; } }
+:root { --edge: 32px; --edge-r: 48px; --nav-float: 16px; --nav-h: 64px; --nav-w: calc((100% - 2 * var(--edge)) / 2); }
+@media (max-width: 959px) { :root { --nav-w: calc(100% - 2 * var(--edge)); } }
+@media (max-width: 599px) { :root { --edge: 12px; --edge-r: 36px; --nav-float: 12px; } }
+/* The space the floating nav takes at the top; the green section starts under it */
+:root { --nav-space: calc(var(--nav-float) + var(--nav-h)); }
 .frame, .main-public { container-type: inline-size; }
 .topbar {
   position: sticky; top: var(--nav-float); z-index: 20;
-  margin: var(--nav-float) var(--edge) 0; border-radius: var(--radius-full);
-  background: var(--color-nav); color: var(--color-on-nav);
+  width: var(--nav-w); margin: var(--nav-float) auto calc(-1 * var(--nav-space)); border-radius: var(--radius-full);
+  background: var(--color-paper); color: var(--color-ink);
+  box-shadow: 0 1px 2px rgba(14, 15, 12, 0.08), 0 8px 24px -8px rgba(14, 15, 12, 0.18);
 }
 .topbar .container { max-width: none; padding: 0 12px 0 16px; }
-.topbar-inner { display: flex; align-items: center; gap: var(--space-md); height: 64px; }
+.topbar-inner { display: flex; align-items: center; gap: var(--space-md); height: var(--nav-h); }
 .brand {
   display: inline-flex; align-items: center; gap: 10px; flex: none;
   color: var(--color-ink); text-decoration: none !important;
@@ -256,20 +260,9 @@ kbd {
 
 .menu-wrap { position: relative; }
 
-/* Everything on the deep-green bar reads light */
-.topbar .brand, .pub-nav .brand { color: var(--color-on-nav); }
-.topbar .logo-tile, .pub-nav .logo-tile { fill: var(--color-brand); }
-.topbar .logo-mark, .pub-nav .logo-mark { stroke: var(--color-nav); }
-.topbar .search { background: var(--color-nav-tint); color: var(--color-on-nav); }
-.topbar .search:hover { background: var(--color-nav-tint-strong); color: var(--color-on-nav); }
-.topbar .search input { color: var(--color-on-nav); }
-.topbar .search kbd { color: var(--color-on-nav-2); box-shadow: inset 0 0 0 1px var(--color-nav-tint-strong); }
-.topbar .search:focus-within, .topbar .search.is-filled { background: var(--color-nav-tint-strong); box-shadow: inset 0 0 0 1.5px var(--color-brand); }
-.topbar .search:focus-within .i { color: var(--color-brand); }
-.topbar .avatar { background: var(--color-nav-tint); color: var(--color-on-nav); }
-.topbar .avatar:hover { box-shadow: inset 0 0 0 1px var(--color-nav-tint-strong); }
-.pub-nav .btn-plain { color: var(--color-on-nav); }
-.pub-nav .btn-plain:hover:not(:disabled) { background: var(--color-nav-tint); }
+/* On the white pill the app icon is deep green with a bright-green mark */
+.topbar .logo-tile, .pub-nav .logo-tile { fill: var(--color-nav); }
+.topbar .logo-mark, .pub-nav .logo-mark { stroke: var(--color-brand); }
 .user-pop {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 50;
   min-width: 240px; padding: 4px;
@@ -331,18 +324,22 @@ kbd {
 /* The greeting is a full-width band of bright green, like a Wise hero */
 .greet {
   position: relative; display: grid; gap: var(--space-2xl);
-  margin: calc(var(--card-gap) - var(--space-4xl)) 0 var(--space-4xl); padding: var(--space-4xl) 0;
+  margin: calc(-1 * var(--space-4xl)) 0 var(--space-4xl); padding: calc(var(--nav-space) + var(--space-3xl)) 0 var(--space-4xl);
   background: var(--color-band); color: var(--color-on-band);
-  box-shadow: 0 0 0 100vmax var(--color-band); clip-path: inset(0 calc((100% - 100cqw) / 2 + var(--edge)) 0 round var(--edge-r));
+  box-shadow: 0 0 0 100vmax var(--color-band); clip-path: inset(0 calc((100% - 100cqw) / 2) 0 round 0 0 var(--edge-r) var(--edge-r));
 }
 .greet { justify-items: center; text-align: center; }
 .greet .greet-text { display: grid; justify-items: center; }
-.greet .large-title { color: var(--color-on-band); }
+.greet .large-title {
+  color: var(--color-on-band);
+  font-family: var(--font-greet); font-weight: 800; font-style: italic; text-transform: uppercase;
+  letter-spacing: -0.01em; line-height: 0.95;
+}
 .greet-text > p { margin-top: var(--space-lg); max-width: 34em; font-size: 20px; line-height: 1.5; font-weight: 600; color: var(--color-on-band-2); }
 .greet .page-actions { justify-content: center; }
 .greet .btn-secondary, .greet .btn-gray { background-color: var(--color-greet-accent); border-color: var(--color-greet-accent); color: var(--color-band); }
 .greet .btn-secondary:hover:not(:disabled), .greet .btn-gray:hover:not(:disabled) { background-color: var(--color-greet-accent-hover); border-color: var(--color-greet-accent-hover); }
-@media (min-width: 760px) { .greet { margin-top: calc(var(--card-gap) - var(--space-5xl)); padding: var(--space-5xl) 0; } }
+@media (min-width: 760px) { .greet { margin-top: calc(-1 * var(--space-5xl)); padding: calc(var(--nav-space) + var(--space-4xl)) 0 var(--space-5xl); } }
 .page-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 .page-actions .btn span { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 
@@ -358,7 +355,7 @@ kbd {
 .vault-side { order: -1; }
 @media (min-width: 1100px) {
   .vault-body { grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-4xl); }
-  .vault-side { order: 0; position: sticky; top: calc(var(--nav-float) + 64px + var(--space-xl)); }
+  .vault-side { order: 0; position: sticky; top: calc(var(--nav-space) + var(--space-xl)); }
 }
 
 .overview { display: grid; justify-items: center; gap: var(--space-xl); padding: var(--space-2xl); border-radius: 28px; background: var(--color-side); }
@@ -673,8 +670,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: po
 .pub-nav {
   position: sticky; top: var(--nav-float); z-index: 20;
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);
-  margin: var(--nav-float) var(--edge) 0; height: 64px; padding: 0 12px 0 16px;
-  border-radius: var(--radius-full); background: var(--color-nav);
+  width: var(--nav-w); margin: var(--nav-float) auto calc(-1 * var(--nav-space)); height: var(--nav-h); padding: 0 12px 0 16px;
+  border-radius: var(--radius-full); background: var(--color-paper);
+  box-shadow: 0 1px 2px rgba(14, 15, 12, 0.08), 0 8px 24px -8px rgba(14, 15, 12, 0.18);
 }
 .pub-nav .brand span { display: inline; }
 .pub-actions { display: flex; align-items: center; gap: var(--space-sm); }
@@ -682,9 +680,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: po
 
 .hero {
   display: grid; gap: var(--space-4xl); align-items: center;
-  max-width: 1160px; margin: var(--card-gap) auto 0; padding: var(--space-4xl) var(--space-xl) var(--space-5xl);
+  max-width: 1160px; margin: 0 auto; padding: calc(var(--nav-space) + var(--space-4xl)) var(--space-xl) var(--space-5xl);
   background: var(--color-band); color: var(--color-hero-ink);
-  box-shadow: 0 0 0 100vmax var(--color-band); clip-path: inset(0 calc((100% - 100cqw) / 2 + var(--edge)) 0 round var(--edge-r));
+  box-shadow: 0 0 0 100vmax var(--color-band); clip-path: inset(0 calc((100% - 100cqw) / 2) 0 round 0 0 var(--edge-r) var(--edge-r));
 }
 .hero-title { font-size: 48px; line-height: 0.88; font-weight: 900; letter-spacing: -0.05em; text-wrap: balance; overflow-wrap: normal; hyphens: none; min-width: 0; }
 .hero-sub { margin-top: var(--space-2xl); max-width: 28em; font-size: 19px; line-height: 1.5; color: var(--color-hero-ink-2); text-wrap: pretty; }
@@ -714,7 +712,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: po
 .steps-list p { color: var(--color-ink-2); line-height: 1.55; max-width: 30em; }
 
 @media (min-width: 960px) {
-  .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: var(--space-6xl) var(--space-3xl) var(--space-6xl); gap: var(--space-5xl); }
+  .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: calc(var(--nav-space) + var(--space-5xl)) var(--space-3xl) var(--space-6xl); gap: var(--space-5xl); }
   .hero-title { font-size: clamp(56px, 5.6vw, 76px); }
   .steps { padding: var(--space-6xl) var(--space-3xl); }
   .steps-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3xl); }
