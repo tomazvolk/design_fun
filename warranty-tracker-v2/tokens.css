@@ -37,6 +37,7 @@
   --color-on-band: #ddf8d2;
   --color-on-band-2: #ddf8d2;
   --color-greet-accent: #ddf8d2;
+  --color-side: #ddf8d2;
   --color-hero-ink: #9fe870;
   --color-hero-ink-2: rgba(255, 255, 255, 0.84);
   --color-greet-accent-hover: #c8f0b8;
@@ -162,6 +163,8 @@
   --color-focus: rgba(159, 232, 112, 0.5);
   --color-selection: rgba(159, 232, 112, 0.3);
 
+
+  --color-side: #1b1f19;
 
   --color-chart-attention: #ff8577;
   --color-chart-active: #9fe870;
