@@ -195,7 +195,8 @@ kbd {
 /* The deep-green top (navigation + greeting) is one card, inset from the page edges with round corners.
    Bands inside it reach the card's edges: 100cqw is the frame's width, so each side extends by
    (frame - element) / 2 minus the inset. */
-:root { --edge: 32px; --edge-r: 48px; --nav-float: 32px; --nav-h: 64px; --nav-w: calc((100% - 2 * var(--edge)) / 4); }
+/* Desktop nav: 30% wider than its content needs (~447px), growing a little on large screens */
+:root { --edge: 32px; --edge-r: 48px; --nav-float: 32px; --nav-h: 64px; --nav-w: min(100% - 2 * var(--edge), max(580px, (100% - 2 * var(--edge)) * 0.42)); }
 @media (max-width: 959px) { :root { --nav-w: calc(100% - 2 * var(--edge)); } }
 @media (max-width: 599px) { :root { --edge: 12px; --edge-r: 36px; --nav-float: 12px; } }
 /* The space the floating nav takes at the top; the green section starts under it */
@@ -352,9 +353,6 @@ kbd {
 /* Coverage overview: a ring for the share, a legend with the counts */
 /* The vault: the list, and the status panel floating beside it */
 .main-vault { max-width: var(--layout-vault); }
-/* With no greeting band, the vault clears the floating nav itself. */
-.main-vault { padding-top: calc(var(--nav-space) + var(--space-2xl)); }
-@media (min-width: 760px) { .main-vault { padding-top: calc(var(--nav-space) + var(--space-3xl)); } }
 .vault-body { display: grid; gap: var(--space-3xl); align-items: start; }
 .vault-list { min-width: 0; }
 .vault-side { order: -1; }
@@ -461,10 +459,13 @@ kbd {
 .seg-fixed { min-width: 280px; }
 
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-sm); margin-bottom: var(--space-3xl); }
-/* The vault's search: always open, first in the row, taking whatever the filters leave */
-.search.search-bar, .search.search-bar:focus-within, .search.search-bar.is-filled {
-  flex: 1 1 280px; width: auto; height: 36px; padding: 0 var(--search-pad) 0 14px; cursor: text;
+/* The vault's search: first in the row, compact until you use it, then it springs wide
+   and takes whatever the filters leave */
+.search.search-bar {
+  flex: 0 1 220px; width: auto; height: 36px; padding: 0 var(--search-pad) 0 14px; cursor: text;
+  transition: flex-grow 420ms cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow var(--dur-fast) ease, background-color var(--dur-fast) ease;
 }
+.search.search-bar:focus-within, .search.search-bar.is-filled { flex-grow: 1; width: auto; }
 .search.search-bar:not(:focus-within):not(.is-filled) { background: var(--btn-neutral); box-shadow: none; }
 .search.search-bar kbd { display: none; }
 @media (min-width: 760px) {

@@ -602,7 +602,7 @@
   /* One search field, rendered wherever it's needed; a shared class keeps them in sync. */
   function searchField(id, cls) {
     return '<label class="search' + (cls ? ' ' + cls : '') + (ui.q ? ' is-filled' : '') + '"><span class="sr-only">Search receipts</span>' + icon('search') +
-      '<input type="search" class="search-input" id="' + id + '" value="' + esc(ui.q) + '"' + (cls ? ' placeholder="Search items, shops, order numbers"' : '') + ' autocomplete="off" spellcheck="false" />' +
+      '<input type="search" class="search-input" id="' + id + '" value="' + esc(ui.q) + '"' + (cls ? ' placeholder="Search"' : '') + ' autocomplete="off" spellcheck="false" />' +
       '<kbd>' + (isMac ? '⌘' : 'Ctrl&nbsp;') + 'K</kbd></label>';
   }
   function visibleSearchInput() {
@@ -982,8 +982,9 @@
     const merchants = Array.from(new Set(items.map((it) => it.merchant))).sort((a, b) => a.localeCompare(b));
     const cats = CATS.filter((c) => items.some((it) => it.category === c.key));
 
-    /* No greeting: the page opens on search and the three filters, then one list. */
-    const html = '<h1 class="sr-only">Your vault</h1>' +
+    /* The greeting, then one list with search and the three filters across its top. */
+    const html = greetingBlock(list) +
+      '<div class="vault-body"><div class="vault-list">' +
       '<div class="toolbar">' +
         searchField('q-vault', 'search-bar') +
         '<div class="toolbar-controls">' +
@@ -996,7 +997,6 @@
             merchants.map((m) => '<option' + (ui.merchant === m ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="vault-body"><div class="vault-list">' +
       '<div class="wlist" id="items" role="region" aria-label="Items"></div>' +
       '<div class="list-foot" id="list-foot" aria-live="polite"></div>' +
       (state.plan === 'free' ? '<p class="plan-note">' + items.length + ' of ' + FREE_LIMIT + ' items on the free plan. <a href="#/settings/plan">See Plus</a></p>' : '') +
