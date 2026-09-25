@@ -326,7 +326,7 @@ kbd {
   position: relative; display: grid; gap: var(--space-2xl);
   margin: calc(-1 * var(--space-4xl)) 0 var(--space-4xl); padding: calc(var(--nav-space) + var(--space-3xl)) 0 var(--space-4xl);
   background: var(--color-band); color: var(--color-on-band);
-  box-shadow: 0 0 0 100vmax var(--color-band); clip-path: inset(0 calc((100% - 100cqw) / 2) 0 round 0 0 var(--edge-r) var(--edge-r));
+  box-shadow: 0 0 0 100vmax var(--color-band); clip-path: inset(0 calc((100% - 100cqw) / 2) 0);
 }
 .greet { justify-items: center; text-align: center; }
 .greet .greet-text { display: grid; justify-items: center; }
