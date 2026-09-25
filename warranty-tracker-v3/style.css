@@ -363,6 +363,8 @@ kbd {
 /* The vault: the list, and the status panel floating beside it */
 .main-vault { max-width: var(--layout-vault); }
 .vault-body { display: grid; gap: var(--space-3xl); align-items: start; }
+/* Tall enough that Inspect can always bring the list up to just under the nav, even when it's short */
+.vault-body { min-height: calc(100vh - 104px); min-height: calc(100dvh - 104px); }
 .vault-list { min-width: 0; }
 .vault-side { order: -1; }
 @media (min-width: 1100px) {

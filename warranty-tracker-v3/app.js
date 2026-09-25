@@ -1001,7 +1001,7 @@
 
     /* The greeting, then one list with search and the three filters across its top. */
     const html = greetingBlock(list) +
-      '<div class="vault-body"><div class="vault-list">' +
+      '<div class="vault-body"><div class="vault-list" id="warranties">' +
       '<div class="toolbar">' +
         searchField('q-vault', 'search-bar') +
         '<div class="toolbar-controls">' +
@@ -1897,7 +1897,16 @@
       const again = $('.ov-row[data-v="' + v + '"]') || $('.ov-row');
       if (again && el.tagName === 'BUTTON') again.focus({ preventScroll: true });
     },
-    'inspect': () => { ui.status = 'attention'; ui.showAll = true; paint('vault', null, true); },
+    /* Inspect filters to what needs attention, then takes you down to the list. */
+    'inspect': () => {
+      ui.status = 'attention';
+      ui.showAll = true;
+      paint('vault', null, true);
+      const list = $('#warranties');
+      if (list) list.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      const status = $('#flt-status');
+      if (status) status.focus({ preventScroll: true });
+    },
     'inspect-off': () => { ui.status = 'all'; ui.showAll = false; paint('vault', null, true); },
     'clear-filters': () => {
       ui.q = ''; ui.cat = 'all'; ui.merchant = 'all'; ui.showAll = false; ui.status = 'all';
