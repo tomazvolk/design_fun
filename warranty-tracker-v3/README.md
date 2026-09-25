@@ -20,9 +20,27 @@ dark in Settings.
 Tokens (all OKLCH) live in `tokens.css`; `style.css` only uses names. Product truth, including
 which directions were tried and rejected, is in `PRODUCT.md`.
 
-It runs as a demo like v1: accounts, items and settings live in this browser's `localStorage`,
-under its own key (`warranty-tracker-v3`), so v1, v2 and v3 don't share data. Reading a receipt
-photo is simulated with sample data.
+Accounts and data live in Supabase once `config.js` names a project: sign up (with email
+confirmation), log in and out, password reset by email, password and profile changes, and account
+deletion all go through Supabase Auth. Settings are a row in `profiles`, each item a row in
+`items`, both locked to their owner by row-level security (`supabase/schema.sql`). The browser
+keeps a copy under `warranty-tracker-v3` so the vault opens instantly and works offline; only
+changed items are sent up. Logging out clears that copy.
+
+With `config.js` left empty it runs as the local demo it started as: one account, everything in
+this browser. Reading a receipt photo is simulated with sample data either way.
+
+To connect a Supabase project:
+
+1. Create a project at supabase.com.
+2. SQL Editor: run `supabase/schema.sql`.
+3. Authentication → URL Configuration: set Site URL to the deployed app
+   (`https://design-fun.vercel.app/warranty-tracker-v3`) and add it, plus
+   `http://localhost:*/**` for local testing, to Redirect URLs.
+4. Project Settings → API Keys: copy the Project URL and the publishable key into `config.js`.
+
+Receipt photos are small JPEGs stored inside each item's row. Moving them to Supabase Storage is
+the next step if people add many photos.
 
 Fixed along the way: "Export PDF" on the vault (it threw in v1), opening an item right after
 closing another, prices typed as "1,299.99" or "1.299,99", and confirm dialogs focusing the

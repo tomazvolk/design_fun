@@ -6,6 +6,12 @@
      ========================================================================== */
   /* v1 uses 'warranty-tracker-v2' and v2 uses 'warranty-tracker-next' in this origin, so v3 keeps its own vault. */
   const KEY = 'warranty-tracker-v3';
+  /* Accounts and the vault live in Supabase once config.js names a project. Without one,
+     the app runs as the local demo it started as. */
+  const CFG = window.WT_CONFIG || {};
+  const cloud = CFG.supabaseUrl && CFG.supabaseKey && window.supabase
+    ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { flowType: 'pkce' } })
+    : null;
   const DAY = 86400000;
   const FREE_LIMIT = 10;
   const $ = (s, r) => (r || document).querySelector(s);
@@ -203,7 +209,11 @@
   }
 
   function defaultState() {
-    return { account: null, session: false, banner: false, plan: 'free', items: [], settings: defaultSettings() };
+    return {
+      account: null, session: false, banner: false, plan: 'free', items: [], settings: defaultSettings(),
+      /* Cloud only: whose vault this is, and what Supabase last accepted, so only changes go up. */
+      uid: null, synced: {}, syncedProfile: '',
+    };
   }
 
   function load() {
@@ -219,11 +229,15 @@
   }
 
   let state = load();
-  function save() {
+  function writeLocal() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); ui.saveWarned = false; } catch (e) {
       /* Storage full or blocked: keep going in memory, but say so once. */
-      if (!ui.saveWarned) { ui.saveWarned = true; setTimeout(() => toast('This browser’s storage is full. Changes won’t be kept after you close the tab.'), 0); }
+      if (!ui.saveWarned && !cloud) { ui.saveWarned = true; setTimeout(() => toast('This browser’s storage is full. Changes won’t be kept after you close the tab.'), 0); }
     }
+  }
+  function save() {
+    writeLocal();
+    if (cloud && state.session) queueSync();
   }
 
   /* Things that only live for this session. */
@@ -231,6 +245,158 @@
     q: '', cat: 'all', merchant: 'all', showAll: false, status: 'all',
     add: null, editing: null, base: null, drawerId: null,
   };
+
+  /* ==========================================================================
+     Cloud: Supabase keeps the truth, this browser keeps a copy for speed and offline
+     ========================================================================== */
+  const sync = { timer: 0, running: null, again: false, failed: false };
+
+  function appUrl() { return location.origin + location.pathname; }
+  function accountFrom(user) {
+    const m = user.user_metadata || {};
+    return { first: m.first || '', last: m.last || '', email: user.email };
+  }
+  function profileRow(s) { return { id: s.uid, settings: s.settings, plan: s.plan, banner: s.banner }; }
+
+  function queueSync() {
+    clearTimeout(sync.timer);
+    sync.timer = setTimeout(pushNow, 600);
+  }
+
+  /* Send only what changed since Supabase last accepted it: new or edited items, removed items, settings. */
+  function pushNow() {
+    if (!cloud || !state.session || !state.uid) return Promise.resolve();
+    if (sync.running) { sync.again = true; return sync.running; }
+    clearTimeout(sync.timer);
+    const s = state;
+    sync.running = (async () => {
+      const now = {};
+      const rows = [];
+      s.items.forEach((it) => {
+        const j = JSON.stringify(it);
+        now[it.id] = j;
+        if (s.synced[it.id] !== j) rows.push({ user_id: s.uid, id: it.id, data: it });
+      });
+      const gone = Object.keys(s.synced).filter((id) => !(id in now));
+      const prof = JSON.stringify(profileRow(s));
+      try {
+        if (rows.length) {
+          const { error } = await cloud.from('items').upsert(rows);
+          if (error) throw error;
+          rows.forEach((r) => { s.synced[r.id] = now[r.id]; });
+        }
+        if (gone.length) {
+          const { error } = await cloud.from('items').delete().eq('user_id', s.uid).in('id', gone);
+          if (error) throw error;
+          gone.forEach((id) => { delete s.synced[id]; });
+        }
+        if (prof !== s.syncedProfile) {
+          const { error } = await cloud.from('profiles').upsert(JSON.parse(prof));
+          if (error) throw error;
+          s.syncedProfile = prof;
+        }
+        sync.failed = false;
+      } catch (e) {
+        if (!sync.failed && s === state) { sync.failed = true; toast('Couldn’t save to your account. Your changes are kept here and we’ll keep trying.'); }
+        sync.timer = setTimeout(pushNow, 15000);
+      }
+      if (s === state) writeLocal();
+    })().finally(() => {
+      sync.running = null;
+      if (sync.again) { sync.again = false; pushNow(); }
+    });
+    return sync.running;
+  }
+
+  /* Replace this browser's copy with what's in Supabase. */
+  async function pull() {
+    const s = state;
+    const [p, list] = await Promise.all([
+      cloud.from('profiles').select('settings, plan, banner').eq('id', s.uid).maybeSingle(),
+      cloud.from('items').select('id, data').eq('user_id', s.uid).order('created_at'),
+    ]);
+    if (p.error || list.error || s !== state) return false;
+    if (p.data) {
+      const base = defaultSettings();
+      s.settings = Object.assign(base, p.data.settings || {});
+      s.plan = p.data.plan || 'free';
+      s.banner = !!p.data.banner;
+      s.syncedProfile = JSON.stringify(profileRow(s));
+    }
+    s.items = list.data.map((r) => r.data);
+    s.synced = {};
+    s.items.forEach((it) => { s.synced[it.id] = JSON.stringify(it); });
+    writeLocal();
+    applyTheme();
+    return true;
+  }
+
+  /* Signed in: load that person's vault. Unsent changes from last time go up first. */
+  async function enter(user) {
+    const same = state.uid === user.id;
+    if (!same) {
+      const theme = state.settings.theme;
+      state = defaultState();
+      state.settings.theme = theme;
+      state.uid = user.id;
+    }
+    state.account = accountFrom(user);
+    state.session = true;
+    writeLocal();
+    if (same) await pushNow();
+    await pull();
+    /* A new account has no profile row yet: create it. */
+    if (!state.syncedProfile) queueSync();
+  }
+
+  /* Signed out: forget the vault on this device, remember only the email for next time. */
+  function leave() {
+    clearTimeout(sync.timer);
+    const theme = state.settings.theme;
+    const email = state.account ? state.account.email : '';
+    state = defaultState();
+    state.settings.theme = theme;
+    if (email) state.account = { first: '', last: '', email };
+    writeLocal();
+  }
+
+  async function bootCloud() {
+    cloud.auth.onAuthStateChange((event, session) => {
+      /* Supabase calls can't run inside this callback, so anything async waits a tick. */
+      if (event === 'PASSWORD_RECOVERY') { ui.recovery = true; setTimeout(() => { if (state.session) go('reset'); }, 0); }
+      /* Signed out elsewhere, or the session ran out. Our own log out has already tidied up. */
+      if (event === 'SIGNED_OUT') setTimeout(() => { if (!state.session) return; leave(); closeDrawer(); redirect('login'); }, 0);
+      if (event === 'USER_UPDATED' && session && state.session) {
+        state.account = accountFrom(session.user);
+        writeLocal();
+      }
+    });
+    const { data, error } = await cloud.auth.getSession();
+    const q = new URLSearchParams(location.search);
+    const failed = q.get('error_description');
+    const returning = q.has('code');
+    if (returning || failed) history.replaceState(null, '', location.pathname + location.hash);
+    if (failed) toast(esc(failed) + '.');
+    if (data && data.session) {
+      await enter(data.session.user);
+      if (ui.recovery) return redirect('reset');
+      if (returning) toast('You’re signed in. Welcome, ' + esc(state.account.first) + '.');
+      render();
+    } else if (!error && state.session) {
+      leave();
+      render();
+    }
+  }
+
+  function busy(form, on) {
+    const b = $('[type="submit"]', form);
+    if (b) { b.disabled = on; b.setAttribute('aria-busy', String(on)); }
+  }
+  function cloudMessage(error) {
+    if (!navigator.onLine) return 'You’re offline. Connect to the internet and try again.';
+    if (error && error.status === 429) return 'Too many tries. Wait a minute, then try again.';
+    return 'Something went wrong. Try again in a moment.';
+  }
 
   /* Passwords never sit in storage as typed. It's still a demo: all of this lives in the browser. */
   async function hashPassword(pw) {
@@ -361,6 +527,8 @@
      Router
      ========================================================================== */
   const PUBLIC = ['welcome', 'signup', 'login', 'forgot'];
+  /* Pages drawn without the app chrome. 'reset' is reached from the email link, already signed in. */
+  const BARE = PUBLIC.concat('reset');
 
   function route() {
     const parts = location.hash.replace(/^#\/?/, '').split('/');
@@ -373,6 +541,7 @@
     const r = route();
     if (r.name === 'home' || r.name === 'reminders') return redirect('vault');
     if (!state.session) {
+      if (r.name === 'reset') return redirect('forgot');
       if (!PUBLIC.includes(r.name)) return redirect(state.account ? 'login' : 'welcome');
     } else if (!r.name || PUBLIC.includes(r.name)) {
       return redirect('vault');
@@ -391,7 +560,7 @@
   }
 
   const VIEWS = {
-    welcome: viewWelcome, signup: viewSignup, login: viewLogin, forgot: viewForgot,
+    welcome: viewWelcome, signup: viewSignup, login: viewLogin, forgot: viewForgot, reset: viewReset,
     vault: viewVault, add: viewAdd, settings: viewSettings,
   };
 
@@ -400,7 +569,7 @@
     const fn = VIEWS[name] || viewVault;
     const y = window.scrollY;
     const out = fn(arg);
-    const app = !PUBLIC.includes(name);
+    const app = !BARE.includes(name);
     ui.base = name;
     ui.arg = arg;
     document.body.classList.toggle('is-app', app);
@@ -682,6 +851,24 @@
           '<p class="auth-foot"><a href="#/login">Back to log in</a></p>',
       }),
       after: () => $('#f-email').focus(),
+    };
+  }
+
+  /* Landed from the reset email: signed in for just long enough to choose a new password. */
+  function viewReset() {
+    return {
+      html: authShell({
+        active: 'login',
+        title: 'Choose a new password',
+        sub: 'For ' + esc(state.account.email) + '. You’ll stay logged in on this device',
+        body:
+          '<form class="form auth-form" id="reset-form" novalidate>' +
+            field({ name: 'password', label: 'New password', type: 'password', attrs: ' autocomplete="new-password"', hint: 'At least 8 characters.' }) +
+            btn('Save password', null, { kind: 'primary', type: 'submit', cls: 'btn-block btn-lg' }) +
+          '</form>' +
+          '<p class="auth-foot"><a href="#/vault">Skip for now</a></p>',
+      }),
+      after: () => $('#f-password').focus(),
     };
   }
 
@@ -1675,9 +1862,17 @@
       el.innerHTML = icon(show ? 'eye' : 'eyeOff');
     },
     'user-menu': (el) => openUserMenu(el),
-    'logout': () => {
+    'logout': async () => {
       closeUserMenu();
       closeDrawer();
+      if (cloud) {
+        await pushNow();
+        await cloud.auth.signOut();
+        leave();
+        go('login');
+        toast('You’re logged out.');
+        return;
+      }
       state.session = false;
       save();
       go('login');
@@ -1778,7 +1973,7 @@
       $$('[data-action="theme"]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.v === el.dataset.v)));
     },
     'download-json': () => {
-      const data = Object.assign({}, state, { account: Object.assign({}, state.account, { password: undefined }) });
+      const data = Object.assign({}, state, { account: Object.assign({}, state.account, { password: undefined }), uid: undefined, synced: undefined, syncedProfile: undefined });
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -1803,7 +1998,15 @@
       text: 'This deletes your account, ' + plural(state.items.length, 'item') + ' and every saved receipt. It can’t be undone.',
       label: 'Delete account', cancel: 'Keep account', action: 'delete-account-yes',
     }),
-    'delete-account-yes': () => {
+    'delete-account-yes': async (el) => {
+      if (cloud) {
+        el.disabled = true;
+        const { error } = await cloud.rpc('delete_account');
+        if (error) { el.disabled = false; toast('Couldn’t delete your account. ' + cloudMessage(error)); return; }
+        /* The account is already gone on the server, so this only clears the local session. */
+        await cloud.auth.signOut({ scope: 'local' }).catch(() => {});
+      }
+      clearTimeout(sync.timer);
       state = defaultState();
       try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
       ui.add = null;
@@ -1943,11 +2146,37 @@
       let ok = true;
       if (f.elements.password.value.length < 8) { showError('f-password', 'Use at least 8 characters.'); ok = false; }
       if (!validEmail(val('email'))) { showError('f-email', 'Enter an email address, like name@example.com.'); ok = false; }
-      else if (state.account && state.account.email.toLowerCase() === val('email').toLowerCase()) {
+      else if (!cloud && state.account && state.account.email.toLowerCase() === val('email').toLowerCase()) {
         showError('f-email', 'An account with this email already exists. <a href="#/login">Log in instead</a>'); ok = false;
       }
       if (!val('first')) { showError('f-first', 'Enter your first name.'); ok = false; }
       if (!ok) return;
+      if (cloud) {
+        const exists = 'An account with this email already exists. <a href="#/login">Log in instead</a>';
+        busy(f, true);
+        const { data, error } = await cloud.auth.signUp({
+          email: val('email'), password: f.elements.password.value,
+          options: { data: { first: val('first'), last: val('last') }, emailRedirectTo: appUrl() },
+        });
+        busy(f, false);
+        if (error) {
+          if (error.code === 'user_already_exists' || error.code === 'email_exists') return showError('f-email', exists);
+          if (error.code === 'weak_password') return showError('f-password', 'Choose a stronger password: longer, or mix in numbers and symbols.');
+          if (error.code === 'email_address_invalid') return showError('f-email', 'That email address can’t be used. Try another.');
+          return showError('f-password', cloudMessage(error));
+        }
+        /* With email confirmation on, an existing address comes back as a user with no identities. */
+        if (data.user && data.user.identities && !data.user.identities.length) return showError('f-email', exists);
+        if (!data.session) {
+          const ok = $('#email-ok');
+          ok.hidden = false;
+          $('span', ok).innerHTML = '<b>Check your email.</b> We sent a link to ' + esc(val('email')) + '. Open it on this device to finish creating your account.';
+          return;
+        }
+        await enter(data.session.user);
+        go('vault');
+        return;
+      }
       const password = await hashPassword(f.elements.password.value);
       const theme = state.settings.theme;
       state = defaultState();
@@ -1962,6 +2191,21 @@
     if (f.id === 'login-form') {
       showError('f-password', ''); showError('f-email', '');
       if (!validEmail(val('email'))) return showError('f-email', 'Enter an email address, like name@example.com.');
+      if (cloud) {
+        if (!f.elements.password.value) return showError('f-password', 'Enter your password.');
+        busy(f, true);
+        const { data, error } = await cloud.auth.signInWithPassword({ email: val('email'), password: f.elements.password.value });
+        if (error) {
+          busy(f, false);
+          if (error.code === 'email_not_confirmed') return showError('f-email', 'Confirm your email first: open the link we sent when you signed up.');
+          if (error.code === 'invalid_credentials') return showError('f-password', 'That email and password don’t match. Try again or <a href="#/forgot">reset your password</a>.');
+          return showError('f-password', cloudMessage(error));
+        }
+        await enter(data.user);
+        go('vault');
+        toast('Welcome back, ' + esc(state.account.first) + '.');
+        return;
+      }
       if (!state.account || state.account.email.toLowerCase() !== val('email').toLowerCase()) {
         return showError('f-email', 'We can’t find an account with that email. Check it, or <a href="#/signup">create an account</a>.');
       }
@@ -1979,10 +2223,29 @@
     if (f.id === 'forgot-form') {
       showError('f-email', '');
       if (!validEmail(val('email'))) return showError('f-email', 'Enter an email address, like name@example.com.');
+      if (cloud) {
+        busy(f, true);
+        const { error } = await cloud.auth.resetPasswordForEmail(val('email'), { redirectTo: appUrl() });
+        busy(f, false);
+        if (error) return showError('f-email', cloudMessage(error));
+      }
       const ok = $('#forgot-ok');
       ok.hidden = false;
-      $('span', ok).innerHTML = '<b>Check your email.</b> If an account exists for ' + esc(val('email')) + ', you’ll get a link to reset your password. (Prototype: no email is sent.)';
+      $('span', ok).innerHTML = '<b>Check your email.</b> If an account exists for ' + esc(val('email')) + ', you’ll get a link to reset your password.' + (cloud ? ' Open it on this device.' : ' (Prototype: no email is sent.)');
       $('#forgot-btn span').textContent = 'Send again';
+      return;
+    }
+
+    if (f.id === 'reset-form') {
+      showError('f-password', '');
+      if (f.elements.password.value.length < 8) return showError('f-password', 'Use at least 8 characters.');
+      busy(f, true);
+      const { error } = await cloud.auth.updateUser({ password: f.elements.password.value });
+      busy(f, false);
+      if (error) return showError('f-password', error.code === 'same_password' ? 'That’s your current password. Choose a new one.' : cloudMessage(error));
+      ui.recovery = false;
+      go('vault');
+      toast('Password updated.');
       return;
     }
 
@@ -1990,6 +2253,21 @@
       showError('f-first', ''); showError('f-email', '');
       if (!validEmail(val('email'))) return showError('f-email', 'Enter an email address, like name@example.com.');
       if (!val('first')) return showError('f-first', 'Enter your first name.');
+      if (cloud) {
+        const moved = val('email').toLowerCase() !== state.account.email.toLowerCase();
+        busy(f, true);
+        const { error } = await cloud.auth.updateUser(Object.assign({ data: { first: val('first'), last: val('last') } }, moved ? { email: val('email') } : {}));
+        busy(f, false);
+        if (error) {
+          if (error.code === 'email_exists') return showError('f-email', 'Another account already uses this email.');
+          return showError('f-email', cloudMessage(error));
+        }
+        Object.assign(state.account, { first: val('first'), last: val('last') });
+        writeLocal();
+        renderChrome(ui.base, ui.arg);
+        toast(moved ? 'Profile saved. To change your email, open the link we sent to ' + esc(val('email')) + '.' : 'Profile saved.');
+        return;
+      }
       Object.assign(state.account, { first: val('first'), last: val('last'), email: val('email') });
       save();
       renderChrome(ui.base, ui.arg);
@@ -1999,6 +2277,18 @@
 
     if (f.id === 'password-form') {
       showError('f-current', ''); showError('f-next', '');
+      if (cloud) {
+        if (f.elements.next.value.length < 8) return showError('f-next', 'Use at least 8 characters.');
+        busy(f, true);
+        const check = await cloud.auth.signInWithPassword({ email: state.account.email, password: f.elements.current.value });
+        if (check.error) { busy(f, false); return showError('f-current', check.error.code === 'invalid_credentials' ? 'That isn’t your current password.' : cloudMessage(check.error)); }
+        const { error } = await cloud.auth.updateUser({ password: f.elements.next.value });
+        busy(f, false);
+        if (error) return showError('f-next', error.code === 'same_password' ? 'That’s your current password. Choose a new one.' : error.code === 'weak_password' ? 'Choose a stronger password.' : cloudMessage(error));
+        f.reset();
+        toast('Password updated.');
+        return;
+      }
       if ((await hashPassword(f.elements.current.value)) !== state.account.password) return showError('f-current', 'That isn’t your current password.');
       if (f.elements.next.value.length < 8) return showError('f-next', 'Use at least 8 characters.');
       state.account.password = await hashPassword(f.elements.next.value);
@@ -2095,6 +2385,9 @@
     render();
   });
 
+  window.addEventListener('online', () => { if (cloud && state.session) pushNow(); });
+
   applyTheme();
   render();
+  if (cloud) bootCloud();
 })();

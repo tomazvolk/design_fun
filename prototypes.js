@@ -17,8 +17,8 @@ const PROTOTYPES = [
     deployed: '2026-09-25',
     status: 'wip',
     description:
-      'The next pass on the warranty tracker, starting from v2: the same bright, minimal vault, ready for a new round of design changes.',
-    tags: ['pwa', 'v3', 'minimal', 'vanilla js'],
+      'The warranty tracker with real accounts: sign up, log in and password reset through Supabase, and the vault saved to your account so it follows you across devices. Same bright, minimal UI as v2.',
+    tags: ['pwa', 'v3', 'supabase', 'vanilla js'],
     accent: '#2f3de8',
     art: 'receiptV2',
   },
