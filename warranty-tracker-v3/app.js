@@ -579,6 +579,7 @@
     if (app) renderChrome(name, arg); else $('#banner').innerHTML = '';
     view.innerHTML = out.html;
     window.scrollTo(0, keep ? y : 0);
+    navTone();
     if (out.after) out.after();
     if (ui.refocusSearch) {
       ui.refocusSearch = false;
@@ -608,6 +609,22 @@
   function visibleSearchInput() {
     return $$('.search-input').find((el) => el.offsetParent !== null) || $('.search-input');
   }
+
+  /* The nav is white while it floats over the green greeting, and turns the band's green
+     once it's past it (or on pages without one). */
+  function navTone() {
+    const bar = $('#topbar');
+    if (bar.hidden) return;
+    const band = $('.greet', view);
+    const past = !band || band.getBoundingClientRect().bottom <= bar.getBoundingClientRect().bottom;
+    bar.classList.toggle('is-solid', past);
+  }
+  let navFrame = 0;
+  window.addEventListener('scroll', () => {
+    if (navFrame) return;
+    navFrame = requestAnimationFrame(() => { navFrame = 0; navTone(); });
+  }, { passive: true });
+  window.addEventListener('resize', navTone);
 
   function renderChrome(name) {
     $('#topbar').innerHTML = '<div class="container topbar-inner">' +
