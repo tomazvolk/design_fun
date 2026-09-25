@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'warranty-tracker-v3',
+    name: 'Warranty tracker v3',
+    deployed: '2026-09-25',
+    status: 'wip',
+    description:
+      'The next pass on the warranty tracker, starting from v2: the same bright, minimal vault, ready for a new round of design changes.',
+    tags: ['pwa', 'v3', 'minimal', 'vanilla js'],
+    accent: '#2f3de8',
+    art: 'receiptV2',
+  },
+  {
     slug: 'warranty-tracker-v2',
     name: 'Warranty tracker v2',
     deployed: '2026-09-23',

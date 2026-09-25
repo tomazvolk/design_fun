@@ -1,0 +1,197 @@
+/* Warranty tracker v3 tokens. Bright, minimal, white: black type, hairlines, one bold colour.
+ * Every color, font, size, radius and curve lives here; style.css only references names. */
+
+:root {
+  /* Surfaces: white, with Wise's near-black at 8% and 12% for hairlines */
+  --color-ground: #ffffff;
+  --color-paper: #ffffff;
+  --color-paper-2: #f4f5f2;
+  --color-paper-3: rgba(22, 51, 0, 0.08);
+  --color-rule: rgba(14, 15, 12, 0.08);
+  --color-rule-strong: rgba(14, 15, 12, 0.12);
+  --color-scrim: rgba(14, 15, 12, 0.32);
+
+  /* Ink: near-black and two greys */
+  --color-ink: #0e0f0c;
+  --color-ink-2: #454745;
+  --color-ink-3: #6a6c6a;
+  --color-on-ink: #ffffff;
+
+  /* The one brand colour pair: bright green, and forest green where others use black or blue */
+  --color-accent: #163300;
+  --color-accent-hover: #0d2200;
+  --color-accent-tint: rgba(22, 51, 0, 0.08);
+  --color-on-accent: #9fe870;
+  --color-focus: rgba(22, 51, 0, 0.4);
+  --color-selection: rgba(159, 232, 112, 0.55);
+  --color-brand: #9fe870;
+  --color-on-brand: #163300;
+
+  /* Deep green for the top navigation and the greeting band beneath it */
+  --color-nav: #083400;
+  --color-on-nav: #ffffff;
+  --color-on-nav-2: rgba(255, 255, 255, 0.72);
+  --color-nav-tint: rgba(255, 255, 255, 0.12);
+  --color-nav-tint-strong: rgba(255, 255, 255, 0.2);
+  --color-band: #083400;
+  --color-on-band: #ddf8d2;
+  --color-on-band-2: #ddf8d2;
+  --color-greet-accent: #ddf8d2;
+  --color-side: #f4fdf0;
+  --color-hero-ink: #9fe870;
+  --color-hero-ink-2: rgba(255, 255, 255, 0.84);
+  --color-greet-accent-hover: #c8f0b8;
+  --color-band-tint: rgba(255, 255, 255, 0.12);
+
+  /* Status, used sparingly */
+  --color-urgent: #cb272f;
+  --color-urgent-tint: rgba(203, 39, 47, 0.08);
+  --color-ok: #054d28;
+  --color-warning: #ffd11a;
+
+  /* Category tags (never red or ultramarine: those mean urgent and act) */
+  --color-cat-electronics: oklch(52% 0.16 305);
+  --color-cat-computers: oklch(56% 0.12 235);
+  --color-cat-appliances: oklch(55% 0.1 185);
+  --color-cat-kitchen: oklch(62% 0.15 55);
+  --color-cat-tools: oklch(50% 0.07 55);
+  --color-cat-furniture: oklch(58% 0.15 350);
+  --color-cat-sports: oklch(55% 0.13 145);
+  --color-cat-other: oklch(55% 0.01 265);
+
+  /* Status chart beside the list (validated: red/teal CVD ΔE 11.3; the grey is deliberately neutral) */
+  --color-chart-attention: #cb272f;
+  --color-chart-active: #0f7b6c;
+  --color-chart-expired: #80847d;
+  --color-chart-track: rgba(14, 15, 12, 0.07);
+
+  /* Buttons, from Wise */
+  --btn-accent: #9fe870;
+  --btn-accent-hover: #80e142;
+  --btn-accent-active: #65cf21;
+  --btn-ink: #163300;
+  --btn-neutral: rgba(22, 51, 0, 0.08);
+  --btn-neutral-hover: rgba(22, 51, 0, 0.13);
+  --btn-neutral-active: rgba(22, 51, 0, 0.18);
+
+  /* Primary actions: Wise-style lime with deep forest-green text */
+  --color-primary: oklch(86.5% 0.176 134);
+  --color-primary-hover: oklch(82% 0.19 134);
+  --color-on-primary: oklch(27% 0.075 135);
+
+  /* Print (the claim PDF is always light) */
+  --color-print-ink: oklch(18% 0.006 265);
+  --color-print-muted: oklch(46% 0.008 265);
+  --color-print-rule: oklch(88% 0.004 265);
+  --color-print-accent: oklch(50% 0.25 266);
+
+  /* Type: Geist throughout; tabular numerals for every figure */
+  --font-text: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-greet: 'Barlow', 'Geist', -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --text-caption: 12px;
+  --text-footnote: 13px;
+  --text-sub: 14px;
+  --text-body: 15px;
+  --text-headline: 16px;
+  --text-title-3: 20px;
+  --text-title-2: 24px;
+  --text-title-1: 32px;
+  --text-display: 52px;
+  --text-reading: 26px;
+  --text-reading-xl: 88px;
+  --text-hero: 72px;
+
+  /* Space: 4pt scale */
+  --space-2xs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 48px;
+  --space-5xl: 64px;
+  --space-6xl: 112px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  /* Depth: almost none. Hairlines do the work; overlays get one soft shadow. */
+  --shadow-float: 0 1px 2px oklch(20% 0.01 265 / 0.06), 0 16px 48px -12px oklch(20% 0.01 265 / 0.18);
+  --shadow-control: 0 1px 1px oklch(20% 0.01 265 / 0.04);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 140ms;
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-sheet: 380ms;
+
+  --layout-max: 1080px;
+  --layout-vault: 1240px;
+  --tabbar-h: 60px;
+
+  color-scheme: light;
+}
+
+:root.dark {
+  --color-ground: #121511;
+  --color-paper: #121511;
+  --color-paper-2: #1b1f19;
+  --color-paper-3: rgba(223, 247, 208, 0.1);
+  --color-rule: rgba(223, 247, 208, 0.1);
+  --color-rule-strong: rgba(223, 247, 208, 0.16);
+  --color-scrim: rgba(0, 0, 0, 0.6);
+
+  --color-ink: #f2f5ee;
+  --color-ink-2: #c3c8bd;
+  --color-ink-3: #9da397;
+  --color-on-ink: #121511;
+
+  --color-accent: #9fe870;
+  --color-accent-hover: #b8f094;
+  --color-accent-tint: rgba(159, 232, 112, 0.14);
+  --color-on-accent: #163300;
+  --color-focus: rgba(159, 232, 112, 0.5);
+  --color-selection: rgba(159, 232, 112, 0.3);
+
+
+  --color-side: #1b1f19;
+
+  --color-chart-attention: #ff8577;
+  --color-chart-active: #9fe870;
+  --color-chart-expired: #6b7166;
+  --color-chart-track: rgba(223, 247, 208, 0.1);
+
+  --color-urgent: #ff6b6b;
+  --color-urgent-tint: rgba(255, 107, 107, 0.14);
+  --color-ok: #9fe870;
+
+  /* On dark, the neutral is light on dark and its text is light; the lime keeps its dark ink */
+  --btn-neutral: rgba(223, 247, 208, 0.1);
+  --btn-neutral-hover: rgba(223, 247, 208, 0.16);
+  --btn-neutral-active: rgba(223, 247, 208, 0.22);
+
+
+  --color-cat-electronics: oklch(72% 0.14 305);
+  --color-cat-computers: oklch(74% 0.11 235);
+  --color-cat-appliances: oklch(74% 0.1 185);
+  --color-cat-kitchen: oklch(76% 0.13 60);
+  --color-cat-tools: oklch(70% 0.06 60);
+  --color-cat-furniture: oklch(74% 0.13 350);
+  --color-cat-sports: oklch(74% 0.13 145);
+  --color-cat-other: oklch(70% 0.01 265);
+
+  --shadow-float: 0 1px 2px oklch(0% 0 0 / 0.4), 0 16px 48px -12px oklch(0% 0 0 / 0.7);
+
+  color-scheme: dark;
+}
