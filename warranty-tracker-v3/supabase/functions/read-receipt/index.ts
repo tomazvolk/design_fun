@@ -10,7 +10,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const MODEL = Deno.env.get('OPENAI_MODEL') || 'gpt-4.1-mini';
 const CATEGORIES = ['electronics', 'computers', 'appliances', 'kitchen', 'tools', 'furniture', 'sports', 'other'];
-const FIELDS = ['name', 'merchant', 'category', 'price', 'purchased', 'orderNo'];
+const FIELDS = ['merchant', 'purchased', 'orderNo'];
 const MAX_BYTES = 8 * 1024 * 1024;
 
 const CORS = {
@@ -26,13 +26,26 @@ const json = (body: unknown, status = 200) =>
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['isReceipt', 'name', 'merchant', 'category', 'price', 'currency', 'dateText', 'purchased', 'orderNo', 'returnDays', 'flags'],
+  required: ['isReceipt', 'items', 'merchant', 'currency', 'dateText', 'purchased', 'orderNo', 'returnDays', 'flags'],
   properties: {
     isReceipt: { type: 'boolean', description: 'False if the image is not a receipt, invoice or order confirmation.' },
-    name: { type: ['string', 'null'], description: 'The item, as a person would say it: brand, product type, model. E.g. "Samsung 55\\" QLED TV QE55Q80D".' },
+    items: {
+      type: 'array',
+      description: 'Every product line on the receipt, in printed order.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['name', 'category', 'price', 'keep', 'note'],
+        properties: {
+          name: { type: 'string', description: 'As a person would say it: brand, product type, model. E.g. "Samsung 55\\" QLED TV QE55Q80D".' },
+          category: { type: 'string', enum: CATEGORIES },
+          price: { type: ['number', 'null'], description: 'What was paid for this line, VAT and line discounts included, as a plain number.' },
+          keep: { type: 'boolean', description: 'True for goods worth tracking a warranty for; false for bags, deposits, delivery, services, gift cards, consumables and extended-warranty add-ons.' },
+          note: { type: ['string', 'null'], description: 'One short sentence for the owner when this line needs checking; otherwise null.' },
+        },
+      },
+    },
     merchant: { type: ['string', 'null'], description: 'The shop, by its everyday name (e.g. "MediaMarkt", not "Media-Saturn Deutschland GmbH").' },
-    category: { type: 'string', enum: CATEGORIES },
-    price: { type: ['number', 'null'], description: 'What was paid for that item, VAT included, as a plain number.' },
     currency: { type: ['string', 'null'], description: 'ISO 4217 code, e.g. EUR.' },
     dateText: { type: ['string', 'null'], description: 'The purchase date exactly as printed, e.g. "28.09.2026" or "28 SEP 26".' },
     purchased: { type: ['string', 'null'], description: 'Purchase date as YYYY-MM-DD, day first unless the receipt is clearly American.' },
@@ -88,14 +101,15 @@ function settleDate(r: Record<string, any>, today: string) {
 function instructions(today: string) {
   return [
     'You read shopping receipts for a warranty tracker. Today is ' + today + '.',
-    'Extract the one item the owner will want warranty cover for. If there are several, pick the most expensive durable good (not bags, cables, services, delivery or extended-warranty add-ons) and flag the name field saying which other items you saw.',
-    'Receipts abbreviate names ("SAMS QE55Q80D 55IN"). Expand them to a readable name when you are confident. When you expanded or guessed, add a flag on name quoting what the receipt says, e.g. "The receipt says “SAMS QE55Q80D 55IN”. We guessed the full name. Check it’s right."',
+    'List every product line on the receipt as its own item. Set keep to false for lines nobody tracks a warranty for: bags, deposits, delivery, services, gift cards, consumables, extended-warranty add-ons.',
+    'A line with a quantity above 1 stays one item: give the line total as the price and say the quantity in its note.',
+    'Receipts abbreviate names ("SAMS QE55Q80D 55IN"). Expand them to a readable name when you are confident. When you expanded or guessed, set the item note quoting what the receipt says, e.g. "The receipt says “SAMS QE55Q80D 55IN”. We guessed the full name. Check it’s right."',
     'Receipts may be in any language (Slovenian, German, Croatian, Italian…). Dates on European receipts are day first: 03.04.2026 is 3 April 2026.',
     'Prices may use a decimal comma: 1.299,99 means 1299.99.',
     'Use null for anything you cannot read. Never invent an order number or a date.',
     'Your training data is older than today, so dates up to ' + today + ' are real and in the past. Do not judge whether a date is in the future; the app checks that.',
-    'Flag any field you are unsure of: blurry digits, a price that does not add up, a currency other than EUR.',
-    'Write flag notes in plain English, one short sentence, addressed to the owner. No flags when everything is clear.',
+    'Flag a shared field (shop, date, order number) you are unsure of, and use an item note for an unsure name or price: blurry digits, a price that does not add up, a currency other than EUR.',
+    'Write flags and notes in plain English, one short sentence, addressed to the owner. None when everything is clear.',
   ].join('\n');
 }
 

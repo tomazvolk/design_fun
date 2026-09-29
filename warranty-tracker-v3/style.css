@@ -1158,6 +1158,18 @@ button.proof:active { transform: scale(0.99); }
 .add-shell .add-thumb { max-width: 220px; margin: 0 auto var(--space-2xl); }
 .add-shell .add-thumb img { max-height: 200px; object-fit: contain; }
 
+/* Step 2, a receipt with several products: one card per line, shared details below */
+.lines { display: grid; gap: var(--space-md); margin: 0 0 var(--space-2xl); padding: 0; border: 0; min-width: 0; }
+.lines-head { display: grid; gap: 2px; margin-bottom: var(--space-xs); padding: 0; }
+.lines-head b { font-weight: 600; }
+.lines-head span { color: var(--color-ink-2); font-size: var(--text-sub); }
+.line { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--space-md); padding: var(--space-lg) var(--space-xl) var(--space-xl) var(--space-lg); border-radius: 24px; background: var(--color-paper-2); transition: opacity 160ms var(--ease-out); }
+.line .form-grid { gap: var(--space-lg); }
+.line-keep { display: grid; place-items: start center; padding-top: 1px; cursor: pointer; }
+.line-keep input { width: 20px; height: 20px; margin: 0; cursor: pointer; }
+.line.is-off .form-grid { opacity: 0.45; }
+.lines > .field-error { margin: 0; }
+
 /* Step 3: the dates answer back as you change them */
 .cov-preview { margin-bottom: var(--space-sm); padding: var(--space-2xl); border-radius: 28px; background: color-mix(in srgb, var(--color-primary) 10%, var(--color-paper)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 45%, transparent); }
 .cov-figs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl); }
@@ -1165,6 +1177,10 @@ button.proof:active { transform: scale(0.99); }
 .cov-figs span { color: var(--color-ink-2); font-size: var(--text-footnote); }
 .cov-figs b { font-size: var(--text-title-2); font-weight: 600; letter-spacing: -0.03em; line-height: 1.2; animation: fig-in 360ms var(--ease-out) both; }
 .cov-figs em { font-style: normal; color: var(--color-ink-2); font-size: var(--text-footnote); }
+.cov-lines { display: grid; gap: var(--space-sm); margin: var(--space-xl) 0 0; padding: var(--space-lg) 0 0; list-style: none; border-top: 1px solid color-mix(in srgb, var(--color-primary) 45%, transparent); }
+.cov-lines li { display: grid; gap: 2px; min-width: 0; }
+.cov-lines b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cov-lines span { color: var(--color-ink-2); font-size: var(--text-footnote); }
 .cov-preview .g-track { background: color-mix(in srgb, var(--color-ink) 8%, transparent); }
 @keyframes fig-in { from { opacity: 0.2; transform: translateY(4px); } }
 
@@ -1239,6 +1255,7 @@ button.proof:active { transform: scale(0.99); }
   background: var(--color-paper-2);
 }
 .done-card .lrow-mark, .done-card .lrow-reading { grid-area: auto; align-self: center; }
+.done-cards { display: grid; gap: var(--space-sm); width: 100%; }
 .done-name { display: grid; min-width: 0; }
 .done-name b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .done-name > span { color: var(--color-ink-3); font-size: var(--text-sub); }

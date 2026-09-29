@@ -1423,12 +1423,17 @@
 
   /* Step 3's live answer: when cover ends, when the return window closes, drawn from the purchase date. */
   function coveragePreview() {
-    const it = valuesToItem(ui.add.values || {});
+    const list = addItems();
+    const it = list[0];
     const i = info(it);
+    const why = (x, xi) => monthsLabel(xi.months) + (x.warrantyMonths ? '' : ', your default for ' + catLabel(x.category).toLowerCase());
+    /* Several items from one receipt: the first leads, the rest are listed with their own end dates. */
     return '<div class="cov-figs">' +
-        '<div><span>Covered until</span><b class="num">' + fmtDate(i.end) + '</b><em>' + monthsLabel(i.months) + (it.warrantyMonths ? '' : ', your default for ' + catLabel(it.category).toLowerCase()) + '</em></div>' +
+        '<div><span>Covered until</span><b class="num">' + fmtDate(i.end) + '</b><em>' + (list.length > 1 ? esc(it.name) + ', ' : '') + why(it, i) + '</em></div>' +
         '<div><span>Return by</span><b class="num">' + (i.rDays ? fmtDate(i.rEnd) : 'No returns') + '</b><em>' + (i.rDays ? plural(i.rDays, 'day') + ' from purchase' : 'This shop takes nothing back') + '</em></div>' +
-      '</div>' + timeline(i);
+      '</div>' + timeline(i) +
+      (list.length > 1 ? '<ul class="cov-lines">' + list.slice(1).map((x) => { const xi = info(x);
+        return '<li><b>' + esc(x.name) + '</b><span>Covered until <span class="num">' + fmtDate(xi.end) + '</span>, ' + why(x, xi) + '</span></li>'; }).join('') + '</ul>' : '');
   }
 
   /* Documents: the warranty card, the manual, the delivery note: whatever the shop asks to see. */
@@ -1530,14 +1535,20 @@
           (a.image ? '<div class="add-thumb"><img src="' + a.image + '" alt="Your receipt" /></div>' : '') +
           '<form class="form add-form" id="add-details" novalidate>' +
             (flagCount ? '<p class="callout callout-warning">' + icon('alert') + '<span>' + Object.keys(flags).map((k) => esc(flags[k])).join(' ') + '</span></p>' : '') +
-            '<div class="form-grid">' +
+            (a.lines ? receiptLines(a.lines) +
+              '<div class="form-grid">' +
+                field({ name: 'merchant', label: 'Shop', value: v.merchant || '', placeholder: 'Big Bang…', flag: flags.merchant, attrs: ' autocomplete="off"' }) +
+                field({ name: 'purchased', label: 'Purchase date', type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
+                field({ name: 'orderNo', label: 'Order number', value: v.orderNo || '', placeholder: 'Optional', flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
+              '</div>'
+            : '<div class="form-grid">' +
               field({ name: 'name', label: 'Item', value: v.name || '', placeholder: 'Gorenje washing machine…', flag: flags.name, wide: true, attrs: ' autocomplete="off"' }) +
               field({ name: 'merchant', label: 'Shop', value: v.merchant || '', placeholder: 'Big Bang…', flag: flags.merchant, attrs: ' autocomplete="off"' }) +
               field({ name: 'category', label: 'Category', type: 'select', value: v.category || 'electronics', options: CATS.map((c) => ({ value: c.key, label: c.label })), flag: flags.category }) +
               field({ name: 'price', label: 'Price paid (€)', value: v.price != null && v.price !== '' ? String(v.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal" autocomplete="off"', flag: flags.price }) +
               field({ name: 'purchased', label: 'Purchase date', type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
               field({ name: 'orderNo', label: 'Order number', value: v.orderNo || '', placeholder: 'Optional', flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
-            '</div>' +
+            '</div>') +
             actions('<button type="submit" class="btn btn-primary btn-lg"><span>Continue</span>' + icon('chevron') + '</button>') +
             (a.simulated ? '<p class="fineprint">Prototype: reading the receipt is simulated, so these details are sample data.</p>' : '') +
           '</form>')),
@@ -1554,7 +1565,7 @@
             '<div class="cov-preview" id="cov-preview" aria-live="polite">' + coveragePreview() + '</div>' +
             '<div class="form-grid">' +
               field({ name: 'warrantyMonths', label: 'Warranty', type: 'select', value: v.warrantyMonths || '',
-                options: [{ value: '', label: 'Default (' + monthsLabel(catDefault) + ')' }].concat(WARRANTY_OPTIONS.map((m) => ({ value: m, label: monthsLabel(m) }))) }) +
+                options: [{ value: '', label: a.lines ? 'Default for each item’s category' : 'Default (' + monthsLabel(catDefault) + ')' }].concat(WARRANTY_OPTIONS.map((m) => ({ value: m, label: monthsLabel(m) }))) }) +
               field({ name: 'returnDays', label: 'Return window', type: 'select', value: v.returnDays == null ? '' : v.returnDays,
                 options: [{ value: '', label: 'Default (' + plural(state.settings.returnDays, 'day') + ')' }].concat(RETURN_OPTIONS.map((d) => ({ value: d, label: d ? plural(d, 'day') : 'No returns' }))) }) +
               field({ name: 'notes', label: 'Notes', type: 'textarea', value: v.notes || '', placeholder: 'Serial number, where it’s kept, anything useful for a claim…', wide: true }) +
@@ -1581,29 +1592,89 @@
     }
 
     /* Done: a lime burst, the check draws itself, then the new item and what happens next. */
-    const it = findItem(a.savedId);
-    if (!it) { ui.add = null; return viewAdd(); }
-    const i = info(it);
-    const st = statusOf(i, i.returnOpen && i.rLeft <= 7);
-    const docs = (it.docs || []).length + (it.photo || it.fileName ? 1 : 0);
+    const saved = (a.savedIds || [a.savedId]).map(findItem).filter(Boolean);
+    if (!saved.length) { ui.add = null; return viewAdd(); }
+    const it = saved[0];
+    const card = (x) => {
+      const xi = info(x);
+      const st = statusOf(xi, xi.returnOpen && xi.rLeft <= 7);
+      const docs = (x.docs || []).length + (x.photo || x.fileName ? 1 : 0);
+      return '<div class="done-card">' +
+          '<span class="lrow-mark cat-' + esc(x.category) + '" aria-hidden="true">' + icon(x.category, 18) + '</span>' +
+          '<span class="done-name"><b>' + esc(x.name) + '</b><span>' + esc(x.merchant) + ', <span class="num">' + money(x.price) + '</span>' + (docs ? ', ' + plural(docs, 'document') : '') + '</span></span>' +
+          '<span class="lrow-reading"><span class="lrow-label">' + st.label + '</span>' + reading(st) + '</span>' +
+        '</div>';
+    };
     return {
       html: shell('<div class="add-top">' + backLink() + '</div>' + stepper(4) + panel(
         '<div class="done">' +
           '<div class="done-burst" aria-hidden="true">' + Array.from({ length: 10 }, (_, n) => '<i style="--a:' + (n * 36) + 'deg"></i>').join('') +
             '<svg class="done-mark" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" /><path d="m15 27 7.5 7.5L37.5 19" /></svg></div>' +
-          '<h1 class="large-title">Added to your vault</h1>' +
-          '<div class="done-card">' +
-            '<span class="lrow-mark cat-' + esc(it.category) + '" aria-hidden="true">' + icon(it.category, 18) + '</span>' +
-            '<span class="done-name"><b>' + esc(it.name) + '</b><span>' + esc(it.merchant) + ', <span class="num">' + money(it.price) + '</span>' + (docs ? ', ' + plural(docs, 'document') : '') + '</span></span>' +
-            '<span class="lrow-reading"><span class="lrow-label">' + st.label + '</span>' + reading(st) + '</span>' +
-          '</div>' +
-          '<p class="done-remind">' + icon('bell', 14) + '<span>Reminders: ' + reminderLine(it) + '</span></p>' +
+          '<h1 class="large-title">' + (saved.length > 1 ? plural(saved.length, 'item') + ' added to your vault' : 'Added to your vault') + '</h1>' +
+          '<div class="done-cards">' + saved.map(card).join('') + '</div>' +
+          (saved.length > 1 ? '' : '<p class="done-remind">' + icon('bell', 14) + '<span>Reminders: ' + reminderLine(it) + '</span></p>') +
           '<div class="done-actions">' +
-            '<a class="btn btn-primary btn-lg" href="#/item/' + it.id + '"><span>Open item</span></a>' +
+            (saved.length > 1
+              ? '<a class="btn btn-primary btn-lg" href="#/vault"><span>Open vault</span></a>'
+              : '<a class="btn btn-primary btn-lg" href="#/item/' + it.id + '"><span>Open item</span></a>') +
             btn('Add another', 'add-reset', { kind: 'secondary', cls: 'btn-lg', icon: 'plus' }) +
           '</div>' +
         '</div>')),
     };
+  }
+
+  /* A receipt with several products: each line becomes its own item, and any line can be left out. */
+  function receiptLines(lines) {
+    const kept = lines.filter((l) => l.keep).length;
+    return '<fieldset class="lines">' +
+      '<legend class="lines-head"><b>' + lines.length + ' items on this receipt</b>' +
+        '<span>Each ticked one goes into your vault on its own. Untick anything you don’t need a warranty for.</span></legend>' +
+      lines.map((l, n) =>
+        '<div class="line' + (l.keep ? '' : ' is-off') + '">' +
+          '<label class="line-keep"><input type="checkbox" name="keep-' + n + '"' + (l.keep ? ' checked' : '') + ' />' +
+            '<span class="sr-only">Add ' + esc(l.name) + ' to the vault</span></label>' +
+          '<div class="form-grid">' +
+            field({ name: 'name-' + n, label: 'Item', value: l.name, flag: l.note, wide: true, hint: l.note ? esc(l.note) : '', attrs: ' autocomplete="off"' }) +
+            field({ name: 'category-' + n, label: 'Category', type: 'select', value: l.category, options: CATS.map((c) => ({ value: c.key, label: c.label })) }) +
+            field({ name: 'price-' + n, label: 'Price paid (€)', value: l.price !== '' && l.price != null ? String(l.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal" autocomplete="off"' }) +
+          '</div>' +
+        '</div>').join('') +
+      '<p class="field-error" id="f-lines-error"' + (kept ? ' hidden' : '') + '>' + (kept ? '' : 'Tick at least one item to add.') + '</p>' +
+    '</fieldset>';
+  }
+
+  /* Read the lines back from the form, check them, and keep them on ui.add. */
+  function readLines(form) {
+    const f = new FormData(form);
+    const lines = ui.add.lines.map((l, n) => ({
+      name: String(f.get('name-' + n) || '').trim(), category: String(f.get('category-' + n) || 'other'),
+      price: String(f.get('price-' + n) || '').trim(), keep: f.get('keep-' + n) === 'on', note: l.note,
+    }));
+    ui.add.lines = lines;
+    let ok = true;
+    lines.forEach((l, n) => {
+      showError('f-name-' + n, ''); showError('f-price-' + n, '');
+      if (!l.keep) return;
+      if (!l.name) { showError('f-name-' + n, 'Enter what you bought, so you can find it later.'); ok = false; }
+      if (l.price && isNaN(parsePrice(l.price))) { showError('f-price-' + n, 'Enter the price as a number, like 249.99.'); ok = false; }
+    });
+    const kept = lines.filter((l) => l.keep).length;
+    const err = $('#f-lines-error');
+    if (err) { err.hidden = !!kept; err.textContent = kept ? '' : 'Tick at least one item to add.'; }
+    if (!kept) ok = false;
+    const room = FREE_LIMIT - state.items.length;
+    if (kept && state.plan === 'free' && kept > room) {
+      if (err) { err.hidden = false; err.textContent = 'The free plan holds ' + FREE_LIMIT + ' items, so there’s room for ' + plural(room, 'more item') + '. Untick some, or see Plus.'; }
+      ok = false;
+    }
+    return ok;
+  }
+
+  /* The items this add will save: one, or one per ticked receipt line. */
+  function addItems() {
+    const v = ui.add.values || {};
+    if (!ui.add.lines) return [valuesToItem(v)];
+    return ui.add.lines.filter((l) => l.keep).map((l) => valuesToItem(Object.assign({}, v, { name: l.name, category: l.category, price: l.price })));
   }
 
   function onReceiptFile(file) {
@@ -1628,7 +1699,7 @@
   /* Send the receipt to the read-receipt Edge Function and fill the form with what comes back.
      Whatever happens, the user lands on the details step: filled in, or empty to type by hand. */
   async function readReceipt(file, add) {
-    let values = {}, flags = {}, failed = null;
+    let values = {}, flags = {}, lines = null, failed = null;
     try {
       const isPdf = file.type === 'application/pdf';
       if (!isPdf && !file.type.startsWith('image/')) throw new Error('We can read photos and PDFs.');
@@ -1640,11 +1711,19 @@
       if (!r.isReceipt) throw new Error('That doesn’t look like a receipt.');
       const date = /^\d{4}-\d{2}-\d{2}$/.test(r.purchased || '') && r.purchased <= iso(today()) ? r.purchased : '';
       values = {
-        name: r.name || '', merchant: r.merchant || '',
-        category: CATS.some((c) => c.key === r.category) ? r.category : 'other',
-        price: typeof r.price === 'number' ? r.price : '', purchased: date, orderNo: r.orderNo || '',
+        merchant: r.merchant || '', purchased: date, orderNo: r.orderNo || '',
         returnDays: RETURN_OPTIONS.includes(r.returnDays) ? r.returnDays : null,
       };
+      /* Every product line on the receipt. An older function answered with one item at the top level. */
+      const found = (Array.isArray(r.items) ? r.items : [r]).filter((l) => l && l.name).map((l) => ({
+        name: l.name, category: CATS.some((c) => c.key === l.category) ? l.category : 'other',
+        price: typeof l.price === 'number' ? l.price : '', keep: l.keep !== false, note: l.note || '',
+      }));
+      if (found.length > 1) lines = found;
+      else if (found.length) {
+        Object.assign(values, { name: found[0].name, category: found[0].category, price: found[0].price });
+        if (found[0].note) flags.name = found[0].note;
+      }
       (r.flags || []).forEach((f) => { if (FIELD_NAMES[f.field]) flags[f.field] = f.note; });
       /* The date field falls back to today, so say so rather than let it pass unnoticed. */
       if (!date) flags.purchased = flags.purchased || 'We couldn’t read the purchase date, so we put today. Check it’s right.';
@@ -1654,7 +1733,7 @@
     }
     /* The user may have left or started over while we were reading. */
     if (ui.add !== add || add.stage !== 'reading') return;
-    Object.assign(add, { stage: 'details', values, flags, extracted: !failed });
+    Object.assign(add, { stage: 'details', values, flags, lines, extracted: !failed });
     if (route().name === 'add') paint('add');
     if (failed) toast(esc(failed) + ' Fill in the details below.');
   }
@@ -2138,6 +2217,11 @@
     /* Status also changes the greeting's Inspect / Show all button, so repaint in place. */
     if (t.id === 'flt-status') { ui.status = t.value; ui.showAll = t.value !== 'all'; paint('vault', null, true); $('#flt-status').focus(); }
     if (t.id === 'photo-input' || t.id === 'file-input') onReceiptFile(t.files[0]);
+    if (/^keep-\d+$/.test(t.name || '')) {
+      t.closest('.line').classList.toggle('is-off', !t.checked);
+      const err = $('#f-lines-error');
+      if (err && t.checked) err.hidden = true;
+    }
     if (t.form && t.form.id === 'add-coverage' && ui.add) {
       mergeStep(t.form);
       $('#cov-preview').innerHTML = coveragePreview();
@@ -2395,6 +2479,15 @@
     }
 
     if (f.id === 'add-details') {
+      if (ui.add.lines) {
+        const date = String(new FormData(f).get('purchased') || '');
+        showError('f-purchased', date > iso(today()) ? 'The purchase date can’t be in the future.' : '');
+        if (!readLines(f) || date > iso(today())) return;
+        ['merchant', 'purchased', 'orderNo'].forEach((k) => { ui.add.values[k] = String(new FormData(f).get(k) || ''); });
+        ui.add.stage = 'coverage';
+        paint('add');
+        return;
+      }
       if (!validateItem(readForm(f))) return;
       mergeStep(f);
       ui.add.stage = 'coverage';
@@ -2410,15 +2503,21 @@
     }
 
     if (f.id === 'add-docs') {
-      const v = valuesToItem(ui.add.values);
-      const it = Object.assign({ id: uid(), added: iso(today()), source: ui.add.image ? 'photo' : ui.add.fileName ? 'upload' : 'manual' }, v);
-      if (ui.add.image) it.photo = ui.add.image;
-      else if (ui.add.fileName) it.fileName = ui.add.fileName;
-      if ((ui.add.docs || []).length) it.docs = ui.add.docs;
-      state.items.push(it);
+      /* Items from one receipt share it, its documents, and a receipt id that ties them together. */
+      const list = addItems();
+      const receipt = list.length > 1 ? uid() : null;
+      const saved = list.map((v) => {
+        const it = Object.assign({ id: uid(), added: iso(today()), source: ui.add.image ? 'photo' : ui.add.fileName ? 'upload' : 'manual' }, v);
+        if (receipt) it.receipt = receipt;
+        if (ui.add.image) it.photo = ui.add.image;
+        else if (ui.add.fileName) it.fileName = ui.add.fileName;
+        if ((ui.add.docs || []).length) it.docs = ui.add.docs;
+        state.items.push(it);
+        return it.id;
+      });
       state.banner = false;
       save();
-      ui.add = { stage: 'done', savedId: it.id };
+      ui.add = { stage: 'done', savedIds: saved };
       paint('add');
     }
   });

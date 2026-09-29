@@ -32,8 +32,10 @@ this browser, and reading a receipt is simulated with sample data.
 
 With Supabase, receipts are read by OpenAI through the `read-receipt` Edge Function
 (`supabase/functions/read-receipt`). The OpenAI key is a Supabase secret and never reaches the
-browser; the function only answers signed-in users. It returns the Add form's fields plus
-"check this" flags for anything the model was unsure of. If reading fails, the form opens empty.
+browser; the function only answers signed-in users. It returns every product line on the
+receipt plus "check this" flags for anything the model was unsure of. A receipt with several
+products shows one card per line: each ticked line becomes its own item, sharing the shop, date,
+order number, receipt photo and documents (and a `receipt` id that ties them together). If reading fails, the form opens empty.
 
     supabase login
     supabase secrets set OPENAI_API_KEY=sk-... --project-ref ycboneyvastwtrtgbeyn
