@@ -251,6 +251,17 @@ kbd {
 .search input:focus-visible { outline: none; }
 .search kbd { display: none; position: absolute; right: var(--search-pad); width: 28px; padding: 0; text-align: center; transition: opacity var(--dur-fast) ease, transform var(--dur-base) var(--ease-out); }
 .search:focus-within kbd, .search.is-filled kbd { opacity: 0; transform: translateX(6px); pointer-events: none; }
+/* Language: a small chip before the primary action */
+.nav-lang {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; flex: none;
+  height: 40px; padding: 0 12px; border-radius: var(--radius-full);
+  background: var(--btn-neutral); color: var(--color-ink); font-size: var(--text-sub); font-weight: 600; letter-spacing: 0.02em;
+  transition: background-color var(--dur-fast) ease;
+}
+.nav-lang:hover { background: var(--btn-neutral-hover); }
+.nav-lang select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+.nav-lang:has(select:focus-visible) { box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-accent); }
+.topbar.is-solid .nav-lang { background: var(--color-band-tint); color: var(--color-on-band); }
 .topbar-add { flex: none; height: 40px; padding: 8px 18px; font-size: 15px; font-weight: 600; }
 /* On phones the primary action is a square +; the label returns with room */
 @media (max-width: 599px) {

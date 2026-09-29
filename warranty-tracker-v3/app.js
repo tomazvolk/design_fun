@@ -193,6 +193,7 @@
     card: '<rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="M2 6.5h12M4.5 10h2"/>',
     database: '<ellipse cx="8" cy="4" rx="5" ry="1.8"/><path d="M3 4v8c0 1 2.2 1.8 5 1.8s5-.8 5-1.8V4M3 8c0 1 2.2 1.8 5 1.8s5-.8 5-1.8"/>',
     logout: '<path d="M6 13.5H3.5a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1H6M10.5 11 13.5 8l-3-3M13.5 8H6"/>',
+    globe: '<circle cx="8" cy="8" r="5.75"/><path d="M2.25 8h11.5M8 2.25c1.6 1.6 2.4 3.5 2.4 5.75S9.6 12.15 8 13.75C6.4 12.15 5.6 10.25 5.6 8S6.4 3.85 8 2.25Z"/>',
     sparkle: '<path d="M8 2.5 9.3 6.7 13.5 8 9.3 9.3 8 13.5 6.7 9.3 2.5 8l4.2-1.3Z"/>',
   };
   /* Category icons: Lucide v1.47.0 (ISC licence, lucide.dev), one 24px grid and stroke for all eight. */
@@ -691,7 +692,7 @@
   function renderChrome(name) {
     $('#topbar').innerHTML = '<div class="container topbar-inner">' +
       '<a class="brand" href="#/vault" aria-label="' + T('Warranty tracker, home') + '">' + logo(30) + '<span>' + T('Warranty tracker') + '</span></a>' +
-      '<div class="topbar-end">' +
+      '<div class="topbar-end">' + navLang() +
         (name === 'add' ? '' : (name === 'vault' ? '' : searchField('q')) + '<a class="btn btn-primary topbar-add" href="#/add" aria-label="' + T('Add new warranty') + '">' + icon('plus') + '<span>' + T('Add new warranty') + '</span></a>') +
         '<div class="menu-wrap">' +
           '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="' + T('Account menu') + '">' + esc(initials()) + '</button>' +
@@ -740,6 +741,15 @@
         (active !== 'login' ? '<a class="btn btn-plain" href="#/login">' + T('Log in') + '</a>' : '') +
         (active !== 'signup' ? '<a class="btn btn-primary" href="#/signup">' + T('Get started') + '</a>' : '') +
       '</div></header>';
+  }
+
+  /* In the app bar: a globe and the current code, with the full list a tap away. The select
+     lies invisibly over the chip, so the menu is the device's own. */
+  function navLang() {
+    return '<label class="nav-lang" title="' + T('Language') + '">' + icon('globe') + '<span aria-hidden="true">' + lang.toUpperCase() + '</span>' +
+      '<select id="nav-lang" data-lang-pick aria-label="' + T('Language') + '">' + Object.keys(LANGS).map((k) =>
+        '<option value="' + k + '" lang="' + k + '"' + (k === lang ? ' selected' : '') + '>' + LANGS[k] + '</option>').join('') +
+      '</select></label>';
   }
 
   /* Every language names itself, so anyone can find theirs. */
@@ -2299,7 +2309,7 @@
       save();
       closeDrawer();
       render();
-      const again = $('[data-lang-pick]');
+      const again = document.getElementById(t.id);
       if (again) again.focus();
       return;
     }
