@@ -703,7 +703,15 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: po
 }
 .pub-nav .brand span { display: inline; }
 .pub-actions { display: flex; align-items: center; gap: var(--space-sm); }
-@media (max-width: 479px) { .pub-actions .btn-plain { display: none; } }
+/* The language picker sits quietly before the buttons: text, not a filled pill. */
+.lang-pick select { background: transparent; padding: 0 28px 0 12px; font-weight: 500; color: var(--color-ink-2); }
+.lang-pick select:hover { background: var(--btn-neutral); }
+.lang-pick .i { right: 10px; color: var(--color-ink-3); }
+@media (max-width: 479px) {
+  .pub-actions .btn-plain { display: none; }
+  /* Room for the language picker: the logo alone names the app on a phone. */
+  .pub-nav .brand span { display: none; }
+}
 
 .hero {
   display: grid; gap: var(--space-4xl); align-items: center;

@@ -27,13 +27,50 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   function uid() { return Math.random().toString(36).slice(2, 10); }
-  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+
+  /* ==========================================================================
+     Language: English is the source; i18n/*.js hold the other four. T() looks a text up
+     by its English wording, TN() picks the plural form the language needs for a count
+     (Slovenian has one for two, Croatian and Slovenian one for a few).
+     ========================================================================== */
+  const LANGS = { en: 'English', es: 'Español', fr: 'Français', sl: 'Slovenščina', hr: 'Hrvatski' };
+  const LOCALES = { en: 'en-IE', es: 'es-ES', fr: 'fr-FR', sl: 'sl-SI', hr: 'hr-HR' };
+  const DICT = window.WT_I18N || {};
+  let lang = 'en';
+  let pluralRules = new Intl.PluralRules('en');
+  const fill = (s, v) => (v ? s.replace(/\{(\w+)\}/g, (m, k) => (k in v ? v[k] : m)) : s);
+  function T(s, v) {
+    const x = DICT[lang] && DICT[lang][s];
+    return fill(typeof x === 'string' ? x : s, v);
+  }
+  function TN(s, n, v) {
+    const x = (DICT[lang] && DICT[lang][s]) || (DICT.en && DICT.en[s]) || s;
+    const form = typeof x === 'string' ? x : x[pluralRules.select(n)] || x.other;
+    return fill(form, Object.assign({ n }, v));
+  }
+  function detectLang() {
+    const list = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en'];
+    for (const l of list) { const k = String(l).slice(0, 2).toLowerCase(); if (LANGS[k]) return k; }
+    return 'en';
+  }
+  /* "a, b and c" in the reader's language. */
+  function andList(parts) {
+    if (parts.length < 2) return parts.join('');
+    try { return new Intl.ListFormat(LOCALES[lang], { type: 'conjunction' }).format(parts); } catch (e) { return parts.slice(0, -1).join(', ') + ' ' + T('and') + ' ' + parts[parts.length - 1]; }
+  }
+
+  const UNITS = {
+    day: '{n} days', month: '{n} months', year: '{n} years', item: '{n} items', document: '{n} documents',
+    'sample item': '{n} sample items', 'more item': '{n} more items', thing: '{n} things', warranty: '{n} warranties',
+  };
+  function plural(n, unit) { return TN(UNITS[unit], n); }
 
   /* ==========================================================================
      Dates: everything is a local calendar day, stored as YYYY-MM-DD
      ========================================================================== */
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dateFmts = {};
   const pad = (n) => String(n).padStart(2, '0');
 
   function today() { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
@@ -50,34 +87,51 @@
 
   function fmtDate(d, o) {
     d = typeof d === 'string' ? parse(d) : d;
-    const base = d.getDate() + ' ' + MONTHS[d.getMonth()];
     const withYear = !(o && o.short) || d.getFullYear() !== today().getFullYear();
-    return (o && o.weekday ? WEEKDAYS[d.getDay()] + ' ' : '') + base + (withYear ? ' ' + d.getFullYear() : '');
+    const weekday = !!(o && o.weekday);
+    if (lang === 'en') {
+      return (weekday ? WEEKDAYS[d.getDay()] + ' ' : '') + d.getDate() + ' ' + MONTHS[d.getMonth()] + (withYear ? ' ' + d.getFullYear() : '');
+    }
+    /* Other languages write dates their own way: "28. sep. 2026", "28 sept. 2026". */
+    const k = lang + withYear + weekday;
+    if (!dateFmts[k]) dateFmts[k] = new Intl.DateTimeFormat(LOCALES[lang], Object.assign({ day: 'numeric', month: 'short' }, withYear ? { year: 'numeric' } : {}, weekday ? { weekday: 'short' } : {}));
+    return dateFmts[k].format(d);
   }
 
   /* 412 -> "1 year 1 month" (long) or "1 yr 1 mo" (short) */
   function span(days, short) {
     days = Math.abs(days);
-    if (days === 0) return short ? '0 days' : 'less than a day';
+    if (days === 0) return short ? plural(0, 'day') : T('less than a day');
     if (days < 45) return plural(days, 'day');
     let months = Math.round(days / 30.44);
-    if (months < 12) return short ? months + ' mo' : plural(months, 'month');
+    if (months < 12) return short ? months + ' ' + T('mo') : plural(months, 'month');
     const years = Math.floor(months / 12);
     months = months % 12;
-    if (short) return years + ' yr' + (months ? ' ' + months + ' mo' : '');
+    if (short) return years + ' ' + T('yr') + (months ? ' ' + months + ' ' + T('mo') : '');
     return plural(years, 'year') + (months ? ' ' + plural(months, 'month') : '');
   }
 
   function monthsLabel(m) { return m % 12 === 0 ? plural(m / 12, 'year') : plural(m, 'month'); }
 
-  const moneyFmt = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
-  const moneyWhole = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  let moneyFmt = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
+  let moneyWhole = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  function setLang(l) {
+    lang = LANGS[l] ? l : detectLang();
+    pluralRules = new Intl.PluralRules(lang);
+    moneyFmt = new Intl.NumberFormat(LOCALES[lang], { style: 'currency', currency: 'EUR' });
+    moneyWhole = new Intl.NumberFormat(LOCALES[lang], { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+    document.documentElement.lang = lang;
+    const skip = document.querySelector('.skip');
+    if (skip) skip.textContent = T('Skip to content');
+  }
   function money(n) { n = Number(n) || 0; return Number.isInteger(n) ? moneyWhole.format(n) : moneyFmt.format(n); }
 
   /* ==========================================================================
      Reference data
      ========================================================================== */
-  const CATS = [
+  /* Labels are getters, so they read in whatever language is current. */
+  const labelled = (list) => list.map((o) => Object.defineProperty(Object.assign({}, o), 'label', { get() { return T(o.label); } }));
+  const CATS = labelled([
     { key: 'electronics', label: 'Electronics' },
     { key: 'computers', label: 'Computers & phones' },
     { key: 'appliances', label: 'Appliances' },
@@ -86,18 +140,21 @@
     { key: 'furniture', label: 'Furniture' },
     { key: 'sports', label: 'Sports' },
     { key: 'other', label: 'Other' },
-  ];
+  ]);
   const catLabel = (k) => (CATS.find((c) => c.key === k) || CATS[CATS.length - 1]).label;
 
   const REGIONS = {
-    EU: { label: 'European Union', months: 24, note: 'EU law gives you at least 2 years on new goods.' },
-    UK: { label: 'United Kingdom', months: 12, note: 'Most makers give 1 year. UK consumer law can cover faults for longer.' },
-    US: { label: 'United States', months: 12, note: 'US warranties vary by maker and shop. Most give 1 year.' },
+    EU: { months: 24, get label() { return T('European Union'); }, get note() { return T('EU law gives you at least 2 years on new goods.'); } },
+    UK: { months: 12, get label() { return T('United Kingdom'); }, get note() { return T('Most makers give 1 year. UK consumer law can cover faults for longer.'); } },
+    US: { months: 12, get label() { return T('United States'); }, get note() { return T('US warranties vary by maker and shop. Most give 1 year.'); } },
   };
 
   const WARRANTY_OPTIONS = [6, 12, 18, 24, 36, 48, 60, 120];
   const RETURN_OPTIONS = [0, 14, 30, 60, 90];
-  const FIELD_NAMES = { name: 'Item name', merchant: 'Shop', price: 'Price', purchased: 'Purchase date', orderNo: 'Order number', category: 'Category' };
+  const FIELD_NAMES = {
+    get name() { return T('Item name'); }, get merchant() { return T('Shop'); }, get price() { return T('Price'); },
+    get purchased() { return T('Purchase date'); }, get orderNo() { return T('Order number'); }, get category() { return T('Category'); },
+  };
 
   /* ==========================================================================
      Icons (16px outline, stroke 1.5)
@@ -173,15 +230,15 @@
     const m = (months, days) => iso(addDays(addMonths(t, months), days));
     return [
       { id: 's1', name: 'Philips Airfryer XXL', merchant: 'Amazon.de', category: 'kitchen', price: 219.99, purchased: d(-28), orderNo: '302-4418823-1190755', returnDays: 30, fileName: 'amazon-order-302-4418823.pdf' },
-      { id: 's2', name: 'Makita DHP485 cordless drill', merchant: 'Bauhaus', category: 'tools', price: 189, purchased: d(-5), orderNo: 'BH-88120457', returnDays: 14, fileName: 'bauhaus-rechnung.pdf',
-        review: { orderNo: 'The order number was split over two lines on the receipt. Check it matches.' } },
-      { id: 's3', name: 'Sony WH-1000XM6 headphones', merchant: 'MediaMarkt', category: 'electronics', price: 399, purchased: d(-12), orderNo: 'MM-1180-99231', returnDays: 30, fileName: 'mediamarkt-kassenbon.jpg' },
-      { id: 's4', name: 'Bosch Serie 6 washing machine', merchant: 'Big Bang', category: 'appliances', price: 649, purchased: m(-24, 25), orderNo: '2024-118204', returnDays: 14, fileName: 'racun-2024-118204.pdf' },
+      { id: 's2', name: T('Makita DHP485 cordless drill'), merchant: 'Bauhaus', category: 'tools', price: 189, purchased: d(-5), orderNo: 'BH-88120457', returnDays: 14, fileName: 'bauhaus-rechnung.pdf',
+        review: { orderNo: T('The order number was split over two lines on the receipt. Check it matches.') } },
+      { id: 's3', name: T('Sony WH-1000XM6 headphones'), merchant: 'MediaMarkt', category: 'electronics', price: 399, purchased: d(-12), orderNo: 'MM-1180-99231', returnDays: 30, fileName: 'mediamarkt-kassenbon.jpg' },
+      { id: 's4', name: T('Bosch Serie 6 washing machine'), merchant: 'Big Bang', category: 'appliances', price: 649, purchased: m(-24, 25), orderNo: '2024-118204', returnDays: 14, fileName: 'racun-2024-118204.pdf' },
       { id: 's5', name: 'Garmin Forerunner 265', merchant: 'Garmin', category: 'sports', price: 349.99, purchased: m(-24, 45), orderNo: 'GA-5521047', returnDays: 30, fileName: 'garmin-invoice.pdf',
-        review: { price: 'The receipt shows €359.98 including €9.99 delivery. We saved the item price.' } },
+        review: { price: T('The receipt shows €359.98 including €9.99 delivery. We saved the item price.') } },
       { id: 's6', name: 'MacBook Air 13" M4', merchant: 'Apple', category: 'computers', price: 1299, purchased: d(-330), orderNo: 'W1829340112', returnDays: 14, fileName: 'apple-receipt.pdf' },
-      { id: 's7', name: 'IKEA KIVIK 3-seat sofa', merchant: 'IKEA', category: 'furniture', price: 899, purchased: d(-400), orderNo: '1284470331', returnDays: 90, warrantyMonths: 120,
-        warrantyNote: 'IKEA’s 10-year guarantee', fileName: 'ikea-order.pdf' },
+      { id: 's7', name: T('IKEA KIVIK 3-seat sofa'), merchant: 'IKEA', category: 'furniture', price: 899, purchased: d(-400), orderNo: '1284470331', returnDays: 90, warrantyMonths: 120,
+        warrantyNote: T('IKEA’s 10-year guarantee'), fileName: 'ikea-order.pdf' },
       { id: 's8', name: 'De’Longhi Magnifica Evo', merchant: 'Amazon.de', category: 'kitchen', price: 449, purchased: d(-430), orderNo: '028-1147756-6612354', returnDays: 30, fileName: 'amazon-order-028-1147756.pdf' },
       { id: 's9', name: 'Dyson V15 Detect', merchant: 'Dyson', category: 'appliances', price: 699, purchased: m(-24, -31), orderNo: 'DY-20931175', returnDays: 30, fileName: 'dyson-order.pdf' },
     ].map((it) => Object.assign(it, { source: 'upload', added: it.purchased }));
@@ -205,6 +262,7 @@
       device: false,
       emailCopy: true,
       theme: 'system',
+      lang: null,
     };
   }
 
@@ -229,10 +287,11 @@
   }
 
   let state = load();
+  setLang(state.settings.lang);
   function writeLocal() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); ui.saveWarned = false; } catch (e) {
       /* Storage full or blocked: keep going in memory, but say so once. */
-      if (!ui.saveWarned && !cloud) { ui.saveWarned = true; setTimeout(() => toast('This browser’s storage is full. Changes won’t be kept after you close the tab.'), 0); }
+      if (!ui.saveWarned && !cloud) { ui.saveWarned = true; setTimeout(() => toast(T('This browser’s storage is full. Changes won’t be kept after you close the tab.')), 0); }
     }
   }
   function save() {
@@ -297,7 +356,7 @@
         }
         sync.failed = false;
       } catch (e) {
-        if (!sync.failed && s === state) { sync.failed = true; toast('Couldn’t save to your account. Your changes are kept here and we’ll keep trying.'); }
+        if (!sync.failed && s === state) { sync.failed = true; toast(T('Couldn’t save to your account. Your changes are kept here and we’ll keep trying.')); }
         sync.timer = setTimeout(pushNow, 15000);
       }
       if (s === state) writeLocal();
@@ -328,6 +387,7 @@
     s.items.forEach((it) => { s.synced[it.id] = JSON.stringify(it); });
     writeLocal();
     applyTheme();
+    setLang(s.settings.lang);
     return true;
   }
 
@@ -335,9 +395,10 @@
   async function enter(user) {
     const same = state.uid === user.id;
     if (!same) {
-      const theme = state.settings.theme;
+      const theme = state.settings.theme, chosen = state.settings.lang;
       state = defaultState();
       state.settings.theme = theme;
+      state.settings.lang = chosen;
       state.uid = user.id;
     }
     state.account = accountFrom(user);
@@ -352,10 +413,11 @@
   /* Signed out: forget the vault on this device, remember only the email for next time. */
   function leave() {
     clearTimeout(sync.timer);
-    const theme = state.settings.theme;
+    const theme = state.settings.theme, chosen = state.settings.lang;
     const email = state.account ? state.account.email : '';
     state = defaultState();
     state.settings.theme = theme;
+    state.settings.lang = chosen;
     if (email) state.account = { first: '', last: '', email };
     writeLocal();
   }
@@ -380,7 +442,7 @@
     if (data && data.session) {
       await enter(data.session.user);
       if (ui.recovery) return redirect('reset');
-      if (returning) toast('You’re signed in. Welcome, ' + esc(state.account.first) + '.');
+      if (returning) toast(T('You’re signed in. Welcome, {name}.', { name: esc(state.account.first) }));
       render();
     } else if (!error && state.session) {
       leave();
@@ -393,9 +455,9 @@
     if (b) { b.disabled = on; b.setAttribute('aria-busy', String(on)); }
   }
   function cloudMessage(error) {
-    if (!navigator.onLine) return 'You’re offline. Connect to the internet and try again.';
-    if (error && error.status === 429) return 'Too many tries. Wait a minute, then try again.';
-    return 'Something went wrong. Try again in a moment.';
+    if (!navigator.onLine) return T('You’re offline. Connect to the internet and try again.');
+    if (error && error.status === 429) return T('Too many tries. Wait a minute, then try again.');
+    return T('Something went wrong. Try again in a moment.');
   }
 
   /* Passwords never sit in storage as typed. It's still a demo: all of this lives in the browser. */
@@ -444,9 +506,9 @@
   }
 
   function statusText(i, short) {
-    if (i.status === 'expired') return 'Expired ' + span(i.left, short) + ' ago';
-    if (i.status === 'expiring') return i.left === 0 ? 'Ends today' : 'Ends in ' + plural(i.left, 'day');
-    return span(i.left, short) + ' left';
+    if (i.status === 'expired') return T('Expired {time} ago', { time: span(i.left, short) });
+    if (i.status === 'expiring') return i.left === 0 ? T('Ends today') : T('Ends in {time}', { time: plural(i.left, 'day') });
+    return T('{time} left', { time: span(i.left, short) });
   }
 
   function remindersFor(it) {
@@ -482,7 +544,7 @@
 
   function field(o) {
     const id = 'f-' + o.name;
-    const flag = o.flag ? '<span class="pill pill-warning">' + icon('alert', 12) + 'Check this</span>' : '';
+    const flag = o.flag ? '<span class="pill pill-warning">' + icon('alert', 12) + T('Check this') + '</span>' : '';
     let control;
     if (o.type === 'select') {
       control = '<div class="select"><select id="' + id + '" name="' + o.name + '">' +
@@ -492,7 +554,7 @@
       control = '<textarea class="input" id="' + id + '" name="' + o.name + '" rows="3" placeholder="' + esc(o.placeholder || '') + '">' + esc(o.value) + '</textarea>';
     } else if (o.type === 'password') {
       control = '<div class="input-wrap"><input class="input" id="' + id + '" name="' + o.name + '" type="password" value=""' + (o.attrs || '') + ' />' +
-        '<button type="button" class="input-icon" data-action="toggle-pw" data-for="' + id + '" aria-label="Show password" aria-pressed="false">' + icon('eyeOff') + '</button></div>';
+        '<button type="button" class="input-icon" data-action="toggle-pw" data-for="' + id + '" aria-label="' + T('Show password') + '" aria-pressed="false">' + icon('eyeOff') + '</button></div>';
     } else {
       control = '<input class="input" id="' + id + '" name="' + o.name + '" type="' + (o.type || 'text') + '" value="' + esc(o.value) + '"' +
         (o.placeholder ? ' placeholder="' + esc(o.placeholder) + '"' : '') + (o.attrs || '') + ' />';
@@ -602,8 +664,8 @@
 
   /* One search field, rendered wherever it's needed; a shared class keeps them in sync. */
   function searchField(id, cls) {
-    return '<label class="search' + (cls ? ' ' + cls : '') + (ui.q ? ' is-filled' : '') + '"><span class="sr-only">Search receipts</span>' + icon('search') +
-      '<input type="search" class="search-input" id="' + id + '" value="' + esc(ui.q) + '"' + (cls ? ' placeholder="Search"' : '') + ' autocomplete="off" spellcheck="false" />' +
+    return '<label class="search' + (cls ? ' ' + cls : '') + (ui.q ? ' is-filled' : '') + '"><span class="sr-only">' + T('Search receipts') + '</span>' + icon('search') +
+      '<input type="search" class="search-input" id="' + id + '" value="' + esc(ui.q) + '"' + (cls ? ' placeholder="' + T('Search') + '"' : '') + ' autocomplete="off" spellcheck="false" />' +
       '<kbd>' + (isMac ? '⌘' : 'Ctrl&nbsp;') + 'K</kbd></label>';
   }
   function visibleSearchInput() {
@@ -628,18 +690,18 @@
 
   function renderChrome(name) {
     $('#topbar').innerHTML = '<div class="container topbar-inner">' +
-      '<a class="brand" href="#/vault" aria-label="Warranty tracker, home">' + logo(30) + '<span>Warranty tracker</span></a>' +
+      '<a class="brand" href="#/vault" aria-label="' + T('Warranty tracker, home') + '">' + logo(30) + '<span>' + T('Warranty tracker') + '</span></a>' +
       '<div class="topbar-end">' +
-        (name === 'add' ? '' : (name === 'vault' ? '' : searchField('q')) + '<a class="btn btn-primary topbar-add" href="#/add" aria-label="Add new warranty">' + icon('plus') + '<span>Add new warranty</span></a>') +
+        (name === 'add' ? '' : (name === 'vault' ? '' : searchField('q')) + '<a class="btn btn-primary topbar-add" href="#/add" aria-label="' + T('Add new warranty') + '">' + icon('plus') + '<span>' + T('Add new warranty') + '</span></a>') +
         '<div class="menu-wrap">' +
-          '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">' + esc(initials()) + '</button>' +
+          '<button type="button" class="avatar" data-action="user-menu" aria-haspopup="menu" aria-expanded="false" aria-label="' + T('Account menu') + '">' + esc(initials()) + '</button>' +
         '</div>' +
       '</div></div>';
 
     $('#banner').innerHTML = state.banner
       ? '<div class="banner" role="status">' + icon('checkCircle') +
-        '<p><b>Your vault is ready.</b> Add your first receipt, or explore with sample items.</p>' +
-        '<button type="button" class="icon-btn" data-action="dismiss-banner" aria-label="Dismiss">' + icon('x') + '</button></div>'
+        '<p><b>' + T('Your vault is ready.') + '</b> ' + T('Add your first receipt, or explore with sample items.') + '</p>' +
+        '<button type="button" class="icon-btn" data-action="dismiss-banner" aria-label="' + T('Dismiss') + '">' + icon('x') + '</button></div>'
       : '';
   }
 
@@ -651,10 +713,10 @@
     pop.setAttribute('role', 'menu');
     pop.innerHTML =
       '<div class="user-head"><b>' + esc((a.first + ' ' + a.last).trim()) + '</b><span>' + esc(a.email) + '</span></div>' +
-      '<a role="menuitem" href="#/settings/profile">' + icon('user') + 'Profile</a>' +
-      '<a role="menuitem" href="#/settings/rules">' + icon('sliders') + 'Settings</a>' +
+      '<a role="menuitem" href="#/settings/profile">' + icon('user') + T('Profile') + '</a>' +
+      '<a role="menuitem" href="#/settings/rules">' + icon('sliders') + T('Settings') + '</a>' +
       '<span class="menu-sep"></span>' +
-      '<button type="button" role="menuitem" data-action="logout">' + icon('logout') + 'Log out</button>';
+      '<button type="button" role="menuitem" data-action="logout">' + icon('logout') + T('Log out') + '</button>';
     b.parentElement.appendChild(pop);
     b.setAttribute('aria-expanded', 'true');
     requestAnimationFrame(() => pop.classList.add('is-open'));
@@ -673,19 +735,27 @@
      Public pages: landing, sign up, log in, reset password
      ========================================================================== */
   function publicNav(active) {
-    return '<header class="pub-nav"><a class="brand" href="#/welcome">' + logo(28) + '<span>Warranty tracker</span></a>' +
-      '<div class="pub-actions">' +
-        (active !== 'login' ? '<a class="btn btn-plain" href="#/login">Log in</a>' : '') +
-        (active !== 'signup' ? '<a class="btn btn-primary" href="#/signup">Get started</a>' : '') +
+    return '<header class="pub-nav"><a class="brand" href="#/welcome">' + logo(28) + '<span>' + T('Warranty tracker') + '</span></a>' +
+      '<div class="pub-actions">' + langPicker('pub-lang', true) +
+        (active !== 'login' ? '<a class="btn btn-plain" href="#/login">' + T('Log in') + '</a>' : '') +
+        (active !== 'signup' ? '<a class="btn btn-primary" href="#/signup">' + T('Get started') + '</a>' : '') +
       '</div></header>';
+  }
+
+  /* Every language names itself, so anyone can find theirs. */
+  function langPicker(id, small) {
+    return '<div class="select' + (small ? ' select-sm lang-pick' : '') + '"><label class="sr-only" for="' + id + '">' + T('Language') + '</label>' +
+      '<select id="' + id + '" data-lang-pick>' + Object.keys(LANGS).map((k) =>
+        '<option value="' + k + '" lang="' + k + '"' + (k === lang ? ' selected' : '') + '>' + LANGS[k] + '</option>').join('') +
+      '</select>' + icon(small ? 'chevronDown' : 'updown', small ? 12 : 14) + '</div>';
   }
 
   /* 412 days -> 1 yr 1 mo. Big numbers with small units, the way Health writes "7 hr 32 min". */
   function readingParts(days) {
     days = Math.abs(days);
-    if (days < 60) return [[days, days === 1 ? 'day' : 'days']];
+    if (days < 60) return [[days, TN('days', days)]];
     const m = Math.round(days / 30.44), y = Math.floor(m / 12), mo = m % 12;
-    return [y && [y, 'yr'], mo && [mo, 'mo']].filter(Boolean);
+    return [y && [y, T('yr')], mo && [mo, T('mo')]].filter(Boolean);
   }
   function readingText(days) { return readingParts(days).map((p) => p[0] + ' ' + p[1]).join(' '); }
 
@@ -693,18 +763,22 @@
   function statusOf(i, returnFirst) {
     if (i.returnOpen && returnFirst) {
       return i.rLeft === 0
-        ? { label: 'Return closes', parts: null, tone: 'info' }
-        : { label: 'Left to return', parts: readingParts(i.rLeft), tone: 'info' };
+        ? { label: T('Return closes'), parts: null, tone: 'info' }
+        : { label: T('Left to return'), parts: readingParts(i.rLeft), tone: 'info' };
     }
-    if (i.status === 'expired') return { label: 'Warranty expired', parts: readingParts(i.left).concat([['', 'ago']]), tone: 'weak' };
-    if (i.left === 0) return { label: 'Warranty ends', parts: null, tone: 'warning' };
-    return { label: 'Warranty left', parts: readingParts(i.left), tone: i.status === 'expiring' ? 'warning' : null };
+    if (i.status === 'expired') {
+      /* "2 yr ago", or "hace 2 años": some languages put the word first. */
+      const ago = T('ago') ? [['', T('ago')]] : [];
+      return { label: T('Warranty expired'), parts: DICT[lang] && DICT[lang]._agoFirst ? ago.concat(readingParts(i.left)) : readingParts(i.left).concat(ago), tone: 'weak' };
+    }
+    if (i.left === 0) return { label: T('Warranty ends'), parts: null, tone: 'warning' };
+    return { label: T('Warranty left'), parts: readingParts(i.left), tone: i.status === 'expiring' ? 'warning' : null };
   }
 
   function reading(st, cls) {
     const value = st.parts
       ? st.parts.map((p) => (p[0] !== '' ? '<b class="num">' + p[0] + '</b> ' : '') + '<span>' + p[1] + '</span>').join(' ')
-      : '<b>Today</b>';
+      : '<b>' + T('Today') + '</b>';
     return '<p class="value ' + (cls || '') + (st.tone ? ' tone-' + st.tone : '') + '">' + value + '</p>';
   }
 
@@ -721,9 +795,9 @@
       (o.sub ? '<p class="pass-sub">' + o.sub + '</p>' : '') +
       (o.fields === false ? '' :
         '<div class="pass-fields">' +
-          f('Bought', fmtDate(it.purchased)) +
-          f('Paid', money(it.price)) +
-          f(i.status === 'expired' ? 'Warranty expired' : 'Covered until', fmtDate(i.end)) +
+          f(T('Bought'), fmtDate(it.purchased)) +
+          f(T('Paid'), money(it.price)) +
+          f(i.status === 'expired' ? T('Warranty expired') : T('Covered until'), fmtDate(i.end)) +
         '</div>') +
       (o.foot || '') +
     '</div>';
@@ -735,7 +809,7 @@
     const gone = Math.max(0, Math.min(total, daysFrom(i.bought, today())));
     const pct = total > 0 ? Number((gone / total * 100).toFixed(2)) : 100;
     const tone = useReturn ? 'return' : i.status;
-    return '<span class="meter meter-' + tone + '" title="' + (total - gone).toLocaleString('en') + ' of ' + total.toLocaleString('en') + ' days left">' +
+    return '<span class="meter meter-' + tone + '" title="' + T('{left} of {total} days left', { left: (total - gone).toLocaleString(LOCALES[lang]), total: total.toLocaleString(LOCALES[lang]) }) + '">' +
       '<span class="meter-gone" style="width:' + pct + '%"></span>' +
       '<span class="meter-left" style="left:' + pct + '%"></span>' +
       (pct > 0 && pct < 100 ? '<span class="meter-today" style="left:' + pct + '%"></span>' : '') +
@@ -744,8 +818,8 @@
 
   /* What the meter above it measures, in words. */
   function spanCaption(i, useReturn) {
-    if (useReturn) return plural(i.rDays, 'day') + ' to return it, until ' + fmtDate(i.rEnd, { short: true, weekday: true });
-    return monthsLabel(i.months) + ' warranty, ' + (i.status === 'expired' ? 'expired ' : 'until ') + fmtDate(i.end);
+    if (useReturn) return T('{time} to return it, until {date}', { time: plural(i.rDays, 'day'), date: fmtDate(i.rEnd, { short: true, weekday: true }) });
+    return T(i.status === 'expired' ? '{time} warranty, expired {date}' : '{time} warranty, until {date}', { time: monthsLabel(i.months), date: fmtDate(i.end) });
   }
 
   /* Three of the sample receipts, fanned like passes in a wallet. Dates stay relative to today. */
@@ -761,24 +835,24 @@
       ['Keep the receipt', 'Take a photo or upload the PDF. We read the shop, item, price and date.'],
       ['Hear about it in time', '30 and 7 days before a warranty ends, 2 days before a return window closes.'],
       ['Claim with proof', 'The original receipt stays with each item. Export a claim summary when you need it.'],
-    ];
+    ].map((s) => s.map((x) => T(x)));
     return {
       html: publicNav() +
         '<section class="hero">' +
           '<div class="hero-copy">' +
-            '<h1 class="hero-title">Every receipt kept. Every warranty remembered.</h1>' +
-            '<p class="hero-sub">Snap a receipt and we’ll note the warranty and return window, then remind you before either runs out.</p>' +
-            '<div class="hero-actions"><a class="btn btn-primary btn-lg" href="#/signup">Get started</a>' +
-            '<a class="btn btn-secondary btn-lg" href="#/login">Log in</a></div>' +
-            '<p class="hero-note">EU law gives you at least 2 years on new goods. We count every day of it.</p>' +
+            '<h1 class="hero-title">' + T('Every receipt kept. Every warranty remembered.') + '</h1>' +
+            '<p class="hero-sub">' + T('Snap a receipt and we’ll note the warranty and return window, then remind you before either runs out.') + '</p>' +
+            '<div class="hero-actions"><a class="btn btn-primary btn-lg" href="#/signup">' + T('Get started') + '</a>' +
+            '<a class="btn btn-secondary btn-lg" href="#/login">' + T('Log in') + '</a></div>' +
+            '<p class="hero-note">' + T('EU law gives you at least 2 years on new goods. We count every day of it.') + '</p>' +
           '</div>' +
           '<figure class="hero-shot" aria-hidden="true" inert>' +
-            '<p class="shot-head"><b>Vault</b><span>Sample receipts, dated from today</span></p>' +
+            '<p class="shot-head"><b>' + T('Vault') + '</b><span>' + T('Sample receipts, dated from today') + '</span></p>' +
             heroPasses() +
           '</figure>' +
         '</section>' +
         '<section class="steps" aria-labelledby="steps-title">' +
-          '<h2 id="steps-title" class="steps-title">From the till to the claim</h2>' +
+          '<h2 id="steps-title" class="steps-title">' + T('From the till to the claim') + '</h2>' +
           '<ol class="steps-list">' + steps.map((s, n) =>
             '<li><span class="step-n num">' + (n + 1) + '</span><h3>' + s[0] + '</h3><p>' + s[1] + '</p></li>').join('') + '</ol>' +
         '</section>',
@@ -803,9 +877,9 @@
     const list = sampleItems().map((it) => { const i = info(it); return { it, i, next: cardMeta(it, i) }; })
       .sort((a, b) => a.next.urgency - b.next.urgency).slice(0, 3);
     return '<figure class="su-preview" inert>' +
-      '<p class="su-who"><span class="avatar avatar-sm" id="pv-initials">A</span><b id="pv-name">Your vault</b></p>' +
-      '<p class="su-hello">Hello, <span id="pv-hello">there</span></p>' +
-      '<p class="su-sub">This is how your receipts will look, most urgent first.</p>' +
+      '<p class="su-who"><span class="avatar avatar-sm" id="pv-initials">A</span><b id="pv-name">' + T('Your vault') + '</b></p>' +
+      '<p class="su-hello">' + T('Hello, {name}', { name: '<span id="pv-hello">' + T('there') + '</span>' }) + '</p>' +
+      '<p class="su-sub">' + T('This is how your receipts will look, most urgent first.') + '</p>' +
       '<div class="ledger">' + list.map(({ it, i, next }, n) => wrow(it, i, next, n)).join('') + '</div>' +
     '</figure>';
   }
@@ -814,22 +888,22 @@
     return {
       html: authShell({
         active: 'signup',
-        title: 'Get started with Warranty tracker',
-        sub: 'Create an account to keep your receipts in one place',
+        title: T('Get started with Warranty tracker'),
+        sub: T('Create an account to keep your receipts in one place'),
         preview: skeletonPreview(),
         body:
           '<form class="form auth-form" id="signup-form" novalidate>' +
             '<div class="form-row">' +
-              field({ name: 'first', label: 'First name', value: '', attrs: ' autocomplete="given-name"' }) +
-              field({ name: 'last', label: 'Last name', value: '', attrs: ' autocomplete="family-name"' }) +
+              field({ name: 'first', label: T('First name'), value: '', attrs: ' autocomplete="given-name"' }) +
+              field({ name: 'last', label: T('Last name'), value: '', attrs: ' autocomplete="family-name"' }) +
             '</div>' +
-            field({ name: 'email', label: 'Email', type: 'email', value: '', placeholder: 'you@example.com', attrs: ' autocomplete="email" spellcheck="false"' }) +
+            field({ name: 'email', label: T('Email'), type: 'email', value: '', placeholder: T('you@example.com'), attrs: ' autocomplete="email" spellcheck="false"' }) +
             '<p class="inline-ok" id="email-ok" hidden>' + icon('checkCircle') + '<span></span></p>' +
-            field({ name: 'password', label: 'Password', type: 'password', attrs: ' autocomplete="new-password"', hint: 'At least 8 characters.' }) +
-            btn('Create account', null, { kind: 'primary', type: 'submit', cls: 'btn-block btn-lg' }) +
+            field({ name: 'password', label: T('Password'), type: 'password', attrs: ' autocomplete="new-password"', hint: T('At least 8 characters.') }) +
+            btn(T('Create account'), null, { kind: 'primary', type: 'submit', cls: 'btn-block btn-lg' }) +
           '</form>' +
-          '<p class="auth-foot">By signing up, you agree to the <a href="#/signup" class="link-muted">Terms of Service</a> and <a href="#/signup" class="link-muted">Privacy Policy</a>.</p>' +
-          '<p class="auth-foot">Already have an account? <a href="#/login">Log in</a></p>',
+          '<p class="auth-foot">' + T('By signing up, you agree to the {terms} and {privacy}.', { terms: '<a href="#/signup" class="link-muted">' + T('Terms of Service') + '</a>', privacy: '<a href="#/signup" class="link-muted">' + T('Privacy Policy') + '</a>' }) + '</p>' +
+          '<p class="auth-foot">' + T('Already have an account?') + ' <a href="#/login">' + T('Log in') + '</a></p>',
       }),
       after: () => $('#f-first').focus(),
     };
@@ -839,15 +913,15 @@
     return {
       html: authShell({
         active: 'login',
-        title: 'Log in to Warranty tracker',
-        sub: 'Welcome back. Enter your details to continue',
+        title: T('Log in to Warranty tracker'),
+        sub: T('Welcome back. Enter your details to continue'),
         body:
           '<form class="form auth-form" id="login-form" novalidate>' +
-            field({ name: 'email', label: 'Email', type: 'email', value: state.account ? state.account.email : '', placeholder: 'you@example.com', attrs: ' autocomplete="email" spellcheck="false"' }) +
-            field({ name: 'password', label: 'Password', type: 'password', attrs: ' autocomplete="current-password"', aside: '<a class="label-link" href="#/forgot">Forgot password?</a>' }) +
-            btn('Log in', null, { kind: 'primary', type: 'submit', cls: 'btn-block btn-lg' }) +
+            field({ name: 'email', label: T('Email'), type: 'email', value: state.account ? state.account.email : '', placeholder: T('you@example.com'), attrs: ' autocomplete="email" spellcheck="false"' }) +
+            field({ name: 'password', label: T('Password'), type: 'password', attrs: ' autocomplete="current-password"', aside: '<a class="label-link" href="#/forgot">' + T('Forgot password?') + '</a>' }) +
+            btn(T('Log in'), null, { kind: 'primary', type: 'submit', cls: 'btn-block btn-lg' }) +
           '</form>' +
-          '<p class="auth-foot">New here? <a href="#/signup">Create an account</a></p>',
+          '<p class="auth-foot">' + T('New here?') + ' <a href="#/signup">' + T('Create an account') + '</a></p>',
       }),
       after: () => { const f = state.account ? $('#f-password') : $('#f-email'); if (f) f.focus(); },
     };
@@ -857,15 +931,15 @@
     return {
       html: authShell({
         active: 'login',
-        title: 'Reset your password',
-        sub: 'Enter your email and we’ll send you a link to set a new one',
+        title: T('Reset your password'),
+        sub: T('Enter your email and we’ll send you a link to set a new one'),
         body:
           '<form class="form auth-form" id="forgot-form" novalidate>' +
-            field({ name: 'email', label: 'Email', type: 'email', value: state.account ? state.account.email : '', placeholder: 'you@example.com', attrs: ' autocomplete="email" spellcheck="false"' }) +
+            field({ name: 'email', label: T('Email'), type: 'email', value: state.account ? state.account.email : '', placeholder: T('you@example.com'), attrs: ' autocomplete="email" spellcheck="false"' }) +
             '<p class="inline-ok" id="forgot-ok" hidden>' + icon('checkCircle') + '<span></span></p>' +
-            btn('Send reset link', null, { kind: 'primary', type: 'submit', cls: 'btn-block btn-lg', id: 'forgot-btn' }) +
+            btn(T('Send reset link'), null, { kind: 'primary', type: 'submit', cls: 'btn-block btn-lg', id: 'forgot-btn' }) +
           '</form>' +
-          '<p class="auth-foot"><a href="#/login">Back to log in</a></p>',
+          '<p class="auth-foot"><a href="#/login">' + T('Back to log in') + '</a></p>',
       }),
       after: () => $('#f-email').focus(),
     };
@@ -876,14 +950,14 @@
     return {
       html: authShell({
         active: 'login',
-        title: 'Choose a new password',
-        sub: 'For ' + esc(state.account.email) + '. You’ll stay logged in on this device',
+        title: T('Choose a new password'),
+        sub: T('For {email}. You’ll stay logged in on this device', { email: esc(state.account.email) }),
         body:
           '<form class="form auth-form" id="reset-form" novalidate>' +
-            field({ name: 'password', label: 'New password', type: 'password', attrs: ' autocomplete="new-password"', hint: 'At least 8 characters.' }) +
-            btn('Save password', null, { kind: 'primary', type: 'submit', cls: 'btn-block btn-lg' }) +
+            field({ name: 'password', label: T('New password'), type: 'password', attrs: ' autocomplete="new-password"', hint: T('At least 8 characters.') }) +
+            btn(T('Save password'), null, { kind: 'primary', type: 'submit', cls: 'btn-block btn-lg' }) +
           '</form>' +
-          '<p class="auth-foot"><a href="#/vault">Skip for now</a></p>',
+          '<p class="auth-foot"><a href="#/vault">' + T('Skip for now') + '</a></p>',
       }),
       after: () => $('#f-password').focus(),
     };
@@ -902,27 +976,27 @@
     const leftTone = i.status === 'expired' ? 'weak' : i.status === 'expiring' ? 'warning' : 'base';
     if (flags.length) {
       return { tier: 0, urgency: tier(0, i.left), leftTone,
-        tag: 'Check ' + flags.map((f) => (FIELD_NAMES[f] || f).toLowerCase()).join(' and '), tagTone: 'warning', expired: false };
+        tag: T('Check {fields}', { fields: andList(flags.map((f) => (FIELD_NAMES[f] || f).toLowerCase())) }), tagTone: 'warning', expired: false };
     }
     if (i.status === 'expired') {
       return { tier: 4, urgency: tier(4, -i.left), leftTone, tag: null, tagTone: null, expired: true };
     }
     if (i.returnOpen && i.rLeft <= 7) {
       return { tier: 1, urgency: tier(1, i.rLeft), leftTone,
-        tag: i.rLeft === 0 ? 'Return closes today' : 'Return closes in ' + plural(i.rLeft, 'day'), tagTone: 'info', expired: false };
+        tag: i.rLeft === 0 ? T('Return closes today') : T('Return closes in {time}', { time: plural(i.rLeft, 'day') }), tagTone: 'info', expired: false };
     }
     if (i.left <= 30) {
       return { tier: 2, urgency: tier(2, i.left), leftTone, tag: null, tagTone: null, expired: false };
     }
     if (i.returnOpen) {
-      return { tier: 3, urgency: tier(3, i.left), leftTone, tag: 'Return by ' + fmtDate(i.rEnd, { short: true }), tagTone: 'neutral', expired: false };
+      return { tier: 3, urgency: tier(3, i.left), leftTone, tag: T('Return by {date}', { date: fmtDate(i.rEnd, { short: true }) }), tagTone: 'neutral', expired: false };
     }
     return { tier: 3, urgency: tier(3, i.left), leftTone, tag: null, tagTone: null, expired: false };
   }
 
   function greeting() {
     const h = new Date().getHours();
-    return (h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening') + ', <span class="greet-name">' + esc(state.account.first) + '</span>';
+    return T(h < 5 ? 'Good evening, {name}' : h < 12 ? 'Good morning, {name}' : h < 18 ? 'Good afternoon, {name}' : 'Good evening, {name}', { name: '<span class="greet-name">' + esc(state.account.first) + '</span>' });
   }
 
   /* The greeting: one sentence about right now, and the actions that follow from it. */
@@ -941,7 +1015,7 @@
       const len = (p.n / total) * C;
       const seg = '<circle class="ov-seg ov-' + p.key + (picked === p.key ? ' is-picked' : '') + '" cx="60" cy="60" r="' + R + '" data-action="status-pick" data-v="' + p.key + '"' +
         ' stroke-dasharray="' + Math.max(0.01, len - gap).toFixed(2) + ' ' + C.toFixed(2) + '" stroke-dashoffset="' + (-at).toFixed(2) + '">' +
-        '<title>' + p.label + ': ' + p.n + ' of ' + total + '. Click to show only these.</title></circle>';
+        '<title>' + T('{label}: {n} of {total}. Click to show only these.', { label: p.label, n: p.n, total }) + '</title></circle>';
       at += len;
       return seg;
     }).join('');
@@ -950,10 +1024,10 @@
     const first = !ui.ringSeen;
     ui.ringSeen = true;
     return '<section class="overview' + (picked ? ' has-pick' : '') + (first ? ' is-first' : '') + '" aria-labelledby="ov-title">' +
-      '<div class="ov-head"><h2 class="ov-title" id="ov-title">Status</h2>' +
-        (picked ? '<button type="button" class="link-btn ov-clear" data-action="status-pick" data-v="all">Show all</button>' : '') + '</div>' +
+      '<div class="ov-head"><h2 class="ov-title" id="ov-title">' + T('Status') + '</h2>' +
+        (picked ? '<button type="button" class="link-btn ov-clear" data-action="status-pick" data-v="all">' + T('Show all') + '</button>' : '') + '</div>' +
       '<div class="ov-ring">' +
-        '<svg viewBox="0 0 120 120" role="img" aria-label="' + pct + '% of your warranties are still covered">' +
+        '<svg viewBox="0 0 120 120" role="img" aria-label="' + T('{pct}% of your warranties are still covered', { pct }) + '">' +
           '<circle class="ov-track" cx="60" cy="60" r="' + R + '" />' + segs + '</svg>' +
         '<p class="ov-center"><b class="num">' + pct + '%</b></p>' +
       '</div>' +
@@ -970,24 +1044,26 @@
     const soon = action.filter((x) => x.i.status !== 'expired' && x.i.left <= 30).length;
     let line, cta = '';
     if (!list.length) {
-      line = 'Add your first receipt and we’ll track its warranty and return window for you.';
-      cta = btn('Try with sample items', 'load-samples', { kind: 'secondary', icon: 'sparkle' });
+      line = T('Add your first receipt and we’ll track its warranty and return window for you.');
+      cta = btn(T('Try with sample items'), 'load-samples', { kind: 'secondary', icon: 'sparkle' });
     } else if (action.length) {
-      const expiring = soon === 1 ? 'a warranty that expires within a month' : plural(soon, 'warranty', 'warranties') + ' that expire within a month';
-      line = (action.length === 1 ? 'One thing needs your attention' : plural(action.length, 'thing') + ' need your attention') +
-        (soon ? (action.length === soon ? (soon === 1 ? ': a warranty expires within a month.' : ': ' + plural(soon, 'warranty', 'warranties') + ' expire within a month.') : ', including ' + expiring + '.') : '.');
+      /* Whole sentences per count, so every language can agree its verbs with the numbers. */
+      const n = action.length;
+      line = !soon ? TN('{n} things need your attention.', n)
+        : n === soon ? TN('{n} things need your attention: {n} warranties expire within a month.', n)
+        : TN('{n} things need your attention, including {warranties}.', n, { warranties: TN('{n} warranties that expire within a month', soon) });
       cta = ui.status === 'attention'
-        ? btn('Show all items', 'inspect-off')
-        : btn('Inspect', 'inspect', { kind: 'secondary' });
+        ? btn(T('Show all items'), 'inspect-off')
+        : btn(T('Inspect'), 'inspect', { kind: 'secondary' });
     } else {
-      line = 'Everything is covered. Nothing needs your attention.';
+      line = T('Everything is covered. Nothing needs your attention.');
     }
     return '<header class="page-head greet">' +
       '<div class="greet-text"><h1 class="large-title">' + greeting() + '</h1><p>' + line + '</p>' +
         (cta ? '<div class="page-actions">' + cta + '</div>' : '') + '</div>' +
     '</header>' +
-    (list.length ? '' : '<section class="first-add" aria-label="Add your first receipt">' + addChoices() +
-      '<p class="first-add-note">We read the shop, the price and the date, then remind you before the return window or the warranty runs out.</p></section>');
+    (list.length ? '' : '<section class="first-add" aria-label="' + T('Add your first receipt') + '">' + addChoices() +
+      '<p class="first-add-note">' + T('We read the shop, the price and the date, then remind you before the return window or the warranty runs out.') + '</p></section>');
   }
 
   function viewVault() {
@@ -1005,22 +1081,22 @@
       '<div class="toolbar">' +
         searchField('q-vault', 'search-bar') +
         '<div class="toolbar-controls">' +
-          '<div class="select select-sm"><label class="sr-only" for="flt-status">Status</label><select id="flt-status">' +
+          '<div class="select select-sm"><label class="sr-only" for="flt-status">' + T('Status') + '</label><select id="flt-status">' +
             STATUSES.map((o) => '<option value="' + o.key + '"' + (ui.status === o.key ? ' selected' : '') + '>' + o.label + '</option>').join('') +
           '</select>' + icon('chevronDown', 12) + '</div>' +
-          '<div class="select select-sm"><label class="sr-only" for="flt-cat">Category</label><select id="flt-cat"><option value="all">All categories</option>' +
+          '<div class="select select-sm"><label class="sr-only" for="flt-cat">' + T('Category') + '</label><select id="flt-cat"><option value="all">' + T('All categories') + '</option>' +
             cats.map((c) => '<option value="' + c.key + '"' + (ui.cat === c.key ? ' selected' : '') + '>' + c.label + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>' +
-          '<div class="select select-sm"><label class="sr-only" for="flt-merchant">Shop</label><select id="flt-merchant"><option value="all">All shops</option>' +
+          '<div class="select select-sm"><label class="sr-only" for="flt-merchant">' + T('Shop') + '</label><select id="flt-merchant"><option value="all">' + T('All shops') + '</option>' +
             merchants.map((m) => '<option' + (ui.merchant === m ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="wlist" id="items" role="region" aria-label="Items"></div>' +
+      '<div class="wlist" id="items" role="region" aria-label="' + T('Items') + '"></div>' +
       '<div class="list-foot" id="list-foot" aria-live="polite"></div>' +
-      (state.plan === 'free' ? '<p class="plan-note">' + items.length + ' of ' + FREE_LIMIT + ' items on the free plan. <a href="#/settings/plan">See Plus</a></p>' : '') +
-      '</div><aside class="vault-side" aria-label="Overview">' +
+      (state.plan === 'free' ? '<p class="plan-note">' + T('{n} of {max} items on the free plan.', { n: items.length, max: FREE_LIMIT }) + ' <a href="#/settings/plan">' + T('See Plus') + '</a></p>' : '') +
+      '</div><aside class="vault-side" aria-label="' + T('Overview') + '">' +
         '<dl class="side-stats">' +
-          '<div class="stat"><dt>Items</dt><dd class="num">' + items.length + '</dd></div>' +
-          '<div class="stat"><dt>Still covered</dt><dd class="num">' + moneyWhole.format(Math.floor(covered)) + '</dd></div>' +
+          '<div class="stat"><dt>' + T('Items') + '</dt><dd class="num">' + items.length + '</dd></div>' +
+          '<div class="stat"><dt>' + T('Still covered') + '</dt><dd class="num">' + moneyWhole.format(Math.floor(covered)) + '</dd></div>' +
         '</dl>' +
         coverageOverview() +
       '</aside></div>';
@@ -1074,18 +1150,18 @@
   function returnLine(i) {
     if (!i.returnOpen) return '';
     const soon = i.rLeft <= 7;
-    const text = i.rLeft === 0 ? 'Return closes today'
-      : 'Return by ' + fmtDate(i.rEnd, { short: true, weekday: true }) + ', ' + plural(i.rLeft, 'day') + ' left';
+    const text = i.rLeft === 0 ? T('Return closes today')
+      : T('Return by {date}, {time} left', { date: fmtDate(i.rEnd, { short: true, weekday: true }), time: plural(i.rLeft, 'day') });
     return '<span class="lrow-return' + (soon ? ' is-soon' : '') + '">' + icon('return', 12) + '<span>' + text + '</span></span>';
   }
 
   /* The status filter: what needs you, what's covered, what has expired. */
-  const STATUSES = [
+  const STATUSES = labelled([
     { key: 'all', label: 'All statuses' },
     { key: 'attention', label: 'Needs attention', has: (x) => x.next.tier <= 2 },
     { key: 'active', label: 'Active warranty', has: (x) => x.next.tier === 3 },
     { key: 'expired', label: 'Expired', has: (x) => x.next.tier === 4 },
-  ];
+  ]);
 
   function renderList() {
     const el = $('#items');
@@ -1094,8 +1170,8 @@
     el.classList.toggle('is-drawing', !!ui.drawIn && !reduceMotion);
 
     if (!list.length) {
-      el.innerHTML = '<div class="empty-note"><p>' + (ui.q ? 'No items match “' + esc(ui.q) + '”.' : 'No items match these filters.') + '</p>' +
-        '<button type="button" class="btn btn-secondary btn-sm" data-action="clear-filters">Clear filters</button></div>';
+      el.innerHTML = '<div class="empty-note"><p>' + (ui.q ? T('No items match “{q}”.', { q: esc(ui.q) }) : T('No items match these filters.')) + '</p>' +
+        '<button type="button" class="btn btn-secondary btn-sm" data-action="clear-filters">' + T('Clear filters') + '</button></div>';
       $('#list-foot').innerHTML = '';
       return;
     }
@@ -1105,8 +1181,8 @@
     /* One list, most urgent first. Each row's tag and reading say what needs you. */
     el.innerHTML = '<div class="ledger">' + shown.map(({ it, i, next }, n) => wrow(it, i, next, n)).join('') + '</div>';
     $('#list-foot').innerHTML = capped
-      ? btn('Show all ' + list.length + ' items', 'show-all', { kind: 'secondary', icon: 'chevronDown' })
-      : list.length === state.items.length ? '' : 'Showing ' + list.length + ' of ' + state.items.length;
+      ? btn(TN('Show all {n} items', list.length), 'show-all', { kind: 'secondary', icon: 'chevronDown' })
+      : list.length === state.items.length ? '' : T('Showing {n} of {total}', { n: list.length, total: state.items.length });
   }
 
   /* A small paper receipt, drawn from the item's details. */
@@ -1116,10 +1192,10 @@
       '<p class="rc-meta mono">' + fmtDate(it.purchased) + (it.orderNo ? ' · ' + esc(it.orderNo) : '') + '</p>' +
       '<span class="rc-rule"></span>' +
       '<p class="rc-line"><span>' + esc(it.name) + '</span><span class="mono">' + money(it.price) + '</span></p>' +
-      '<p class="rc-line rc-total"><span>Total</span><span class="mono">' + money(it.price) + '</span></p>' +
+      '<p class="rc-line rc-total"><span>' + T('Total') + '</span><span class="mono">' + money(it.price) + '</span></p>' +
       '<span class="rc-rule"></span>' +
-      '<p class="rc-line rc-foot"><span>Warranty</span><span>' + (i.status === 'expired' ? 'Expired ' : 'Until ') + fmtDate(i.end) + '</span></p>' +
-      (i.rDays ? '<p class="rc-line rc-foot"><span>Returns</span><span>' + (i.returnOpen ? 'Until ' : 'Closed ') + fmtDate(i.rEnd) + '</span></p>' : '') +
+      '<p class="rc-line rc-foot"><span>' + T('Warranty') + '</span><span>' + T(i.status === 'expired' ? 'Expired {date}' : 'Until {date}', { date: fmtDate(i.end) }) + '</span></p>' +
+      (i.rDays ? '<p class="rc-line rc-foot"><span>' + T('Returns') + '</span><span>' + T(i.returnOpen ? 'Until {date}' : 'Closed {date}', { date: fmtDate(i.rEnd) }) + '</span></p>' : '') +
     '</div>';
   }
 
@@ -1171,41 +1247,42 @@
     const align = todayPct < 12 ? 'start' : todayPct > 88 ? 'end' : 'mid';
     const r = state.settings.remind;
     const ticks = [r.w30 && addDays(i.end, -30), r.w7 && addDays(i.end, -7)].filter((d) => d && d > t)
-      .map((d) => '<span class="g-tick" style="left:' + pct(d) + '%" title="Reminder ' + fmtDate(d) + '"></span>').join('');
+      .map((d) => '<span class="g-tick" style="left:' + pct(d) + '%" title="' + T('Reminder {date}', { date: fmtDate(d) }) + '"></span>').join('');
 
     let rows = '';
     if (i.rDays > 0) {
       const text = i.returnOpen
-        ? 'until ' + fmtDate(i.rEnd, { short: true, weekday: true }) + ', ' + (i.rLeft === 0 ? 'last day' : plural(i.rLeft, 'day') + ' left')
-        : 'closed ' + fmtDate(i.rEnd, { short: true });
+        ? (i.rLeft === 0 ? T('until {date}, last day', { date: fmtDate(i.rEnd, { short: true, weekday: true }) })
+          : T('until {date}, {time} left', { date: fmtDate(i.rEnd, { short: true, weekday: true }), time: plural(i.rLeft, 'day') }))
+        : T('closed {date}', { date: fmtDate(i.rEnd, { short: true }) });
       rows += '<div class="g-row' + (i.returnOpen ? '' : ' is-past') + '">' +
-        '<p class="g-head"><span>Returns</span><span class="' + (i.returnOpen ? 'tone-info' : '') + '">' + text + '</span></p>' +
+        '<p class="g-head"><span>' + T('Returns') + '</span><span class="' + (i.returnOpen ? 'tone-info' : '') + '">' + text + '</span></p>' +
         '<div class="g-track"><span class="g-bar g-bar-return" style="width:' + Math.max(1.5, pct(i.rEnd)) + '%"></span>' +
           '<span class="g-mark" style="left:' + todayPct + '%"></span></div></div>';
     }
-    const wText = i.status === 'expired'
-      ? 'expired ' + fmtDate(i.end, { short: true }) + ', ' + readingText(i.left) + ' ago'
-      : 'until ' + fmtDate(i.end, { short: true }) + ', ' + (i.left === 0 ? 'last day' : readingText(i.left) + ' left');
+    const wDate = fmtDate(i.end, { short: true });
+    const wText = i.status === 'expired' ? T('expired {date}, {time} ago', { date: wDate, time: readingText(i.left) })
+      : i.left === 0 ? T('until {date}, last day', { date: wDate })
+      : T('until {date}, {time} left', { date: wDate, time: readingText(i.left) });
     rows += '<div class="g-row' + (i.status === 'expired' ? ' is-past' : '') + '">' +
-      '<p class="g-head"><span>Warranty</span><span class="' + (i.status === 'expiring' ? 'tone-warning' : '') + '">' + wText + '</span></p>' +
+      '<p class="g-head"><span>' + T('Warranty') + '</span><span class="' + (i.status === 'expiring' ? 'tone-warning' : '') + '">' + wText + '</span></p>' +
       '<div class="g-track"><span class="g-bar g-bar-used" style="width:' + todayPct + '%"></span>' +
         '<span class="g-bar g-bar-left" style="left:' + todayPct + '%;width:' + (100 - todayPct).toFixed(2) + '%"></span>' + ticks +
         '<span class="g-mark" style="left:' + todayPct + '%"></span></div></div>';
 
     return '<div class="gantt gantt-' + i.status + '">' + rows +
-      '<div class="g-axis"><span class="g-today g-today-' + align + '" style="left:' + todayPct + '%">Today</span></div></div>';
+      '<div class="g-axis"><span class="g-today g-today-' + align + '" style="left:' + todayPct + '%">' + T('Today') + '</span></div></div>';
   }
 
   /* One sentence about reminders, instead of a list of dates. */
   function reminderLine(it) {
     const t = today();
     const up = remindersFor(it).filter((r) => r.date >= t).sort((a, b) => a.date - b.date)
-      .map((r) => (daysFrom(t, r.date) === 0 ? 'today' : daysFrom(t, r.date) === 1 ? 'tomorrow' : fmtDate(r.date, { short: true })));
-    const change = ' <a href="#/settings/reminders">Change</a>';
-    if (!up.length) return 'None coming up.' + change;
-    const dates = up.length === 1 ? up[0] : up.slice(0, -1).join(', ') + ' and ' + up[up.length - 1];
-    const where = [state.settings.device && 'on this device', state.settings.emailCopy && 'by email'].filter(Boolean).join(' and ');
-    return dates + (where ? ', ' + where : '') + '.' + change;
+      .map((r) => (daysFrom(t, r.date) === 0 ? T('today') : daysFrom(t, r.date) === 1 ? T('tomorrow') : fmtDate(r.date, { short: true })));
+    const change = ' <a href="#/settings/reminders">' + T('Change') + '</a>';
+    if (!up.length) return T('None coming up.') + change;
+    const where = andList([state.settings.device && T('on this device'), state.settings.emailCopy && T('by email')].filter(Boolean));
+    return (where ? T('{dates}, {where}.', { dates: andList(up), where }) : T('{dates}.', { dates: andList(up) })) + change;
   }
 
   function drawerDetail(it) {
@@ -1214,23 +1291,23 @@
     const returnFirst = i.returnOpen && (i.rLeft <= 7 || i.left > 30);
     const st = statusOf(i, returnFirst);
     const note = returnFirst
-      ? (i.rLeft === 0 ? 'Today is the last day to send it back.' : 'You can send it back until ' + fmtDate(i.rEnd, { weekday: true }) + '.')
-      : i.status === 'expired' ? 'The maker may still repair it for a fee.'
-      : i.left <= 30 ? 'Claim before then if anything’s wrong.'
-      : 'Covered until ' + fmtDate(i.end, { weekday: true }) + '.';
-    const warrantySource = it.warrantyNote ? esc(it.warrantyNote) : !it.warrantyMonths ? 'Default for ' + catLabel(it.category).toLowerCase() : 'Set by you';
+      ? (i.rLeft === 0 ? T('Today is the last day to send it back.') : T('You can send it back until {date}.', { date: fmtDate(i.rEnd, { weekday: true }) }))
+      : i.status === 'expired' ? T('The maker may still repair it for a fee.')
+      : i.left <= 30 ? T('Claim before then if anything’s wrong.')
+      : T('Covered until {date}.', { date: fmtDate(i.end, { weekday: true }) });
+    const warrantySource = it.warrantyNote ? esc(it.warrantyNote) : !it.warrantyMonths ? T('Default for {category}', { category: catLabel(it.category).toLowerCase() }) : T('Set by you');
 
     return '<span class="grabber" aria-hidden="true"></span>' +
       '<header class="d-head">' +
-        '<button type="button" class="close-btn" data-action="close-drawer" aria-label="Close">' + icon('x', 14) + '</button>' +
+        '<button type="button" class="close-btn" data-action="close-drawer" aria-label="' + T('Close') + '">' + icon('x', 14) + '</button>' +
         passCard(it, i, { titleId: 'd-title', cls: 'pass-sheet' }) +
       '</header>' +
       '<div class="d-body">' +
         (flags.length ? '<section class="callout callout-warning">' + icon('alert') + '<div>' +
-          '<p class="callout-title">Check ' + (flags.length === 1 ? 'this detail' : 'these details') + '</p>' +
+          '<p class="callout-title">' + (flags.length === 1 ? T('Check this detail') : T('Check these details')) + '</p>' +
           flags.map((f) => '<p>' + (FIELD_NAMES[f] || f) + ': ' + esc(it.review[f]) + '</p>').join('') +
-          '<div class="callout-actions">' + btn('Looks right', 'review-ok', { kind: 'filled-warning', cls: 'btn-sm', data: { id: it.id } }) +
-          btn('Edit', 'edit', { kind: 'plain', cls: 'btn-sm', data: { id: it.id } }) + '</div></div></section>' : '') +
+          '<div class="callout-actions">' + btn(T('Looks right'), 'review-ok', { kind: 'filled-warning', cls: 'btn-sm', data: { id: it.id } }) +
+          btn(T('Edit'), 'edit', { kind: 'plain', cls: 'btn-sm', data: { id: it.id } }) + '</div></div></section>' : '') +
 
         '<section class="d-status">' +
           '<p class="d-label">' + st.label + '</p>' +
@@ -1239,59 +1316,59 @@
           timeline(i) +
         '</section>' +
 
-        '<section class="d-sec"><h3>Details</h3><dl class="dl">' +
-          '<div><dt>Paid</dt><dd class="num">' + money(it.price) + '</dd></div>' +
-          '<div><dt>Order number</dt><dd class="num">' + (it.orderNo ? esc(it.orderNo) : '<span class="weak">Not recorded</span>') + '</dd></div>' +
-          '<div><dt>Warranty</dt><dd>' + monthsLabel(i.months) + '<span class="dd-sub">' + warrantySource + '</span></dd></div>' +
-          '<div><dt>Return window</dt><dd>' + (i.rDays ? plural(i.rDays, 'day') : 'None') + '<span class="dd-sub">' + (it.returnDays == null ? 'Your default' : 'Shop’s policy') + '</span></dd></div>' +
-          (it.notes ? '<div><dt>Notes</dt><dd>' + esc(it.notes) + '</dd></div>' : '') +
-          '<div class="dl-wide"><dt>Reminders</dt><dd>' + reminderLine(it) + '</dd></div>' +
+        '<section class="d-sec"><h3>' + T('Details') + '</h3><dl class="dl">' +
+          '<div><dt>' + T('Paid') + '</dt><dd class="num">' + money(it.price) + '</dd></div>' +
+          '<div><dt>' + T('Order number') + '</dt><dd class="num">' + (it.orderNo ? esc(it.orderNo) : '<span class="weak">' + T('Not recorded') + '</span>') + '</dd></div>' +
+          '<div><dt>' + T('Warranty') + '</dt><dd>' + monthsLabel(i.months) + '<span class="dd-sub">' + warrantySource + '</span></dd></div>' +
+          '<div><dt>' + T('Return window') + '</dt><dd>' + (i.rDays ? plural(i.rDays, 'day') : T('None')) + '<span class="dd-sub">' + (it.returnDays == null ? T('Your default') : T('Shop’s policy')) + '</span></dd></div>' +
+          (it.notes ? '<div><dt>' + T('Notes') + '</dt><dd>' + esc(it.notes) + '</dd></div>' : '') +
+          '<div class="dl-wide"><dt>' + T('Reminders') + '</dt><dd>' + reminderLine(it) + '</dd></div>' +
         '</dl></section>' +
 
-        '<section class="d-sec"><h3>Receipt</h3>' + proofCard(it, i) + '</section>' +
-        '<section class="d-sec"><h3>Documents</h3>' +
-          ((it.docs || []).length ? '<ul class="doc-list">' + it.docs.map((d, n) => docRow(d, { itemId: it.id, n })).join('') + '</ul>' : '<p class="d-muted docs-empty">Warranty card, manual, delivery note: keep them here for a claim.</p>') +
+        '<section class="d-sec"><h3>' + T('Receipt') + '</h3>' + proofCard(it, i) + '</section>' +
+        '<section class="d-sec"><h3>' + T('Documents') + '</h3>' +
+          ((it.docs || []).length ? '<ul class="doc-list">' + it.docs.map((d, n) => docRow(d, { itemId: it.id, n })).join('') + '</ul>' : '<p class="d-muted docs-empty">' + T('Warranty card, manual, delivery note: keep them here for a claim.') + '</p>') +
           dropzone('data-attach-docs="' + it.id + '"', true) +
         '</section>' +
       '</div>' +
       '<footer class="d-foot">' +
-        btn('Export for a claim', 'export-one', { kind: 'primary', icon: 'download', data: { id: it.id } }) +
-        btn('Edit', 'edit', { kind: 'gray', icon: 'pencil', data: { id: it.id } }) +
-        '<button type="button" class="icon-btn icon-btn-danger" data-action="delete" data-id="' + it.id + '" aria-label="Delete ' + esc(it.name) + '">' + icon('trash') + '</button>' +
+        btn(T('Export for a claim'), 'export-one', { kind: 'primary', icon: 'download', data: { id: it.id } }) +
+        btn(T('Edit'), 'edit', { kind: 'gray', icon: 'pencil', data: { id: it.id } }) +
+        '<button type="button" class="icon-btn icon-btn-danger" data-action="delete" data-id="' + it.id + '" aria-label="' + T('Delete {name}', { name: esc(it.name) }) + '">' + icon('trash') + '</button>' +
       '</footer>';
   }
 
   function proofCard(it, i) {
     if (it.photo) {
       return '<button type="button" class="proof proof-photo" data-action="view-proof" data-id="' + it.id + '">' +
-        '<img src="' + it.photo + '" alt="" /><span class="proof-cap">' + icon('camera') + '<span><b>Photo of receipt</b><span>Added ' + fmtDate(it.added || it.purchased) + '</span></span>' + icon('chevron', 12) + '</span></button>';
+        '<img src="' + it.photo + '" alt="" /><span class="proof-cap">' + icon('camera') + '<span><b>' + T('Photo of receipt') + '</b><span>' + T('Added {date}', { date: fmtDate(it.added || it.purchased) }) + '</span></span>' + icon('chevron', 12) + '</span></button>';
     }
     if (it.fileName) {
       return '<button type="button" class="proof proof-doc" data-action="view-proof" data-id="' + it.id + '">' +
         receiptPreview(it, i) +
-        '<span class="proof-cap">' + icon('file') + '<span><b>' + esc(it.fileName) + '</b><span>Uploaded ' + fmtDate(it.added || it.purchased) + '</span></span>' + icon('chevron', 12) + '</span></button>';
+        '<span class="proof-cap">' + icon('file') + '<span><b>' + esc(it.fileName) + '</b><span>' + T('Uploaded {date}', { date: fmtDate(it.added || it.purchased) }) + '</span></span>' + icon('chevron', 12) + '</span></button>';
     }
-    return '<p class="d-muted">No receipt attached. Add a photo so you have proof if you need to claim.</p>' +
-      '<label class="btn btn-tinted btn-sm file-btn">' + icon('camera') + '<span>Add a photo</span>' +
+    return '<p class="d-muted">' + T('No receipt attached. Add a photo so you have proof if you need to claim.') + '</p>' +
+      '<label class="btn btn-tinted btn-sm file-btn">' + icon('camera') + '<span>' + T('Add a photo') + '</span>' +
       '<input type="file" accept="image/*" capture="environment" data-attach="' + it.id + '" /></label>';
   }
 
   function viewProof(it) {
     const body = it.photo
-      ? '<img class="proof-full" src="' + it.photo + '" alt="Photo of the receipt for ' + esc(it.name) + '" />'
+      ? '<img class="proof-full" src="' + it.photo + '" alt="' + T('Photo of the receipt for {name}', { name: esc(it.name) }) + '" />'
       : '<article class="receipt">' +
           '<header><p class="mono">' + esc(it.fileName) + '</p><h3>' + esc(it.merchant) + '</h3><p>' + fmtDate(it.purchased, { weekday: true }) + '</p></header>' +
           '<table><tbody>' +
-            '<tr><td>' + esc(it.name) + '<br><span class="weak">Qty 1</span></td><td class="num">' + money(it.price) + '</td></tr>' +
-            (it.review && it.review.price ? '<tr><td>Delivery</td><td class="num">€9.99</td></tr>' : '') +
-            '<tr class="receipt-total"><td>Total paid</td><td class="num">' + money(it.review && it.review.price ? Number(it.price) + 9.99 : it.price) + '</td></tr>' +
+            '<tr><td>' + esc(it.name) + '<br><span class="weak">' + T('Qty 1') + '</span></td><td class="num">' + money(it.price) + '</td></tr>' +
+            (it.review && it.review.price ? '<tr><td>' + T('Delivery') + '</td><td class="num">' + money(9.99) + '</td></tr>' : '') +
+            '<tr class="receipt-total"><td>' + T('Total paid') + '</td><td class="num">' + money(it.review && it.review.price ? Number(it.price) + 9.99 : it.price) + '</td></tr>' +
           '</tbody></table>' +
-          '<p class="mono weak">Order ' + esc(it.orderNo || '—') + '</p>' +
+          '<p class="mono weak">' + T('Order {no}', { no: esc(it.orderNo || '—') }) + '</p>' +
         '</article>';
     modal({
-      title: it.photo ? 'Receipt photo' : 'Receipt',
-      body: body + '<p class="modal-note">' + icon('lock', 14) + 'Stored with this item. Only you can see it.</p>',
-      actions: [{ label: 'Close', action: 'close-modal' }],
+      title: it.photo ? T('Receipt photo') : T('Receipt'),
+      body: body + '<p class="modal-note">' + icon('lock', 14) + T('Stored with this item. Only you can see it.') + '</p>',
+      actions: [{ label: T('Close'), action: 'close-modal' }],
       wide: true,
     });
   }
@@ -1300,17 +1377,17 @@
     flags = flags || {};
     const catDefault = state.settings.defaults[v.category || 'electronics'];
     return '<div class="form-grid">' +
-      field({ name: 'name', label: 'Item', value: v.name || '', placeholder: 'e.g. Bosch dishwasher', flag: flags.name, wide: true }) +
-      field({ name: 'merchant', label: 'Shop', value: v.merchant || '', placeholder: 'e.g. MediaMarkt', flag: flags.merchant }) +
-      field({ name: 'category', label: 'Category', type: 'select', value: v.category || 'electronics', options: CATS.map((c) => ({ value: c.key, label: c.label })), flag: flags.category }) +
-      field({ name: 'price', label: 'Price paid (€)', value: v.price != null && v.price !== '' ? String(v.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal"', flag: flags.price }) +
-      field({ name: 'purchased', label: 'Purchase date', type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
-      field({ name: 'orderNo', label: 'Order number', value: v.orderNo || '', placeholder: 'Optional', flag: flags.orderNo }) +
-      field({ name: 'warrantyMonths', label: 'Warranty', type: 'select', value: v.warrantyMonths || '',
-        options: [{ value: '', label: 'Default (' + monthsLabel(catDefault) + ')' }].concat(WARRANTY_OPTIONS.map((m) => ({ value: m, label: monthsLabel(m) }))) }) +
-      field({ name: 'returnDays', label: 'Return window', type: 'select', value: v.returnDays == null ? '' : v.returnDays,
-        options: [{ value: '', label: 'Default (' + plural(state.settings.returnDays, 'day') + ')' }].concat(RETURN_OPTIONS.map((d) => ({ value: d, label: d ? plural(d, 'day') : 'No returns' }))) }) +
-      field({ name: 'notes', label: 'Notes', type: 'textarea', value: v.notes || '', placeholder: 'Serial number, where it’s kept, anything useful for a claim', wide: true }) +
+      field({ name: 'name', label: T('Item'), value: v.name || '', placeholder: T('e.g. Bosch dishwasher'), flag: flags.name, wide: true }) +
+      field({ name: 'merchant', label: T('Shop'), value: v.merchant || '', placeholder: T('e.g. MediaMarkt'), flag: flags.merchant }) +
+      field({ name: 'category', label: T('Category'), type: 'select', value: v.category || 'electronics', options: CATS.map((c) => ({ value: c.key, label: c.label })), flag: flags.category }) +
+      field({ name: 'price', label: T('Price paid (€)'), value: v.price != null && v.price !== '' ? String(v.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal"', flag: flags.price }) +
+      field({ name: 'purchased', label: T('Purchase date'), type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
+      field({ name: 'orderNo', label: T('Order number'), value: v.orderNo || '', placeholder: T('Optional'), flag: flags.orderNo }) +
+      field({ name: 'warrantyMonths', label: T('Warranty'), type: 'select', value: v.warrantyMonths || '',
+        options: [{ value: '', label: T('Default ({time})', { time: monthsLabel(catDefault) }) }].concat(WARRANTY_OPTIONS.map((m) => ({ value: m, label: monthsLabel(m) }))) }) +
+      field({ name: 'returnDays', label: T('Return window'), type: 'select', value: v.returnDays == null ? '' : v.returnDays,
+        options: [{ value: '', label: T('Default ({time})', { time: plural(state.settings.returnDays, 'day') }) }].concat(RETURN_OPTIONS.map((d) => ({ value: d, label: d ? plural(d, 'day') : T('No returns') }))) }) +
+      field({ name: 'notes', label: T('Notes'), type: 'textarea', value: v.notes || '', placeholder: T('Serial number, where it’s kept, anything useful for a claim'), wide: true }) +
     '</div>';
   }
 
@@ -1320,7 +1397,7 @@
     const price = parsePrice(raw);
     return {
       name: String(f.get('name') || '').trim(),
-      merchant: String(f.get('merchant') || '').trim() || 'Unknown shop',
+      merchant: String(f.get('merchant') || '').trim() || T('Unknown shop'),
       category: f.get('category'),
       price: isNaN(price) ? 0 : Math.round(price * 100) / 100,
       priceRaw: raw,
@@ -1345,23 +1422,23 @@
   function validateItem(v) {
     let ok = true;
     ['f-purchased', 'f-price', 'f-name'].forEach((id) => showError(id, ''));
-    if (v.purchased > iso(today())) { showError('f-purchased', 'The purchase date can’t be in the future.'); ok = false; }
-    if (v.priceRaw && isNaN(parsePrice(v.priceRaw))) { showError('f-price', 'Enter the price as a number, like 249.99.'); ok = false; }
-    if (!v.name) { showError('f-name', 'Enter what you bought, so you can find it later.'); ok = false; }
+    if (v.purchased > iso(today())) { showError('f-purchased', T('The purchase date can’t be in the future.')); ok = false; }
+    if (v.priceRaw && isNaN(parsePrice(v.priceRaw))) { showError('f-price', T('Enter the price as a number, like 249.99.')); ok = false; }
+    if (!v.name) { showError('f-name', T('Enter what you bought, so you can find it later.')); ok = false; }
     return ok;
   }
 
   function drawerEdit(it) {
     return '<span class="grabber" aria-hidden="true"></span>' +
       '<header class="d-head d-head-edit">' +
-        '<button type="button" class="close-btn" data-action="close-drawer" aria-label="Close">' + icon('x', 14) + '</button>' +
-        '<h2 id="d-title" class="d-title">Edit item</h2>' +
+        '<button type="button" class="close-btn" data-action="close-drawer" aria-label="' + T('Close') + '">' + icon('x', 14) + '</button>' +
+        '<h2 id="d-title" class="d-title">' + T('Edit item') + '</h2>' +
         '<p class="d-sub">' + esc(it.name) + '</p>' +
       '</header>' +
       '<form class="d-body form" id="edit-form" data-id="' + it.id + '" novalidate>' + itemForm(it, it.review) + '</form>' +
       '<footer class="d-foot">' +
-        '<button type="submit" form="edit-form" class="btn btn-primary"><span>Save changes</span></button>' +
-        btn('Cancel', 'cancel-edit', { kind: 'plain' }) +
+        '<button type="submit" form="edit-form" class="btn btn-primary"><span>' + T('Save changes') + '</span></button>' +
+        btn(T('Cancel'), 'cancel-edit', { kind: 'plain' }) +
       '</footer>';
   }
 
@@ -1372,18 +1449,18 @@
   function addChoices() {
     return '<div class="add-choices">' +
         '<label class="add-choice"><span class="add-ic tint-blue">' + icon('camera', 22) + '</span>' +
-          '<span class="add-text"><b>Take a photo</b><span>Point your camera at a paper receipt</span></span>' + icon('chevron', 14) +
+          '<span class="add-text"><b>' + T('Take a photo') + '</b><span>' + T('Point your camera at a paper receipt') + '</span></span>' + icon('chevron', 14) +
           '<input type="file" accept="image/*" capture="environment" id="photo-input" class="sr-only" /></label>' +
         '<label class="add-choice"><span class="add-ic tint-indigo">' + icon('upload', 22) + '</span>' +
-          '<span class="add-text"><b>Upload a file</b><span>PDF invoice or a screenshot</span></span>' + icon('chevron', 14) +
+          '<span class="add-text"><b>' + T('Upload a file') + '</b><span>' + T('PDF invoice or a screenshot') + '</span></span>' + icon('chevron', 14) +
           '<input type="file" accept="image/*,application/pdf" id="file-input" class="sr-only" /></label>' +
         '<button type="button" class="add-choice" data-action="add-manual"><span class="add-ic tint-gray">' + icon('pencil', 22) + '</span>' +
-          '<span class="add-text"><b>Enter details</b><span>No receipt to hand? Type it in</span></span>' + icon('chevron', 14) + '</button>' +
+          '<span class="add-text"><b>' + T('Enter details') + '</b><span>' + T('No receipt to hand? Type it in') + '</span></span>' + icon('chevron', 14) + '</button>' +
       '</div>';
   }
 
   /* Add and Settings sit on top of the vault: one way back to it. */
-  function backLink() { return '<a class="back-link" href="#/vault">' + icon('chevronLeft', 14) + '<span>Vault</span></a>'; }
+  function backLink() { return '<a class="back-link" href="#/vault">' + icon('chevronLeft', 14) + '<span>' + T('Vault') + '</span></a>'; }
 
   /* Adding a receipt: the receipt, what it is, how long it's covered, anything else to keep with it, done. */
   const ADD_STEPS = ['Receipt', 'Details', 'Coverage', 'Documents', 'Done'];
@@ -1391,10 +1468,10 @@
   const DOC_KINDS = ['Warranty card', 'Manual', 'Invoice', 'Delivery note', 'Photo', 'Other'];
 
   function stepper(current) {
-    return '<ol class="stepper" aria-label="Steps">' + ADD_STEPS.map((label, n) =>
+    return '<ol class="stepper" aria-label="' + T('Steps') + '">' + ADD_STEPS.map((label, n) =>
       '<li class="step' + (n < current ? ' is-done' : n === current ? ' is-current' : '') + '"' + (n === current ? ' aria-current="step"' : '') + '>' +
         '<span class="step-dot">' + (n < current ? icon('check', 12) : '<span class="num">' + (n + 1) + '</span>') + '</span>' +
-        '<span class="step-label">' + label + '</span>' +
+        '<span class="step-label">' + T(label) + '</span>' +
       '</li>').join('') + '</ol>';
   }
 
@@ -1403,7 +1480,7 @@
     const price = parsePrice(v.price == null ? '' : String(v.price));
     return {
       name: String(v.name || '').trim(),
-      merchant: String(v.merchant || '').trim() || 'Unknown shop',
+      merchant: String(v.merchant || '').trim() || T('Unknown shop'),
       category: v.category || 'electronics',
       price: isNaN(price) ? 0 : Math.round(price * 100) / 100,
       purchased: v.purchased || iso(today()),
@@ -1426,14 +1503,14 @@
     const list = addItems();
     const it = list[0];
     const i = info(it);
-    const why = (x, xi) => monthsLabel(xi.months) + (x.warrantyMonths ? '' : ', your default for ' + catLabel(x.category).toLowerCase());
+    const why = (x, xi) => x.warrantyMonths ? monthsLabel(xi.months) : T('{time}, your default for {category}', { time: monthsLabel(xi.months), category: catLabel(x.category).toLowerCase() });
     /* Several items from one receipt: the first leads, the rest are listed with their own end dates. */
     return '<div class="cov-figs">' +
-        '<div><span>Covered until</span><b class="num">' + fmtDate(i.end) + '</b><em>' + (list.length > 1 ? esc(it.name) + ', ' : '') + why(it, i) + '</em></div>' +
-        '<div><span>Return by</span><b class="num">' + (i.rDays ? fmtDate(i.rEnd) : 'No returns') + '</b><em>' + (i.rDays ? plural(i.rDays, 'day') + ' from purchase' : 'This shop takes nothing back') + '</em></div>' +
+        '<div><span>' + T('Covered until') + '</span><b class="num">' + fmtDate(i.end) + '</b><em>' + (list.length > 1 ? esc(it.name) + ', ' : '') + why(it, i) + '</em></div>' +
+        '<div><span>' + T('Return by') + '</span><b class="num">' + (i.rDays ? fmtDate(i.rEnd) : T('No returns')) + '</b><em>' + (i.rDays ? T('{time} from purchase', { time: plural(i.rDays, 'day') }) : T('This shop takes nothing back')) + '</em></div>' +
       '</div>' + timeline(i) +
       (list.length > 1 ? '<ul class="cov-lines">' + list.slice(1).map((x) => { const xi = info(x);
-        return '<li><b>' + esc(x.name) + '</b><span>Covered until <span class="num">' + fmtDate(xi.end) + '</span>, ' + why(x, xi) + '</span></li>'; }).join('') + '</ul>' : '');
+        return '<li><b>' + esc(x.name) + '</b><span>' + T('Covered until {date}', { date: '<span class="num">' + fmtDate(xi.end) + '</span>' }) + ', ' + why(x, xi) + '</span></li>'; }).join('') + '</ul>' : '');
   }
 
   /* Documents: the warranty card, the manual, the delivery note: whatever the shop asks to see. */
@@ -1458,18 +1535,18 @@
       ? '<span class="doc-thumb"><img src="' + d.thumb + '" alt="" /></span>'
       : '<span class="doc-thumb doc-file" aria-hidden="true">' + icon('file', 18) + '<em>' + esc((String(d.name).split('.').pop() || 'file').slice(0, 4)) + '</em></span>';
     const kind = o.editable
-      ? '<div class="select select-sm doc-kind"><label class="sr-only" for="kind-' + d.id + '">Type of ' + esc(d.name) + '</label><select id="kind-' + d.id + '" data-doc-kind="' + d.id + '">' +
-          DOC_KINDS.map((k) => '<option' + (k === d.kind ? ' selected' : '') + '>' + k + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>'
+      ? '<div class="select select-sm doc-kind"><label class="sr-only" for="kind-' + d.id + '">' + T('Type of {name}', { name: esc(d.name) }) + '</label><select id="kind-' + d.id + '" data-doc-kind="' + d.id + '">' +
+          DOC_KINDS.map((k) => '<option value="' + k + '"' + (k === d.kind ? ' selected' : '') + '>' + T(k) + '</option>').join('') + '</select>' + icon('chevronDown', 12) + '</div>'
       : '';
     return '<li class="doc" style="--n:' + (o.n || 0) + '">' + mark +
-      '<span class="doc-text"><b>' + esc(d.name) + '</b><span>' + (o.editable ? '' : esc(d.kind) + ', ') + fileSize(d.size || 0) + '</span></span>' + kind +
-      '<button type="button" class="icon-btn doc-remove" data-action="doc-remove" data-doc="' + d.id + '"' + (o.itemId ? ' data-id="' + o.itemId + '"' : '') + ' aria-label="Remove ' + esc(d.name) + '">' + icon('x', 14) + '</button>' +
+      '<span class="doc-text"><b>' + esc(d.name) + '</b><span>' + (o.editable ? '' : esc(T(d.kind)) + ', ') + fileSize(d.size || 0) + '</span></span>' + kind +
+      '<button type="button" class="icon-btn doc-remove" data-action="doc-remove" data-doc="' + d.id + '"' + (o.itemId ? ' data-id="' + o.itemId + '"' : '') + ' aria-label="' + T('Remove {name}', { name: esc(d.name) }) + '">' + icon('x', 14) + '</button>' +
     '</li>';
   }
   function dropzone(attrs, compact) {
     return '<label class="dropzone' + (compact ? ' dropzone-compact' : '') + '">' +
       '<span class="dz-ic" aria-hidden="true">' + icon('upload', 20) + '</span>' +
-      '<span class="dz-text"><b>Drop files here, or browse</b><span>Warranty card, manual, delivery note. PDF or photos, as many as you need.</span></span>' +
+      '<span class="dz-text"><b>' + T('Drop files here, or browse') + '</b><span>' + T('Warranty card, manual, delivery note. PDF or photos, as many as you need.') + '</span></span>' +
       '<input type="file" class="sr-only" multiple accept="image/*,application/pdf" ' + attrs + ' /></label>';
   }
   function renderAddDocs() {
@@ -1478,29 +1555,29 @@
     const docs = ui.add.docs || [];
     list.innerHTML = docs.map((d, n) => docRow(d, { editable: true, n })).join('');
     const go = $('#docs-next span');
-    if (go) go.textContent = docs.length ? 'Save to vault' : 'Skip and save';
+    if (go) go.textContent = docs.length ? T('Save to vault') : T('Skip and save');
   }
 
   function viewAdd() {
     const a = ui.add || { stage: 'choose' };
     const step = ADD_STEP_OF[a.stage] == null ? 0 : ADD_STEP_OF[a.stage];
-    const titles = {
+    const titles = ({
       choose: ['Add a receipt', 'How would you like to add it?'],
       reading: ['Reading your receipt', 'This takes a moment.'],
       details: ['What did you buy?', a.extracted ? 'We read these from your receipt. Check them, then continue.' : 'The basics, so you can find it and prove the purchase.'],
       coverage: ['How long is it covered?', 'We’ve filled in the usual lengths. Change them if the shop or maker gives more.'],
       docs: ['Anything else to keep with it?', 'Shops often ask for more than the receipt. Add the warranty card, the manual or the delivery note now, and it’s all in one place when you claim.'],
-    }[a.stage] || ['Add a receipt', ''];
+    }[a.stage] || ['Add a receipt', '']).map((x) => (x ? T(x) : x));
     const shell = (inner) => '<div class="add-shell">' + inner + '</div>';
     const top = '<div class="add-top">' + backLink() + '</div>' + stepper(step);
     const head = '<header class="add-head"><h1 class="large-title">' + titles[0] + '</h1>' + (titles[1] ? '<p>' + titles[1] + '</p>' : '') + '</header>';
     const panel = (html) => '<section class="step-panel">' + html + '</section>';
-    const actions = (next) => '<div class="step-actions">' + btn('Back', 'add-back', { kind: 'plain', icon: 'chevronLeft' }) + next + '</div>';
+    const actions = (next) => '<div class="step-actions">' + btn(T('Back'), 'add-back', { kind: 'plain', icon: 'chevronLeft' }) + next + '</div>';
 
     if (state.plan === 'free' && state.items.length >= FREE_LIMIT && a.stage !== 'done') {
       return {
-        html: shell('<div class="add-top">' + backLink() + '</div><header class="add-head"><h1 class="large-title">Your vault is full</h1><p>The free plan holds ' + FREE_LIMIT + ' items. Plus holds as many as you like.</p></header>' +
-          '<div class="done-actions">' + btn('See Plus', 'show-plans', { kind: 'primary', cls: 'btn-lg' }) + '</div>'),
+        html: shell('<div class="add-top">' + backLink() + '</div><header class="add-head"><h1 class="large-title">' + T('Your vault is full') + '</h1><p>' + T('The free plan holds {max} items. Plus holds as many as you like.', { max: FREE_LIMIT }) + '</p></header>' +
+          '<div class="done-actions">' + btn(T('See Plus'), 'show-plans', { kind: 'primary', cls: 'btn-lg' }) + '</div>'),
       };
     }
 
@@ -1510,9 +1587,9 @@
       return {
         html: shell(top + head + panel(
           '<div class="reading">' +
-            '<div class="reading-img">' + (a.image ? '<img src="' + a.image + '" alt="Your receipt" />' : '<span class="reading-file">' + icon('file', 24) + '<span class="mono">' + esc(a.fileName || '') + '</span></span>') +
+            '<div class="reading-img">' + (a.image ? '<img src="' + a.image + '" alt="' + T('Your receipt') + '" />' : '<span class="reading-file">' + icon('file', 24) + '<span class="mono">' + esc(a.fileName || '') + '</span></span>') +
               '<span class="scanline" aria-hidden="true"></span></div>' +
-            '<p class="reading-text" role="status"><span class="spinner" aria-hidden="true"></span>Finding the shop, the item, the price and the date…</p>' +
+            '<p class="reading-text" role="status"><span class="spinner" aria-hidden="true"></span>' + T('Finding the shop, the item, the price and the date…') + '</p>' +
           '</div>')),
         /* A real read moves on by itself when readReceipt answers; the demo just waits a beat. */
         after: () => {
@@ -1532,25 +1609,25 @@
       const flagCount = Object.keys(flags).length;
       return {
         html: shell(top + head + panel(
-          (a.image ? '<div class="add-thumb"><img src="' + a.image + '" alt="Your receipt" /></div>' : '') +
+          (a.image ? '<div class="add-thumb"><img src="' + a.image + '" alt="' + T('Your receipt') + '" /></div>' : '') +
           '<form class="form add-form" id="add-details" novalidate>' +
             (flagCount ? '<p class="callout callout-warning">' + icon('alert') + '<span>' + Object.keys(flags).map((k) => esc(flags[k])).join(' ') + '</span></p>' : '') +
             (a.lines ? receiptLines(a.lines) +
               '<div class="form-grid">' +
-                field({ name: 'merchant', label: 'Shop', value: v.merchant || '', placeholder: 'Big Bang…', flag: flags.merchant, attrs: ' autocomplete="off"' }) +
-                field({ name: 'purchased', label: 'Purchase date', type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
-                field({ name: 'orderNo', label: 'Order number', value: v.orderNo || '', placeholder: 'Optional', flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
+                field({ name: 'merchant', label: T('Shop'), value: v.merchant || '', placeholder: 'Big Bang…', flag: flags.merchant, attrs: ' autocomplete="off"' }) +
+                field({ name: 'purchased', label: T('Purchase date'), type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
+                field({ name: 'orderNo', label: T('Order number'), value: v.orderNo || '', placeholder: T('Optional'), flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
               '</div>'
             : '<div class="form-grid">' +
-              field({ name: 'name', label: 'Item', value: v.name || '', placeholder: 'Gorenje washing machine…', flag: flags.name, wide: true, attrs: ' autocomplete="off"' }) +
-              field({ name: 'merchant', label: 'Shop', value: v.merchant || '', placeholder: 'Big Bang…', flag: flags.merchant, attrs: ' autocomplete="off"' }) +
-              field({ name: 'category', label: 'Category', type: 'select', value: v.category || 'electronics', options: CATS.map((c) => ({ value: c.key, label: c.label })), flag: flags.category }) +
-              field({ name: 'price', label: 'Price paid (€)', value: v.price != null && v.price !== '' ? String(v.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal" autocomplete="off"', flag: flags.price }) +
-              field({ name: 'purchased', label: 'Purchase date', type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
-              field({ name: 'orderNo', label: 'Order number', value: v.orderNo || '', placeholder: 'Optional', flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
+              field({ name: 'name', label: T('Item'), value: v.name || '', placeholder: T('Gorenje washing machine…'), flag: flags.name, wide: true, attrs: ' autocomplete="off"' }) +
+              field({ name: 'merchant', label: T('Shop'), value: v.merchant || '', placeholder: 'Big Bang…', flag: flags.merchant, attrs: ' autocomplete="off"' }) +
+              field({ name: 'category', label: T('Category'), type: 'select', value: v.category || 'electronics', options: CATS.map((c) => ({ value: c.key, label: c.label })), flag: flags.category }) +
+              field({ name: 'price', label: T('Price paid (€)'), value: v.price != null && v.price !== '' ? String(v.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal" autocomplete="off"', flag: flags.price }) +
+              field({ name: 'purchased', label: T('Purchase date'), type: 'date', value: v.purchased || iso(today()), attrs: ' max="' + iso(today()) + '"', flag: flags.purchased }) +
+              field({ name: 'orderNo', label: T('Order number'), value: v.orderNo || '', placeholder: T('Optional'), flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
             '</div>') +
-            actions('<button type="submit" class="btn btn-primary btn-lg"><span>Continue</span>' + icon('chevron') + '</button>') +
-            (a.simulated ? '<p class="fineprint">Prototype: reading the receipt is simulated, so these details are sample data.</p>' : '') +
+            actions('<button type="submit" class="btn btn-primary btn-lg"><span>' + T('Continue') + '</span>' + icon('chevron') + '</button>') +
+            (a.simulated ? '<p class="fineprint">' + T('Prototype: reading the receipt is simulated, so these details are sample data.') + '</p>' : '') +
           '</form>')),
         after: () => { if (!a.extracted) { const n = $('#f-name'); if (n) n.focus(); } },
       };
@@ -1564,20 +1641,20 @@
           '<form class="form add-form" id="add-coverage" novalidate>' +
             '<div class="cov-preview" id="cov-preview" aria-live="polite">' + coveragePreview() + '</div>' +
             '<div class="form-grid">' +
-              field({ name: 'warrantyMonths', label: 'Warranty', type: 'select', value: v.warrantyMonths || '',
-                options: [{ value: '', label: a.lines ? 'Default for each item’s category' : 'Default (' + monthsLabel(catDefault) + ')' }].concat(WARRANTY_OPTIONS.map((m) => ({ value: m, label: monthsLabel(m) }))) }) +
-              field({ name: 'returnDays', label: 'Return window', type: 'select', value: v.returnDays == null ? '' : v.returnDays,
-                options: [{ value: '', label: 'Default (' + plural(state.settings.returnDays, 'day') + ')' }].concat(RETURN_OPTIONS.map((d) => ({ value: d, label: d ? plural(d, 'day') : 'No returns' }))) }) +
-              field({ name: 'notes', label: 'Notes', type: 'textarea', value: v.notes || '', placeholder: 'Serial number, where it’s kept, anything useful for a claim…', wide: true }) +
+              field({ name: 'warrantyMonths', label: T('Warranty'), type: 'select', value: v.warrantyMonths || '',
+                options: [{ value: '', label: a.lines ? T('Default for each item’s category') : T('Default ({time})', { time: monthsLabel(catDefault) }) }].concat(WARRANTY_OPTIONS.map((m) => ({ value: m, label: monthsLabel(m) }))) }) +
+              field({ name: 'returnDays', label: T('Return window'), type: 'select', value: v.returnDays == null ? '' : v.returnDays,
+                options: [{ value: '', label: T('Default ({time})', { time: plural(state.settings.returnDays, 'day') }) }].concat(RETURN_OPTIONS.map((d) => ({ value: d, label: d ? plural(d, 'day') : T('No returns') }))) }) +
+              field({ name: 'notes', label: T('Notes'), type: 'textarea', value: v.notes || '', placeholder: T('Serial number, where it’s kept, anything useful for a claim'), wide: true }) +
             '</div>' +
-            actions('<button type="submit" class="btn btn-primary btn-lg"><span>Continue</span>' + icon('chevron') + '</button>') +
+            actions('<button type="submit" class="btn btn-primary btn-lg"><span>' + T('Continue') + '</span>' + icon('chevron') + '</button>') +
           '</form>')),
       };
     }
 
     if (a.stage === 'docs') {
       const receipt = a.image || a.fileName
-        ? '<p class="docs-receipt">' + icon('checkCircle', 16) + '<span>Your receipt is already attached' + (a.fileName ? ': <b>' + esc(a.fileName) + '</b>' : '') + '.</span></p>'
+        ? '<p class="docs-receipt">' + icon('checkCircle', 16) + '<span>' + (a.fileName ? T('Your receipt is already attached: {file}.', { file: '<b>' + esc(a.fileName) + '</b>' }) : T('Your receipt is already attached.')) + '</span></p>'
         : '';
       return {
         html: shell(top + head + panel(
@@ -1585,7 +1662,7 @@
             receipt +
             dropzone('id="docs-input"') +
             '<ul class="doc-list" id="add-doc-list" aria-live="polite"></ul>' +
-            actions('<button type="submit" class="btn btn-primary btn-lg" id="docs-next">' + icon('check') + '<span>Skip and save</span></button>') +
+            actions('<button type="submit" class="btn btn-primary btn-lg" id="docs-next">' + icon('check') + '<span>' + T('Skip and save') + '</span></button>') +
           '</form>')),
         after: renderAddDocs,
       };
@@ -1610,14 +1687,14 @@
         '<div class="done">' +
           '<div class="done-burst" aria-hidden="true">' + Array.from({ length: 10 }, (_, n) => '<i style="--a:' + (n * 36) + 'deg"></i>').join('') +
             '<svg class="done-mark" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" /><path d="m15 27 7.5 7.5L37.5 19" /></svg></div>' +
-          '<h1 class="large-title">' + (saved.length > 1 ? plural(saved.length, 'item') + ' added to your vault' : 'Added to your vault') + '</h1>' +
+          '<h1 class="large-title">' + (saved.length > 1 ? TN('{n} items added to your vault', saved.length) : T('Added to your vault')) + '</h1>' +
           '<div class="done-cards">' + saved.map(card).join('') + '</div>' +
-          (saved.length > 1 ? '' : '<p class="done-remind">' + icon('bell', 14) + '<span>Reminders: ' + reminderLine(it) + '</span></p>') +
+          (saved.length > 1 ? '' : '<p class="done-remind">' + icon('bell', 14) + '<span>' + T('Reminders:') + ' ' + reminderLine(it) + '</span></p>') +
           '<div class="done-actions">' +
             (saved.length > 1
-              ? '<a class="btn btn-primary btn-lg" href="#/vault"><span>Open vault</span></a>'
-              : '<a class="btn btn-primary btn-lg" href="#/item/' + it.id + '"><span>Open item</span></a>') +
-            btn('Add another', 'add-reset', { kind: 'secondary', cls: 'btn-lg', icon: 'plus' }) +
+              ? '<a class="btn btn-primary btn-lg" href="#/vault"><span>' + T('Open vault') + '</span></a>'
+              : '<a class="btn btn-primary btn-lg" href="#/item/' + it.id + '"><span>' + T('Open item') + '</span></a>') +
+            btn(T('Add another'), 'add-reset', { kind: 'secondary', cls: 'btn-lg', icon: 'plus' }) +
           '</div>' +
         '</div>')),
     };
@@ -1627,19 +1704,19 @@
   function receiptLines(lines) {
     const kept = lines.filter((l) => l.keep).length;
     return '<fieldset class="lines">' +
-      '<legend class="lines-head"><b>' + lines.length + ' items on this receipt</b>' +
-        '<span>Each ticked one goes into your vault on its own. Untick anything you don’t need a warranty for.</span></legend>' +
+      '<legend class="lines-head"><b>' + TN('{n} items on this receipt', lines.length) + '</b>' +
+        '<span>' + T('Each ticked one goes into your vault on its own. Untick anything you don’t need a warranty for.') + '</span></legend>' +
       lines.map((l, n) =>
         '<div class="line' + (l.keep ? '' : ' is-off') + '">' +
           '<label class="line-keep"><input type="checkbox" name="keep-' + n + '"' + (l.keep ? ' checked' : '') + ' />' +
-            '<span class="sr-only">Add ' + esc(l.name) + ' to the vault</span></label>' +
+            '<span class="sr-only">' + T('Add {name} to the vault', { name: esc(l.name) }) + '</span></label>' +
           '<div class="form-grid">' +
-            field({ name: 'name-' + n, label: 'Item', value: l.name, flag: l.note, wide: true, hint: l.note ? esc(l.note) : '', attrs: ' autocomplete="off"' }) +
-            field({ name: 'category-' + n, label: 'Category', type: 'select', value: l.category, options: CATS.map((c) => ({ value: c.key, label: c.label })) }) +
-            field({ name: 'price-' + n, label: 'Price paid (€)', value: l.price !== '' && l.price != null ? String(l.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal" autocomplete="off"' }) +
+            field({ name: 'name-' + n, label: T('Item'), value: l.name, flag: l.note, wide: true, hint: l.note ? esc(l.note) : '', attrs: ' autocomplete="off"' }) +
+            field({ name: 'category-' + n, label: T('Category'), type: 'select', value: l.category, options: CATS.map((c) => ({ value: c.key, label: c.label })) }) +
+            field({ name: 'price-' + n, label: T('Price paid (€)'), value: l.price !== '' && l.price != null ? String(l.price) : '', placeholder: '0.00', attrs: ' inputmode="decimal" autocomplete="off"' }) +
           '</div>' +
         '</div>').join('') +
-      '<p class="field-error" id="f-lines-error"' + (kept ? ' hidden' : '') + '>' + (kept ? '' : 'Tick at least one item to add.') + '</p>' +
+      '<p class="field-error" id="f-lines-error"' + (kept ? ' hidden' : '') + '>' + (kept ? '' : T('Tick at least one item to add.')) + '</p>' +
     '</fieldset>';
   }
 
@@ -1655,16 +1732,16 @@
     lines.forEach((l, n) => {
       showError('f-name-' + n, ''); showError('f-price-' + n, '');
       if (!l.keep) return;
-      if (!l.name) { showError('f-name-' + n, 'Enter what you bought, so you can find it later.'); ok = false; }
-      if (l.price && isNaN(parsePrice(l.price))) { showError('f-price-' + n, 'Enter the price as a number, like 249.99.'); ok = false; }
+      if (!l.name) { showError('f-name-' + n, T('Enter what you bought, so you can find it later.')); ok = false; }
+      if (l.price && isNaN(parsePrice(l.price))) { showError('f-price-' + n, T('Enter the price as a number, like 249.99.')); ok = false; }
     });
     const kept = lines.filter((l) => l.keep).length;
     const err = $('#f-lines-error');
-    if (err) { err.hidden = !!kept; err.textContent = kept ? '' : 'Tick at least one item to add.'; }
+    if (err) { err.hidden = !!kept; err.textContent = kept ? '' : T('Tick at least one item to add.'); }
     if (!kept) ok = false;
     const room = FREE_LIMIT - state.items.length;
     if (kept && state.plan === 'free' && kept > room) {
-      if (err) { err.hidden = false; err.textContent = 'The free plan holds ' + FREE_LIMIT + ' items, so there’s room for ' + plural(room, 'more item') + '. Untick some, or see Plus.'; }
+      if (err) { err.hidden = false; err.textContent = T('The free plan holds {max} items, so there’s room for {room}. Untick some, or see Plus.', { max: FREE_LIMIT, room: plural(room, 'more item') }); }
       ok = false;
     }
     return ok;
@@ -1687,7 +1764,7 @@
         : { stage: 'reading', image, fileName: file.name, extracted: true, simulated: true,
             values: { name: 'Samsung 55" QLED TV QE55Q80D', merchant: 'Harvey Norman', category: 'electronics',
               price: 799, purchased: iso(addDays(today(), -1)), orderNo: 'HN-5520-118934', returnDays: 14 },
-            flags: { name: 'The receipt says “SAMS QE55Q80D 55IN”. We guessed the full name. Check it’s right.' } };
+            flags: { name: T('The receipt says “{text}”. We guessed the full name. Check it’s right.', { text: 'SAMS QE55Q80D 55IN' }) } };
       if (cloud) readReceipt(file, ui.add);
       /* An empty vault offers the same choices, so move to the Add page if we're not on it. */
       if (route().name === 'add') paint('add'); else go('add');
@@ -1702,13 +1779,13 @@
     let values = {}, flags = {}, lines = null, failed = null;
     try {
       const isPdf = file.type === 'application/pdf';
-      if (!isPdf && !file.type.startsWith('image/')) throw new Error('We can read photos and PDFs.');
-      if (isPdf && file.size > 6 * 1048576) throw new Error('That PDF is too large to read.');
+      if (!isPdf && !file.type.startsWith('image/')) throw new Error(T('We can read photos and PDFs.'));
+      if (isPdf && file.size > 6 * 1048576) throw new Error(T('That PDF is too large to read.'));
       /* Small receipt print needs more pixels than the stored thumbnail keeps. */
       const data = isPdf ? await fileToDataUrl(file) : await shrinkImage(file, 2000, 0.85);
-      const { data: r, error } = await cloud.functions.invoke(CFG.receiptFunction || 'read-receipt', { body: { file: data, fileName: file.name, today: iso(today()) } });
-      if (error || !r || r.error) throw new Error('We couldn’t read that receipt.');
-      if (!r.isReceipt) throw new Error('That doesn’t look like a receipt.');
+      const { data: r, error } = await cloud.functions.invoke(CFG.receiptFunction || 'read-receipt', { body: { file: data, fileName: file.name, today: iso(today()), lang } });
+      if (error || !r || r.error) throw new Error(T('We couldn’t read that receipt.'));
+      if (!r.isReceipt) throw new Error(T('That doesn’t look like a receipt.'));
       const date = /^\d{4}-\d{2}-\d{2}$/.test(r.purchased || '') && r.purchased <= iso(today()) ? r.purchased : '';
       values = {
         merchant: r.merchant || '', purchased: date, orderNo: r.orderNo || '',
@@ -1726,16 +1803,16 @@
       }
       (r.flags || []).forEach((f) => { if (FIELD_NAMES[f.field]) flags[f.field] = f.note; });
       /* The date field falls back to today, so say so rather than let it pass unnoticed. */
-      if (!date) flags.purchased = flags.purchased || 'We couldn’t read the purchase date, so we put today. Check it’s right.';
-      if (r.currency && r.currency !== 'EUR' && !flags.price) flags.price = 'The receipt is in ' + r.currency + ', not euros. Check the price.';
+      if (!date) flags.purchased = flags.purchased || T('We couldn’t read the purchase date, so we put today. Check it’s right.');
+      if (r.currency && r.currency !== 'EUR' && !flags.price) flags.price = T('The receipt is in {currency}, not euros. Check the price.', { currency: esc(r.currency) });
     } catch (e) {
-      failed = (e && e.message) || 'We couldn’t read that receipt.';
+      failed = (e && e.message) || T('We couldn’t read that receipt.');
     }
     /* The user may have left or started over while we were reading. */
     if (ui.add !== add || add.stage !== 'reading') return;
     Object.assign(add, { stage: 'details', values, flags, lines, extracted: !failed });
     if (route().name === 'add') paint('add');
-    if (failed) toast(esc(failed) + ' Fill in the details below.');
+    if (failed) toast(esc(failed) + ' ' + T('Fill in the details below.'));
   }
 
   function fileToDataUrl(file) {
@@ -1769,7 +1846,7 @@
   /* ==========================================================================
      Settings: section sidebar + two-column rows
      ========================================================================== */
-  const SETTINGS = [
+  const SETTINGS = labelled([
     { key: 'profile', label: 'Profile', icon: 'user', group: 'Account', tint: 'gray' },
     { key: 'password', label: 'Password', icon: 'key', group: 'Account', tint: 'gray' },
     { key: 'rules', label: 'Warranty rules', icon: 'shield', group: 'Warranties', tint: 'green' },
@@ -1777,7 +1854,7 @@
     { key: 'plan', label: 'Plan', icon: 'card', group: 'Workspace', tint: 'blue' },
     { key: 'data', label: 'Your data', icon: 'database', group: 'Advanced', tint: 'indigo' },
     { key: 'danger', label: 'Danger zone', icon: 'alert', group: 'Advanced', tint: 'orange' },
-  ];
+  ]);
 
   function srow(title, desc, control) {
     return '<div class="srow"><div class="srow-label"><h2>' + title + '</h2>' + (desc ? '<p>' + desc + '</p>' : '') + '</div>' +
@@ -1789,15 +1866,15 @@
     let groups = '';
     let last = '';
     SETTINGS.forEach((s) => {
-      if (s.group !== last) { groups += (last ? '</div>' : '') + '<div class="snav-group"><p class="snav-head">' + s.group + '</p>'; last = s.group; }
+      if (s.group !== last) { groups += (last ? '</div>' : '') + '<div class="snav-group"><p class="snav-head">' + T(s.group) + '</p>'; last = s.group; }
       groups += '<a href="#/settings/' + s.key + '"' + (s.key === key ? ' aria-current="page"' : '') + '><span class="set-ic tint-' + s.tint + '">' + icon(s.icon, 14) + '</span><span class="snav-label">' + s.label + '</span>' + icon('chevron', 12) + '</a>';
     });
     groups += '</div>';
 
     return {
-      html: backLink() + '<header class="page-head"><h1 class="large-title">Settings</h1></header>' +
+      html: backLink() + '<header class="page-head"><h1 class="large-title">' + T('Settings') + '</h1></header>' +
         '<div class="settings">' +
-        '<nav class="snav" aria-label="Settings sections">' + groups + '</nav>' +
+        '<nav class="snav" aria-label="' + T('Settings sections') + '">' + groups + '</nav>' +
         '<div class="settings-body">' + SETTINGS_BODY[key]() + '</div>' +
       '</div>',
     };
@@ -1806,33 +1883,34 @@
   const SETTINGS_BODY = {
     profile() {
       const a = state.account;
-      return srow('Your profile', 'How we greet you, and where reminders go.',
+      return srow(T('Your profile'), T('How we greet you, and where reminders go.'),
           '<form class="form" id="profile-form" novalidate>' +
-            '<div class="form-row">' + field({ name: 'first', label: 'First name', value: a.first, attrs: ' autocomplete="given-name"' }) + field({ name: 'last', label: 'Last name', value: a.last, attrs: ' autocomplete="family-name"' }) + '</div>' +
-            field({ name: 'email', label: 'Email', type: 'email', value: a.email, attrs: ' autocomplete="email" spellcheck="false"' }) +
-            '<div class="form-actions">' + btn('Save changes', null, { kind: 'primary', type: 'submit' }) + '</div>' +
+            '<div class="form-row">' + field({ name: 'first', label: T('First name'), value: a.first, attrs: ' autocomplete="given-name"' }) + field({ name: 'last', label: T('Last name'), value: a.last, attrs: ' autocomplete="family-name"' }) + '</div>' +
+            field({ name: 'email', label: T('Email'), type: 'email', value: a.email, attrs: ' autocomplete="email" spellcheck="false"' }) +
+            '<div class="form-actions">' + btn(T('Save changes'), null, { kind: 'primary', type: 'submit' }) + '</div>' +
           '</form>') +
-        srow('Appearance', 'Match your device, or pick one.',
-          '<div class="seg seg-fixed" role="radiogroup" aria-label="Theme">' +
+        srow(T('Language'), T('For the app, your reminders and what we read from receipts.'), langPicker('set-lang')) +
+        srow(T('Appearance'), T('Match your device, or pick one.'),
+          '<div class="seg seg-fixed" role="radiogroup" aria-label="' + T('Theme') + '">' +
             [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map((o) =>
-              '<button type="button" role="radio" data-action="theme" data-v="' + o[0] + '" aria-checked="' + (state.settings.theme === o[0]) + '">' + o[1] + '</button>').join('') +
+              '<button type="button" role="radio" data-action="theme" data-v="' + o[0] + '" aria-checked="' + (state.settings.theme === o[0]) + '">' + T(o[1]) + '</button>').join('') +
           '</div>');
     },
     password() {
-      return srow('Change password', 'Use at least 8 characters. You’ll stay logged in on this device.',
+      return srow(T('Change password'), T('Use at least 8 characters. You’ll stay logged in on this device.'),
         '<form class="form" id="password-form" novalidate>' +
-          field({ name: 'current', label: 'Current password', type: 'password', attrs: ' autocomplete="current-password"' }) +
-          field({ name: 'next', label: 'New password', type: 'password', attrs: ' autocomplete="new-password"' }) +
-          '<div class="form-actions">' + btn('Update password', null, { kind: 'primary', type: 'submit' }) + '</div>' +
+          field({ name: 'current', label: T('Current password'), type: 'password', attrs: ' autocomplete="current-password"' }) +
+          field({ name: 'next', label: T('New password'), type: 'password', attrs: ' autocomplete="new-password"' }) +
+          '<div class="form-actions">' + btn(T('Update password'), null, { kind: 'primary', type: 'submit' }) + '</div>' +
         '</form>');
     },
     rules() {
       const s = state.settings;
-      return srow('Where you shop', REGIONS[s.region].note,
-          field({ name: 'region', label: 'Region', type: 'select', value: s.region, options: Object.keys(REGIONS).map((k) => ({ value: k, label: REGIONS[k].label })) })) +
-        srow('Default return window', 'Used when a receipt doesn’t mention one. Most online shops in the EU give at least 14 days.',
-          field({ name: 'returnDefault', label: 'Return window', type: 'select', value: s.returnDays, options: [14, 30, 60].map((d) => ({ value: d, label: plural(d, 'day') })) })) +
-        srow('Warranty by category', 'Used when a receipt doesn’t say how long the warranty is. Items you’ve set yourself keep their own length.',
+      return srow(T('Where you shop'), REGIONS[s.region].note,
+          field({ name: 'region', label: T('Region'), type: 'select', value: s.region, options: Object.keys(REGIONS).map((k) => ({ value: k, label: REGIONS[k].label })) })) +
+        srow(T('Default return window'), T('Used when a receipt doesn’t mention one. Most online shops in the EU give at least 14 days.'),
+          field({ name: 'returnDefault', label: T('Return window'), type: 'select', value: s.returnDays, options: [14, 30, 60].map((d) => ({ value: d, label: plural(d, 'day') })) })) +
+        srow(T('Warranty by category'), T('Used when a receipt doesn’t say how long the warranty is. Items you’ve set yourself keep their own length.'),
           '<div class="card crows">' + CATS.map((c) =>
             '<div class="crow">' + catIcon(c.key) + '<label for="def-' + c.key + '">' + c.label + '</label>' +
             '<div class="select select-sm"><select id="def-' + c.key + '" data-default="' + c.key + '">' + WARRANTY_OPTIONS.map((m) =>
@@ -1841,48 +1919,48 @@
     },
     reminders() {
       const s = state.settings;
-      return srow('When to remind you', 'Reminders go out in the morning.',
+      return srow(T('When to remind you'), T('Reminders go out in the morning.'),
           '<div class="card switches">' +
-            toggle('w30', s.remind.w30, '30 days before a warranty ends', 'Time to check it still works properly') +
-            toggle('w7', s.remind.w7, '7 days before a warranty ends', 'Last call to make a claim') +
-            toggle('r2', s.remind.r2, '2 days before a return window closes', 'In case you’ve changed your mind') +
+            toggle('w30', s.remind.w30, T('30 days before a warranty ends'), T('Time to check it still works properly')) +
+            toggle('w7', s.remind.w7, T('7 days before a warranty ends'), T('Last call to make a claim')) +
+            toggle('r2', s.remind.r2, T('2 days before a return window closes'), T('In case you’ve changed your mind')) +
           '</div>') +
-        srow('Where to send them', 'Pick one or both.',
+        srow(T('Where to send them'), T('Pick one or both.'),
           '<div class="card switches">' +
-            toggle('device', s.device, 'This device', 'Notifications from your browser or home screen app') +
-            toggle('emailCopy', s.emailCopy, 'Email', esc(state.account.email)) +
+            toggle('device', s.device, T('This device'), T('Notifications from your browser or home screen app')) +
+            toggle('emailCopy', s.emailCopy, T('Email'), esc(state.account.email)) +
           '</div>');
     },
     plan() {
       const plus = state.plan === 'plus';
-      return srow('Current plan', plus ? 'Thanks for supporting Warranty tracker.' : 'Upgrade any time. No payment is taken in this prototype.',
+      return srow(T('Current plan'), plus ? T('Thanks for supporting Warranty tracker.') : T('Upgrade any time. No payment is taken in this prototype.'),
         '<div class="card plan-card">' +
-          '<div class="plan-line"><b>' + (plus ? 'Plus' : 'Free') + '</b><span class="pill pill-' + (plus ? 'brand' : 'neutral') + '">' + (plus ? 'Active' : 'Current') + '</span></div>' +
-          '<p>' + (plus ? 'Unlimited items and PDF exports.' : state.items.length + ' of ' + FREE_LIMIT + ' items. Plus adds unlimited items and PDF exports for €3.50 a month.') + '</p>' +
-          (plus ? btn('Switch to Free', 'plan-free', { kind: 'gray', cls: 'btn-sm' }) : btn('Choose a plan', 'show-plans', { kind: 'primary', cls: 'btn-sm' })) +
+          '<div class="plan-line"><b>' + (plus ? 'Plus' : T('Free')) + '</b><span class="pill pill-' + (plus ? 'brand' : 'neutral') + '">' + (plus ? T('Active') : T('Current')) + '</span></div>' +
+          '<p>' + (plus ? T('Unlimited items and PDF exports.') : T('{n} of {max} items. Plus adds unlimited items and PDF exports for {price} a month.', { n: state.items.length, max: FREE_LIMIT, price: money(3.5) })) + '</p>' +
+          (plus ? btn(T('Switch to Free'), 'plan-free', { kind: 'gray', cls: 'btn-sm' }) : btn(T('Choose a plan'), 'show-plans', { kind: 'primary', cls: 'btn-sm' })) +
         '</div>');
     },
     data() {
-      return srow('Download your data', 'Every item and setting, as a JSON file.', btn('Download', 'download-json', { icon: 'download' })) +
-        srow('Sample items', 'Nine example receipts, to see how the vault works.', btn('Add sample items', 'load-samples', { icon: 'sparkle' }));
+      return srow(T('Download your data'), T('Every item and setting, as a JSON file.'), btn(T('Download'), 'download-json', { icon: 'download' })) +
+        srow(T('Sample items'), T('Nine example receipts, to see how the vault works.'), btn(T('Add sample items'), 'load-samples', { icon: 'sparkle' }));
     },
     danger() {
-      return srow('Delete all items', 'Removes every item and saved receipt. Your account stays.', btn('Delete all items', 'delete-items', { kind: 'danger-tinted' })) +
-        srow('Delete account', 'Removes your account and everything in it. You’ll be logged out.', btn('Delete account', 'delete-account', { kind: 'danger' }));
+      return srow(T('Delete all items'), T('Removes every item and saved receipt. Your account stays.'), btn(T('Delete all items'), 'delete-items', { kind: 'danger-tinted' })) +
+        srow(T('Delete account'), T('Removes your account and everything in it. You’ll be logged out.'), btn(T('Delete account'), 'delete-account', { kind: 'danger' }));
     },
   };
 
   function showPlans(reason) {
     modal({
-      title: typeof reason === 'string' ? reason : 'Choose a plan',
+      title: typeof reason === 'string' ? reason : T('Choose a plan'),
       body:
         '<div class="plans">' +
-          '<button type="button" class="plan" data-action="pick-plan" data-plan="month"><b>Monthly</b><span class="plan-price num">€3.50</span><span class="weak">per month</span></button>' +
-          '<button type="button" class="plan is-best" data-action="pick-plan" data-plan="year"><span class="pill pill-brand plan-tag">Save 29%</span><b>Yearly</b><span class="plan-price num">€30</span><span class="weak">per year</span></button>' +
+          '<button type="button" class="plan" data-action="pick-plan" data-plan="month"><b>' + T('Monthly') + '</b><span class="plan-price num">' + money(3.5) + '</span><span class="weak">' + T('per month') + '</span></button>' +
+          '<button type="button" class="plan is-best" data-action="pick-plan" data-plan="year"><span class="pill pill-brand plan-tag">' + T('Save {pct}%', { pct: 29 }) + '</span><b>' + T('Yearly') + '</b><span class="plan-price num">' + money(30) + '</span><span class="weak">' + T('per year') + '</span></button>' +
         '</div>' +
-        '<ul class="plan-list"><li>' + icon('check', 14) + 'Unlimited items</li><li>' + icon('check', 14) + 'PDF exports for claims and insurance</li></ul>' +
-        '<p class="modal-note">' + icon('alert', 14) + 'Prototype. No payment is taken.</p>',
-      actions: [{ label: 'Not now', action: 'close-modal', kind: 'plain' }],
+        '<ul class="plan-list"><li>' + icon('check', 14) + T('Unlimited items') + '</li><li>' + icon('check', 14) + T('PDF exports for claims and insurance') + '</li></ul>' +
+        '<p class="modal-note">' + icon('alert', 14) + T('Prototype. No payment is taken.') + '</p>',
+      actions: [{ label: T('Not now'), action: 'close-modal', kind: 'plain' }],
     });
   }
 
@@ -1890,31 +1968,31 @@
      Export: a print view the browser saves as PDF
      ========================================================================== */
   function exportPdf(items, single) {
-    if (state.plan !== 'plus') { showPlans('PDF export is part of Plus'); return; }
+    if (state.plan !== 'plus') { showPlans(T('PDF export is part of Plus')); return; }
     const printed = fmtDate(today());
     let html;
     if (single) {
       const it = items[0], i = info(it);
       html = '<div class="p-page">' +
-        '<header class="p-head"><p class="p-kicker">Warranty claim summary</p><h1>' + esc(it.name) + '</h1><p class="p-muted">Prepared ' + printed + ' by ' + esc((state.account.first + ' ' + state.account.last).trim()) + '</p></header>' +
+        '<header class="p-head"><p class="p-kicker">' + T('Warranty claim summary') + '</p><h1>' + esc(it.name) + '</h1><p class="p-muted">' + T('Prepared {date} by {name}', { date: printed, name: esc((state.account.first + ' ' + state.account.last).trim()) }) + '</p></header>' +
         '<table class="p-dl"><tbody>' +
-          '<tr><th>Shop</th><td>' + esc(it.merchant) + '</td></tr>' +
-          '<tr><th>Order number</th><td>' + esc(it.orderNo || 'Not recorded') + '</td></tr>' +
-          '<tr><th>Purchase date</th><td>' + fmtDate(it.purchased) + '</td></tr>' +
-          '<tr><th>Price paid</th><td>' + money(it.price) + '</td></tr>' +
-          '<tr><th>Warranty</th><td>' + monthsLabel(i.months) + (it.warrantyNote ? ' (' + esc(it.warrantyNote) + ')' : '') + ', until ' + fmtDate(i.end) + '</td></tr>' +
-          '<tr><th>Status on ' + printed + '</th><td>' + (i.status === 'expired' ? 'Expired ' + span(i.left) + ' ago' : 'Covered, ' + span(i.left) + ' left') + '</td></tr>' +
-          (it.notes ? '<tr><th>Notes</th><td>' + esc(it.notes) + '</td></tr>' : '') +
+          '<tr><th>' + T('Shop') + '</th><td>' + esc(it.merchant) + '</td></tr>' +
+          '<tr><th>' + T('Order number') + '</th><td>' + esc(it.orderNo || T('Not recorded')) + '</td></tr>' +
+          '<tr><th>' + T('Purchase date') + '</th><td>' + fmtDate(it.purchased) + '</td></tr>' +
+          '<tr><th>' + T('Price paid') + '</th><td>' + money(it.price) + '</td></tr>' +
+          '<tr><th>' + T('Warranty') + '</th><td>' + T('{time}, until {date}', { time: monthsLabel(i.months) + (it.warrantyNote ? ' (' + esc(it.warrantyNote) + ')' : ''), date: fmtDate(i.end) }) + '</td></tr>' +
+          '<tr><th>' + T('Status on {date}', { date: printed }) + '</th><td>' + (i.status === 'expired' ? T('Expired {time} ago', { time: span(i.left) }) : T('Covered, {time} left', { time: span(i.left) })) + '</td></tr>' +
+          (it.notes ? '<tr><th>' + T('Notes') + '</th><td>' + esc(it.notes) + '</td></tr>' : '') +
         '</tbody></table>' +
-        '<h2>Proof of purchase</h2>' +
-        (it.photo ? '<img class="p-photo" src="' + it.photo + '" alt="" />' : it.fileName ? '<p>Receipt file: ' + esc(it.fileName) + '</p>' : '<p>No receipt attached.</p>') +
-        ((it.docs || []).length ? '<h2>Other documents</h2><ul>' + it.docs.map((d) => '<li>' + esc(d.kind) + ': ' + esc(d.name) + '</li>').join('') + '</ul>' : '') +
+        '<h2>' + T('Proof of purchase') + '</h2>' +
+        (it.photo ? '<img class="p-photo" src="' + it.photo + '" alt="" />' : it.fileName ? '<p>' + T('Receipt file: {file}', { file: esc(it.fileName) }) + '</p>' : '<p>' + T('No receipt attached.') + '</p>') +
+        ((it.docs || []).length ? '<h2>' + T('Other documents') + '</h2><ul>' + it.docs.map((d) => '<li>' + esc(T(d.kind)) + ': ' + esc(d.name) + '</li>').join('') + '</ul>' : '') +
         '</div>';
     } else {
       html = '<div class="p-page">' +
-        '<header class="p-head"><p class="p-kicker">Warranty summary</p><h1>' + plural(items.length, 'item') + '</h1>' +
-        '<p class="p-muted">Prepared ' + printed + ' · total paid ' + money(items.reduce((a, it) => a + Number(it.price || 0), 0)) + '</p></header>' +
-        '<table class="p-table"><thead><tr><th>Item</th><th>Bought</th><th class="num">Paid</th><th>Warranty until</th></tr></thead><tbody>' +
+        '<header class="p-head"><p class="p-kicker">' + T('Warranty summary') + '</p><h1>' + plural(items.length, 'item') + '</h1>' +
+        '<p class="p-muted">' + T('Prepared {date} · total paid {total}', { date: printed, total: money(items.reduce((a, it) => a + Number(it.price || 0), 0)) }) + '</p></header>' +
+        '<table class="p-table"><thead><tr><th>' + T('Item') + '</th><th>' + T('Bought') + '</th><th class="num">' + T('Paid') + '</th><th>' + T('Warranty until') + '</th></tr></thead><tbody>' +
         items.map((it) => {
           const i = info(it);
           return '<tr><td><b>' + esc(it.name) + '</b><br>' + esc(it.merchant) + (it.orderNo ? ' · ' + esc(it.orderNo) : '') + '</td>' +
@@ -1924,7 +2002,7 @@
     }
     $('#print').innerHTML = html;
     const title = document.title;
-    document.title = single ? 'Claim summary - ' + items[0].name : 'Warranty summary ' + iso(today());
+    document.title = single ? T('Claim summary - {name}', { name: items[0].name }) : T('Warranty summary {date}', { date: iso(today()) });
     setTimeout(() => { window.print(); document.title = title; }, 50);
   }
 
@@ -1938,7 +2016,7 @@
     wrap.innerHTML = '<div class="scrim" data-action="close-modal"></div>' +
       '<div class="modal' + (o.wide ? ' modal-wide' : '') + '" role="dialog" aria-modal="true" aria-labelledby="m-title">' +
         '<header class="m-head"><h2 id="m-title">' + o.title + '</h2>' +
-        '<button type="button" class="icon-btn" data-action="close-modal" aria-label="Close">' + icon('x') + '</button></header>' +
+        '<button type="button" class="icon-btn" data-action="close-modal" aria-label="' + T('Close') + '">' + icon('x') + '</button></header>' +
         '<div class="m-body">' + o.body + '</div>' +
         (o.actions && o.actions.length ? '<footer class="m-foot">' + o.actions.map((a) => btn(a.label, a.action, { kind: a.kind, data: a.data })).join('') + '</footer>' : '') +
       '</div>';
@@ -1971,7 +2049,7 @@
     const region = $('#toasts');
     const el = document.createElement('div');
     el.className = 'toast';
-    el.innerHTML = '<span>' + msg + '</span>' + (undo ? '<button type="button" class="toast-undo">Undo</button>' : '');
+    el.innerHTML = '<span>' + msg + '</span>' + (undo ? '<button type="button" class="toast-undo">' + T('Undo') + '</button>' : '');
     region.appendChild(el);
     let timer;
     const dismiss = () => {
@@ -1994,12 +2072,12 @@
      ========================================================================== */
   function loadSamples() {
     const fresh = sampleItems().filter((s) => !findItem(s.id));
-    if (!fresh.length) { toast('Sample items are already in your vault.'); return; }
+    if (!fresh.length) { toast(T('Sample items are already in your vault.')); return; }
     state.items = state.items.concat(fresh);
     state.banner = false;
     save();
     if (ui.base === 'vault') paint('vault'); else go('vault');
-    toast(plural(fresh.length, 'sample item') + ' added.');
+    toast(TN('{n} sample items added.', fresh.length));
   }
 
   const ACTIONS = {
@@ -2008,7 +2086,7 @@
       const show = input.type === 'password';
       input.type = show ? 'text' : 'password';
       el.setAttribute('aria-pressed', String(show));
-      el.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      el.setAttribute('aria-label', show ? T('Hide password') : T('Show password'));
       el.innerHTML = icon(show ? 'eye' : 'eyeOff');
     },
     'user-menu': (el) => openUserMenu(el),
@@ -2020,13 +2098,13 @@
         await cloud.auth.signOut();
         leave();
         go('login');
-        toast('You’re logged out.');
+        toast(T('You’re logged out.'));
         return;
       }
       state.session = false;
       save();
       go('login');
-      toast('You’re logged out.');
+      toast(T('You’re logged out.'));
     },
     'dismiss-banner': () => { state.banner = false; save(); $('#banner').innerHTML = ''; },
     'load-samples': loadSamples,
@@ -2063,14 +2141,14 @@
       save();
       refreshDrawer();
       renderList();
-      toast('Marked as checked.');
+      toast(T('Marked as checked.'));
     },
     'delete': (el) => {
       const it = findItem(el.dataset.id);
       confirmModal({
-        title: 'Delete ' + esc(it.name) + '?',
-        text: 'This removes the item, its reminders and the saved receipt.',
-        label: 'Delete item', cancel: 'Keep item', action: 'delete-yes', data: { id: it.id },
+        title: T('Delete {name}?', { name: esc(it.name) }),
+        text: T('This removes the item, its reminders and the saved receipt.'),
+        label: T('Delete item'), cancel: T('Keep item'), action: 'delete-yes', data: { id: it.id },
       });
     },
     'delete-yes': (el) => {
@@ -2080,7 +2158,7 @@
       save();
       closeModal(true);
       go('vault');
-      toast(esc(gone.name) + ' deleted.', () => {
+      toast(T('{name} deleted.', { name: esc(gone.name) }), () => {
         state.items.splice(idx, 0, gone);
         save();
         if (ui.base === 'vault') paint('vault', null, true);
@@ -2110,7 +2188,7 @@
         const [gone] = it.docs.splice(idx, 1);
         save();
         refreshDrawer();
-        toast(esc(gone.name) + ' removed.', () => { it.docs.splice(idx, 0, gone); save(); refreshDrawer(); });
+        toast(T('{name} removed.', { name: esc(gone.name) }), () => { it.docs.splice(idx, 0, gone); save(); refreshDrawer(); });
         return;
       }
       ui.add.docs = (ui.add.docs || []).filter((d) => d.id !== el.dataset.doc);
@@ -2121,10 +2199,10 @@
       state.plan = 'plus';
       save();
       closeModal(true);
-      toast(el.dataset.plan === 'year' ? 'You’re on Plus, billed yearly.' : 'You’re on Plus, billed monthly.');
+      toast(el.dataset.plan === 'year' ? T('You’re on Plus, billed yearly.') : T('You’re on Plus, billed monthly.'));
       if (ui.base === 'settings') paint('settings', ui.arg, true);
     },
-    'plan-free': () => { state.plan = 'free'; save(); paint('settings', ui.arg, true); toast('You’re on the Free plan.'); },
+    'plan-free': () => { state.plan = 'free'; save(); paint('settings', ui.arg, true); toast(T('You’re on the Free plan.')); },
     'theme': (el) => {
       state.settings.theme = el.dataset.v;
       save();
@@ -2141,38 +2219,40 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     },
     'delete-items': () => confirmModal({
-      title: 'Delete all ' + plural(state.items.length, 'item') + '?',
-      text: 'This removes every item, its reminders and saved receipts. Your account stays. This can’t be undone.',
-      label: 'Delete all items', cancel: 'Keep items', action: 'delete-items-yes',
+      title: T('Delete all {items}?', { items: plural(state.items.length, 'item') }),
+      text: T('This removes every item, its reminders and saved receipts. Your account stays. This can’t be undone.'),
+      label: T('Delete all items'), cancel: T('Keep items'), action: 'delete-items-yes',
     }),
     'delete-items-yes': () => {
       state.items = [];
       save();
       closeModal(true);
       paint('settings', ui.arg, true);
-      toast('All items deleted.');
+      toast(T('All items deleted.'));
     },
     'delete-account': () => confirmModal({
-      title: 'Delete your account?',
-      text: 'This deletes your account, ' + plural(state.items.length, 'item') + ' and every saved receipt. It can’t be undone.',
-      label: 'Delete account', cancel: 'Keep account', action: 'delete-account-yes',
+      title: T('Delete your account?'),
+      text: T('This deletes your account, {items} and every saved receipt. It can’t be undone.', { items: plural(state.items.length, 'item') }),
+      label: T('Delete account'), cancel: T('Keep account'), action: 'delete-account-yes',
     }),
     'delete-account-yes': async (el) => {
       if (cloud) {
         el.disabled = true;
         const { error } = await cloud.rpc('delete_account');
-        if (error) { el.disabled = false; toast('Couldn’t delete your account. ' + cloudMessage(error)); return; }
+        if (error) { el.disabled = false; toast(T('Couldn’t delete your account.') + ' ' + cloudMessage(error)); return; }
         /* The account is already gone on the server, so this only clears the local session. */
         await cloud.auth.signOut({ scope: 'local' }).catch(() => {});
       }
       clearTimeout(sync.timer);
+      const chosen = state.settings.lang;
       state = defaultState();
+      state.settings.lang = chosen;
       try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
       ui.add = null;
       closeModal(true);
       applyTheme();
       redirect('welcome');
-      toast('Your account was deleted.');
+      toast(T('Your account was deleted.'));
     },
   };
 
@@ -2199,19 +2279,30 @@
     if (ui.base === 'signup' && (t.id === 'f-first' || t.id === 'f-last')) {
       const first = $('#f-first').value.trim();
       const last = $('#f-last').value.trim();
-      $('#pv-hello').textContent = (first + ' ' + last).trim() || 'there';
-      $('#pv-name').textContent = first ? first + '’s vault' : 'Your vault';
+      $('#pv-hello').textContent = (first + ' ' + last).trim() || T('there');
+      $('#pv-name').textContent = first ? T('{name}’s vault', { name: first }) : T('Your vault');
       $('#pv-initials').textContent = ((first[0] || '') + (last[0] || '')).toUpperCase() || 'A';
     }
     if (ui.base === 'signup' && t.id === 'f-email') {
       const ok = $('#email-ok');
-      if (validEmail(t.value.trim())) { ok.hidden = false; $('span', ok).innerHTML = 'Reminders will go to <b>' + esc(t.value.trim()) + '</b>'; }
+      if (validEmail(t.value.trim())) { ok.hidden = false; $('span', ok).innerHTML = T('Reminders will go to {email}', { email: '<b>' + esc(t.value.trim()) + '</b>' }); }
       else ok.hidden = true;
     }
   });
 
   document.addEventListener('change', (e) => {
     const t = e.target;
+    /* A new language: redraw everything that's on screen in it. */
+    if (t.hasAttribute('data-lang-pick')) {
+      state.settings.lang = t.value;
+      setLang(t.value);
+      save();
+      closeDrawer();
+      render();
+      const again = $('[data-lang-pick]');
+      if (again) again.focus();
+      return;
+    }
     if (t.id === 'flt-cat') { ui.cat = t.value; ui.showAll = false; renderList(); }
     if (t.id === 'flt-merchant') { ui.merchant = t.value; ui.showAll = false; renderList(); }
     /* Status also changes the greeting's Inspect / Show all button, so repaint in place. */
@@ -2237,28 +2328,28 @@
     if (t.dataset.attachDocs) {
       const it = findItem(t.dataset.attachDocs);
       const n = t.files.length;
-      readDocs(t.files).then((docs) => { it.docs = (it.docs || []).concat(docs); save(); refreshDrawer(); toast(plural(n, 'document') + ' added.'); });
+      readDocs(t.files).then((docs) => { it.docs = (it.docs || []).concat(docs); save(); refreshDrawer(); toast(TN('{n} documents added.', n)); });
     }
     if (t.dataset.attach) {
       const it = findItem(t.dataset.attach);
-      shrinkImage(t.files[0]).then((img) => { it.photo = img; save(); refreshDrawer(); toast('Photo added.'); });
+      shrinkImage(t.files[0]).then((img) => { it.photo = img; save(); refreshDrawer(); toast(T('Photo added.')); });
     }
     if (t.dataset.default) {
       state.settings.defaults[t.dataset.default] = Number(t.value);
       save();
-      toast(catLabel(t.dataset.default) + ' now default to ' + monthsLabel(Number(t.value)) + '.');
+      toast(T('{category} now default to {time}.', { category: catLabel(t.dataset.default), time: monthsLabel(Number(t.value)) }));
     }
     if (t.name === 'region' && ui.base === 'settings') {
       state.settings.region = t.value;
       state.settings.defaults = defaultDefaults(t.value);
       save();
       paint('settings', 'rules', true);
-      toast('Defaults set to ' + monthsLabel(REGIONS[t.value].months) + ' for ' + REGIONS[t.value].label + '.');
+      toast(T('Defaults set to {time} for {region}.', { time: monthsLabel(REGIONS[t.value].months), region: REGIONS[t.value].label }));
     }
     if (t.name === 'returnDefault') {
       state.settings.returnDays = Number(t.value);
       save();
-      toast('Default return window is now ' + plural(Number(t.value), 'day') + '.');
+      toast(T('Default return window is now {time}.', { time: plural(Number(t.value), 'day') }));
     }
     if (t.dataset.toggle) {
       const k = t.dataset.toggle;
@@ -2267,7 +2358,7 @@
           state.settings.device = p === 'granted';
           t.checked = state.settings.device;
           save();
-          if (p !== 'granted') toast('Notifications are blocked. Allow them in your browser settings.');
+          if (p !== 'granted') toast(T('Notifications are blocked. Allow them in your browser settings.'));
         });
         return;
       }
@@ -2308,15 +2399,15 @@
     if (f.id === 'signup-form') {
       ['f-password', 'f-email', 'f-first'].forEach((id) => showError(id, ''));
       let ok = true;
-      if (f.elements.password.value.length < 8) { showError('f-password', 'Use at least 8 characters.'); ok = false; }
-      if (!validEmail(val('email'))) { showError('f-email', 'Enter an email address, like name@example.com.'); ok = false; }
+      if (f.elements.password.value.length < 8) { showError('f-password', T('Use at least 8 characters.')); ok = false; }
+      if (!validEmail(val('email'))) { showError('f-email', T('Enter an email address, like name@example.com.')); ok = false; }
       else if (!cloud && state.account && state.account.email.toLowerCase() === val('email').toLowerCase()) {
-        showError('f-email', 'An account with this email already exists. <a href="#/login">Log in instead</a>'); ok = false;
+        showError('f-email', T('An account with this email already exists.') + ' <a href="#/login">' + T('Log in instead') + '</a>'); ok = false;
       }
-      if (!val('first')) { showError('f-first', 'Enter your first name.'); ok = false; }
+      if (!val('first')) { showError('f-first', T('Enter your first name.')); ok = false; }
       if (!ok) return;
       if (cloud) {
-        const exists = 'An account with this email already exists. <a href="#/login">Log in instead</a>';
+        const exists = T('An account with this email already exists.') + ' <a href="#/login">' + T('Log in instead') + '</a>';
         busy(f, true);
         const { data, error } = await cloud.auth.signUp({
           email: val('email'), password: f.elements.password.value,
@@ -2325,8 +2416,8 @@
         busy(f, false);
         if (error) {
           if (error.code === 'user_already_exists' || error.code === 'email_exists') return showError('f-email', exists);
-          if (error.code === 'weak_password') return showError('f-password', 'Choose a stronger password: longer, or mix in numbers and symbols.');
-          if (error.code === 'email_address_invalid') return showError('f-email', 'That email address can’t be used. Try another.');
+          if (error.code === 'weak_password') return showError('f-password', T('Choose a stronger password: longer, or mix in numbers and symbols.'));
+          if (error.code === 'email_address_invalid') return showError('f-email', T('That email address can’t be used. Try another.'));
           return showError('f-password', cloudMessage(error));
         }
         /* With email confirmation on, an existing address comes back as a user with no identities. */
@@ -2334,7 +2425,7 @@
         if (!data.session) {
           const ok = $('#email-ok');
           ok.hidden = false;
-          $('span', ok).innerHTML = '<b>Check your email.</b> We sent a link to ' + esc(val('email')) + '. Open it on this device to finish creating your account.';
+          $('span', ok).innerHTML = '<b>' + T('Check your email.') + '</b> ' + T('We sent a link to {email}. Open it on this device to finish creating your account.', { email: esc(val('email')) });
           return;
         }
         await enter(data.session.user);
@@ -2354,39 +2445,39 @@
 
     if (f.id === 'login-form') {
       showError('f-password', ''); showError('f-email', '');
-      if (!validEmail(val('email'))) return showError('f-email', 'Enter an email address, like name@example.com.');
+      if (!validEmail(val('email'))) return showError('f-email', T('Enter an email address, like name@example.com.'));
       if (cloud) {
-        if (!f.elements.password.value) return showError('f-password', 'Enter your password.');
+        if (!f.elements.password.value) return showError('f-password', T('Enter your password.'));
         busy(f, true);
         const { data, error } = await cloud.auth.signInWithPassword({ email: val('email'), password: f.elements.password.value });
         if (error) {
           busy(f, false);
-          if (error.code === 'email_not_confirmed') return showError('f-email', 'Confirm your email first: open the link we sent when you signed up.');
-          if (error.code === 'invalid_credentials') return showError('f-password', 'That email and password don’t match. Try again or <a href="#/forgot">reset your password</a>.');
+          if (error.code === 'email_not_confirmed') return showError('f-email', T('Confirm your email first: open the link we sent when you signed up.'));
+          if (error.code === 'invalid_credentials') return showError('f-password', T('That email and password don’t match. Try again or {link}.', { link: '<a href="#/forgot">' + T('reset your password') + '</a>' }));
           return showError('f-password', cloudMessage(error));
         }
         await enter(data.user);
         go('vault');
-        toast('Welcome back, ' + esc(state.account.first) + '.');
+        toast(T('Welcome back, {name}.', { name: esc(state.account.first) }));
         return;
       }
       if (!state.account || state.account.email.toLowerCase() !== val('email').toLowerCase()) {
-        return showError('f-email', 'We can’t find an account with that email. Check it, or <a href="#/signup">create an account</a>.');
+        return showError('f-email', T('We can’t find an account with that email. Check it, or {link}.', { link: '<a href="#/signup">' + T('create an account') + '</a>' }));
       }
-      if (!f.elements.password.value) return showError('f-password', 'Enter your password.');
+      if (!f.elements.password.value) return showError('f-password', T('Enter your password.'));
       if ((await hashPassword(f.elements.password.value)) !== state.account.password) {
-        return showError('f-password', 'That password isn’t right. Try again or <a href="#/forgot">reset it</a>.');
+        return showError('f-password', T('That password isn’t right. Try again or {link}.', { link: '<a href="#/forgot">' + T('reset it') + '</a>' }));
       }
       state.session = true;
       save();
       go('vault');
-      toast('Welcome back, ' + esc(state.account.first) + '.');
+      toast(T('Welcome back, {name}.', { name: esc(state.account.first) }));
       return;
     }
 
     if (f.id === 'forgot-form') {
       showError('f-email', '');
-      if (!validEmail(val('email'))) return showError('f-email', 'Enter an email address, like name@example.com.');
+      if (!validEmail(val('email'))) return showError('f-email', T('Enter an email address, like name@example.com.'));
       if (cloud) {
         busy(f, true);
         const { error } = await cloud.auth.resetPasswordForEmail(val('email'), { redirectTo: appUrl() });
@@ -2395,70 +2486,70 @@
       }
       const ok = $('#forgot-ok');
       ok.hidden = false;
-      $('span', ok).innerHTML = '<b>Check your email.</b> If an account exists for ' + esc(val('email')) + ', you’ll get a link to reset your password.' + (cloud ? ' Open it on this device.' : ' (Prototype: no email is sent.)');
-      $('#forgot-btn span').textContent = 'Send again';
+      $('span', ok).innerHTML = '<b>' + T('Check your email.') + '</b> ' + T('If an account exists for {email}, you’ll get a link to reset your password.', { email: esc(val('email')) }) + ' ' + (cloud ? T('Open it on this device.') : T('(Prototype: no email is sent.)'));
+      $('#forgot-btn span').textContent = T('Send again');
       return;
     }
 
     if (f.id === 'reset-form') {
       showError('f-password', '');
-      if (f.elements.password.value.length < 8) return showError('f-password', 'Use at least 8 characters.');
+      if (f.elements.password.value.length < 8) return showError('f-password', T('Use at least 8 characters.'));
       busy(f, true);
       const { error } = await cloud.auth.updateUser({ password: f.elements.password.value });
       busy(f, false);
-      if (error) return showError('f-password', error.code === 'same_password' ? 'That’s your current password. Choose a new one.' : cloudMessage(error));
+      if (error) return showError('f-password', error.code === 'same_password' ? T('That’s your current password. Choose a new one.') : cloudMessage(error));
       ui.recovery = false;
       go('vault');
-      toast('Password updated.');
+      toast(T('Password updated.'));
       return;
     }
 
     if (f.id === 'profile-form') {
       showError('f-first', ''); showError('f-email', '');
-      if (!validEmail(val('email'))) return showError('f-email', 'Enter an email address, like name@example.com.');
-      if (!val('first')) return showError('f-first', 'Enter your first name.');
+      if (!validEmail(val('email'))) return showError('f-email', T('Enter an email address, like name@example.com.'));
+      if (!val('first')) return showError('f-first', T('Enter your first name.'));
       if (cloud) {
         const moved = val('email').toLowerCase() !== state.account.email.toLowerCase();
         busy(f, true);
         const { error } = await cloud.auth.updateUser(Object.assign({ data: { first: val('first'), last: val('last') } }, moved ? { email: val('email') } : {}));
         busy(f, false);
         if (error) {
-          if (error.code === 'email_exists') return showError('f-email', 'Another account already uses this email.');
+          if (error.code === 'email_exists') return showError('f-email', T('Another account already uses this email.'));
           return showError('f-email', cloudMessage(error));
         }
         Object.assign(state.account, { first: val('first'), last: val('last') });
         writeLocal();
         renderChrome(ui.base, ui.arg);
-        toast(moved ? 'Profile saved. To change your email, open the link we sent to ' + esc(val('email')) + '.' : 'Profile saved.');
+        toast(moved ? T('Profile saved. To change your email, open the link we sent to {email}.', { email: esc(val('email')) }) : T('Profile saved.'));
         return;
       }
       Object.assign(state.account, { first: val('first'), last: val('last'), email: val('email') });
       save();
       renderChrome(ui.base, ui.arg);
-      toast('Profile saved.');
+      toast(T('Profile saved.'));
       return;
     }
 
     if (f.id === 'password-form') {
       showError('f-current', ''); showError('f-next', '');
       if (cloud) {
-        if (f.elements.next.value.length < 8) return showError('f-next', 'Use at least 8 characters.');
+        if (f.elements.next.value.length < 8) return showError('f-next', T('Use at least 8 characters.'));
         busy(f, true);
         const check = await cloud.auth.signInWithPassword({ email: state.account.email, password: f.elements.current.value });
-        if (check.error) { busy(f, false); return showError('f-current', check.error.code === 'invalid_credentials' ? 'That isn’t your current password.' : cloudMessage(check.error)); }
+        if (check.error) { busy(f, false); return showError('f-current', check.error.code === 'invalid_credentials' ? T('That isn’t your current password.') : cloudMessage(check.error)); }
         const { error } = await cloud.auth.updateUser({ password: f.elements.next.value });
         busy(f, false);
-        if (error) return showError('f-next', error.code === 'same_password' ? 'That’s your current password. Choose a new one.' : error.code === 'weak_password' ? 'Choose a stronger password.' : cloudMessage(error));
+        if (error) return showError('f-next', error.code === 'same_password' ? T('That’s your current password. Choose a new one.') : error.code === 'weak_password' ? T('Choose a stronger password.') : cloudMessage(error));
         f.reset();
-        toast('Password updated.');
+        toast(T('Password updated.'));
         return;
       }
-      if ((await hashPassword(f.elements.current.value)) !== state.account.password) return showError('f-current', 'That isn’t your current password.');
-      if (f.elements.next.value.length < 8) return showError('f-next', 'Use at least 8 characters.');
+      if ((await hashPassword(f.elements.current.value)) !== state.account.password) return showError('f-current', T('That isn’t your current password.'));
+      if (f.elements.next.value.length < 8) return showError('f-next', T('Use at least 8 characters.'));
       state.account.password = await hashPassword(f.elements.next.value);
       save();
       f.reset();
-      toast('Password updated.');
+      toast(T('Password updated.'));
       return;
     }
 
@@ -2474,14 +2565,14 @@
       ui.editing = null;
       refreshDrawer();
       renderList();
-      toast('Changes saved.');
+      toast(T('Changes saved.'));
       return;
     }
 
     if (f.id === 'add-details') {
       if (ui.add.lines) {
         const date = String(new FormData(f).get('purchased') || '');
-        showError('f-purchased', date > iso(today()) ? 'The purchase date can’t be in the future.' : '');
+        showError('f-purchased', date > iso(today()) ? T('The purchase date can’t be in the future.') : '');
         if (!readLines(f) || date > iso(today())) return;
         ['merchant', 'purchased', 'orderNo'].forEach((k) => { ui.add.values[k] = String(new FormData(f).get(k) || ''); });
         ui.add.stage = 'coverage';

@@ -12,6 +12,15 @@ const MODEL = Deno.env.get('OPENAI_MODEL') || 'gpt-4.1-mini';
 const CATEGORIES = ['electronics', 'computers', 'appliances', 'kitchen', 'tools', 'furniture', 'sports', 'other'];
 const FIELDS = ['merchant', 'purchased', 'orderNo'];
 const MAX_BYTES = 8 * 1024 * 1024;
+/* The app's languages. Notes to the owner are written in theirs. */
+const LANGUAGES: Record<string, string> = { en: 'English', es: 'Spanish (Spain)', fr: 'French', sl: 'Slovenian', hr: 'Croatian' };
+const FUTURE_NOTE: Record<string, string> = {
+  en: 'The receipt date reads as {date}, which is after today. Check it’s right.',
+  es: 'La fecha del recibo parece ser {date}, posterior a hoy. Comprueba que sea correcta.',
+  fr: 'La date du ticket semble être le {date}, après aujourd’hui. Vérifiez-la.',
+  sl: 'Datum na računu je videti {date}, kar je po današnjem dnevu. Preveri, ali je pravilen.',
+  hr: 'Datum na računu izgleda kao {date}, što je nakon današnjeg dana. Provjeri je li točan.',
+};
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -86,19 +95,19 @@ function parseDate(text: string | null): string | null {
 }
 
 /* Settle the date in code: what's printed wins over the model's reading, and only code says "future". */
-function settleDate(r: Record<string, any>, today: string) {
+function settleDate(r: Record<string, any>, today: string, lang: string) {
   const iso = /^\d{4}-\d{2}-\d{2}$/;
   const date = parseDate(r.dateText) || (iso.test(r.purchased || '') ? r.purchased : null);
   r.flags = (r.flags || []).filter((f: any) => !(f.field === 'purchased' && /future|after today|not yet/i.test(f.note)));
   r.purchased = date;
   if (date && date > today) {
     r.purchased = null;
-    r.flags.push({ field: 'purchased', note: 'The receipt date reads as ' + (r.dateText || date) + ', which is after today. Check it’s right.' });
+    r.flags.push({ field: 'purchased', note: FUTURE_NOTE[lang].replace('{date}', r.dateText || date) });
   }
   return r;
 }
 
-function instructions(today: string) {
+function instructions(today: string, lang: string) {
   return [
     'You read shopping receipts for a warranty tracker. Today is ' + today + '.',
     'List every product line on the receipt as its own item. Set keep to false for lines nobody tracks a warranty for: bags, deposits, delivery, services, gift cards, consumables, extended-warranty add-ons.',
@@ -109,7 +118,8 @@ function instructions(today: string) {
     'Use null for anything you cannot read. Never invent an order number or a date.',
     'Your training data is older than today, so dates up to ' + today + ' are real and in the past. Do not judge whether a date is in the future; the app checks that.',
     'Flag a shared field (shop, date, order number) you are unsure of, and use an item note for an unsure name or price: blurry digits, a price that does not add up, a currency other than EUR.',
-    'Write flags and notes in plain English, one short sentence, addressed to the owner. None when everything is clear.',
+    'The owner reads ' + LANGUAGES[lang] + '. Write every flag and note in ' + LANGUAGES[lang] + ': plain, one short sentence, addressed to the owner. None when everything is clear.',
+    'Write item names in ' + LANGUAGES[lang] + ' too, keeping brand and model as printed: e.g. in Slovenian "Samsung 55\" QLED televizor QE55Q80D".',
   ].join('\n');
 }
 
@@ -126,13 +136,14 @@ Deno.serve(async (req) => {
   const key = Deno.env.get('OPENAI_API_KEY');
   if (!key) return json({ error: 'OPENAI_API_KEY is not set' }, 500);
 
-  let body: { file?: string; fileName?: string; today?: string };
+  let body: { file?: string; fileName?: string; today?: string; lang?: string };
   try { body = await req.json(); } catch { return json({ error: 'Bad request' }, 400); }
   const file = body.file || '';
   const m = /^data:(image\/(?:jpeg|png|webp|gif)|application\/pdf);base64,/.exec(file);
   if (!m) return json({ error: 'Send a JPEG, PNG, WebP or PDF as a data URL' }, 400);
   if (file.length * 0.75 > MAX_BYTES) return json({ error: 'File too large' }, 413);
   const today = /^\d{4}-\d{2}-\d{2}$/.test(body.today || '') ? body.today! : new Date().toISOString().slice(0, 10);
+  const lang = LANGUAGES[body.lang || ''] ? body.lang! : 'en';
 
   const attachment = m[1] === 'application/pdf'
     ? { type: 'file', file: { filename: body.fileName || 'receipt.pdf', file_data: file } }
@@ -144,7 +155,7 @@ Deno.serve(async (req) => {
     body: JSON.stringify({
       model: MODEL,
       messages: [
-        { role: 'system', content: instructions(today) },
+        { role: 'system', content: instructions(today, lang) },
         { role: 'user', content: [{ type: 'text', text: 'Read this receipt.' }, attachment] },
       ],
       response_format: { type: 'json_schema', json_schema: { name: 'receipt', strict: true, schema: SCHEMA } },
@@ -158,7 +169,7 @@ Deno.serve(async (req) => {
   const out = await res.json();
   const text = out.choices?.[0]?.message?.content;
   try {
-    return json(settleDate(JSON.parse(text), today));
+    return json(settleDate(JSON.parse(text), today, lang));
   } catch {
     console.error('Unparseable answer', text);
     return json({ error: 'Could not read the answer' }, 502);

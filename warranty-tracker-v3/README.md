@@ -17,6 +17,13 @@ dark in Settings.
 - **Landing and sign-up** show the real vault list, built from the sample receipts.
 - **Empty vault** offers the three ways to add a receipt.
 
+**Languages:** English, Spanish, French, Slovenian and Croatian. The app starts in the browser's
+language; the picker is on the public pages and in Settings → Profile, and the choice is saved with
+the account. English lives in `app.js` itself: `T('English text', { vars })` looks a text up in
+`i18n/<code>.js`, and `TN()` picks the plural form a count needs (Slovenian has one for two).
+`i18n/en.js` holds only the English plural forms. Dates and prices use each country's format.
+Receipts are read into the same language: notes and item names come back in it.
+
 Tokens (all OKLCH) live in `tokens.css`; `style.css` only uses names. Product truth, including
 which directions were tried and rejected, is in `PRODUCT.md`.
 
