@@ -1635,7 +1635,7 @@
       if (isPdf && file.size > 6 * 1048576) throw new Error('That PDF is too large to read.');
       /* Small receipt print needs more pixels than the stored thumbnail keeps. */
       const data = isPdf ? await fileToDataUrl(file) : await shrinkImage(file, 2000, 0.85);
-      const { data: r, error } = await cloud.functions.invoke('read-receipt', { body: { file: data, fileName: file.name, today: iso(today()) } });
+      const { data: r, error } = await cloud.functions.invoke(CFG.receiptFunction || 'read-receipt', { body: { file: data, fileName: file.name, today: iso(today()) } });
       if (error || !r || r.error) throw new Error('We couldn’t read that receipt.');
       if (!r.isReceipt) throw new Error('That doesn’t look like a receipt.');
       const date = /^\d{4}-\d{2}-\d{2}$/.test(r.purchased || '') && r.purchased <= iso(today()) ? r.purchased : '';

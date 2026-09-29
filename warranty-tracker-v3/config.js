@@ -4,4 +4,5 @@
 window.WT_CONFIG = {
   supabaseUrl: 'https://ycboneyvastwtrtgbeyn.supabase.co',  // e.g. 'https://abcdefghijklm.supabase.co'
   supabaseKey: 'sb_publishable_ezYUIpIell6RTUxN0u_qiQ_tvW147Lk',  // Project Settings → API Keys → publishable key (sb_publishable_…) or legacy anon key
+  receiptFunction: 'quick-responder',  // Edge Function that reads receipts (supabase/functions/read-receipt), by its deployed name
 };

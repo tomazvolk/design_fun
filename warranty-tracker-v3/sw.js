@@ -1,5 +1,5 @@
 /* Offline shell for the Warranty tracker PWA. Network first for our files, cache as fallback. */
-const CACHE = 'warranty-v3-2';
+const CACHE = 'warranty-v3-3';
 const ASSETS = ['./', './tokens.css', './style.css', './config.js', './app.js', './favicon.svg', './manifest.webmanifest'];
 const CACHEABLE_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net'];
 
