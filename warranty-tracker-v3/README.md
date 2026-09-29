@@ -28,7 +28,18 @@ keeps a copy under `warranty-tracker-v3` so the vault opens instantly and works 
 changed items are sent up. Logging out clears that copy.
 
 With `config.js` left empty it runs as the local demo it started as: one account, everything in
-this browser. Reading a receipt photo is simulated with sample data either way.
+this browser, and reading a receipt is simulated with sample data.
+
+With Supabase, receipts are read by OpenAI through the `read-receipt` Edge Function
+(`supabase/functions/read-receipt`). The OpenAI key is a Supabase secret and never reaches the
+browser; the function only answers signed-in users. It returns the Add form's fields plus
+"check this" flags for anything the model was unsure of. If reading fails, the form opens empty.
+
+    supabase login
+    supabase secrets set OPENAI_API_KEY=sk-... --project-ref ycboneyvastwtrtgbeyn
+    supabase functions deploy read-receipt --no-verify-jwt --project-ref ycboneyvastwtrtgbeyn
+
+Set `OPENAI_MODEL` the same way to use a model other than `gpt-4.1-mini`.
 
 To connect a Supabase project:
 

@@ -1509,7 +1509,9 @@
               '<span class="scanline" aria-hidden="true"></span></div>' +
             '<p class="reading-text" role="status"><span class="spinner" aria-hidden="true"></span>Finding the shop, the item, the price and the date…</p>' +
           '</div>')),
+        /* A real read moves on by itself when readReceipt answers; the demo just waits a beat. */
         after: () => {
+          if (!a.simulated) return;
           setTimeout(() => {
             if (!ui.add || ui.add.stage !== 'reading') return;
             ui.add.stage = 'details';
@@ -1537,7 +1539,7 @@
               field({ name: 'orderNo', label: 'Order number', value: v.orderNo || '', placeholder: 'Optional', flag: flags.orderNo, wide: true, attrs: ' autocomplete="off" spellcheck="false"' }) +
             '</div>' +
             actions('<button type="submit" class="btn btn-primary btn-lg"><span>Continue</span>' + icon('chevron') + '</button>') +
-            (a.extracted ? '<p class="fineprint">Prototype: reading the receipt is simulated, so these details are sample data.</p>' : '') +
+            (a.simulated ? '<p class="fineprint">Prototype: reading the receipt is simulated, so these details are sample data.</p>' : '') +
           '</form>')),
         after: () => { if (!a.extracted) { const n = $('#f-name'); if (n) n.focus(); } },
       };
@@ -1607,13 +1609,15 @@
   function onReceiptFile(file) {
     if (!file) return;
     const isImage = file.type.startsWith('image/');
-    const extracted = {
-      name: 'Samsung 55" QLED TV QE55Q80D', merchant: 'Harvey Norman', category: 'electronics',
-      price: 799, purchased: iso(addDays(today(), -1)), orderNo: 'HN-5520-118934', returnDays: 14,
-    };
-    const flags = { name: 'The receipt says “SAMS QE55Q80D 55IN”. We guessed the full name. Check it’s right.' };
     const begin = (image) => {
-      ui.add = { stage: 'reading', image, fileName: file.name, values: extracted, flags, extracted: true };
+      /* With an account, the read-receipt Edge Function reads it with OpenAI. The local demo simulates it. */
+      ui.add = cloud
+        ? { stage: 'reading', image, fileName: file.name, values: {}, flags: {} }
+        : { stage: 'reading', image, fileName: file.name, extracted: true, simulated: true,
+            values: { name: 'Samsung 55" QLED TV QE55Q80D', merchant: 'Harvey Norman', category: 'electronics',
+              price: 799, purchased: iso(addDays(today(), -1)), orderNo: 'HN-5520-118934', returnDays: 14 },
+            flags: { name: 'The receipt says “SAMS QE55Q80D 55IN”. We guessed the full name. Check it’s right.' } };
+      if (cloud) readReceipt(file, ui.add);
       /* An empty vault offers the same choices, so move to the Add page if we're not on it. */
       if (route().name === 'add') paint('add'); else go('add');
     };
@@ -1621,8 +1625,51 @@
     shrinkImage(file).then(begin).catch(() => begin(null));
   }
 
+  /* Send the receipt to the read-receipt Edge Function and fill the form with what comes back.
+     Whatever happens, the user lands on the details step: filled in, or empty to type by hand. */
+  async function readReceipt(file, add) {
+    let values = {}, flags = {}, failed = null;
+    try {
+      const isPdf = file.type === 'application/pdf';
+      if (!isPdf && !file.type.startsWith('image/')) throw new Error('We can read photos and PDFs.');
+      if (isPdf && file.size > 6 * 1048576) throw new Error('That PDF is too large to read.');
+      /* Small receipt print needs more pixels than the stored thumbnail keeps. */
+      const data = isPdf ? await fileToDataUrl(file) : await shrinkImage(file, 2000, 0.85);
+      const { data: r, error } = await cloud.functions.invoke('read-receipt', { body: { file: data, fileName: file.name, today: iso(today()) } });
+      if (error || !r || r.error) throw new Error('We couldn’t read that receipt.');
+      if (!r.isReceipt) throw new Error('That doesn’t look like a receipt.');
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(r.purchased || '') && r.purchased <= iso(today()) ? r.purchased : '';
+      values = {
+        name: r.name || '', merchant: r.merchant || '',
+        category: CATS.some((c) => c.key === r.category) ? r.category : 'other',
+        price: typeof r.price === 'number' ? r.price : '', purchased: date, orderNo: r.orderNo || '',
+        returnDays: RETURN_OPTIONS.includes(r.returnDays) ? r.returnDays : null,
+      };
+      (r.flags || []).forEach((f) => { if (FIELD_NAMES[f.field]) flags[f.field] = f.note; });
+      /* The date field falls back to today, so say so rather than let it pass unnoticed. */
+      if (!date) flags.purchased = flags.purchased || 'We couldn’t read the purchase date, so we put today. Check it’s right.';
+      if (r.currency && r.currency !== 'EUR' && !flags.price) flags.price = 'The receipt is in ' + r.currency + ', not euros. Check the price.';
+    } catch (e) {
+      failed = (e && e.message) || 'We couldn’t read that receipt.';
+    }
+    /* The user may have left or started over while we were reading. */
+    if (ui.add !== add || add.stage !== 'reading') return;
+    Object.assign(add, { stage: 'details', values, flags, extracted: !failed });
+    if (route().name === 'add') paint('add');
+    if (failed) toast(esc(failed) + ' Fill in the details below.');
+  }
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
   /* Keep photos small enough for local storage. */
-  function shrinkImage(file, max) {
+  function shrinkImage(file, max, quality) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
       const img = new Image();
@@ -1633,7 +1680,7 @@
         c.height = Math.round(img.height * scale);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url);
-        resolve(c.toDataURL('image/jpeg', 0.72));
+        resolve(c.toDataURL('image/jpeg', quality || 0.72));
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(); };
       img.src = url;
