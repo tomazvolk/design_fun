@@ -40,7 +40,7 @@ browser; the function only answers signed-in users. It returns the Add form's fi
     supabase functions deploy read-receipt --no-verify-jwt --project-ref ycboneyvastwtrtgbeyn
 
 If the function is deployed under another name, put that name in `config.js` as
-`receiptFunction`. Set `OPENAI_MODEL` the same way to use a model other than `gpt-4.1-mini`.
+`receiptFunction`. Set the `OPENAI_MODEL` secret to use a model other than `gpt-4.1-mini`.
 
 To connect a Supabase project:
 
