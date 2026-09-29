@@ -26,7 +26,7 @@ const json = (body: unknown, status = 200) =>
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['isReceipt', 'name', 'merchant', 'category', 'price', 'currency', 'purchased', 'orderNo', 'returnDays', 'flags'],
+  required: ['isReceipt', 'name', 'merchant', 'category', 'price', 'currency', 'dateText', 'purchased', 'orderNo', 'returnDays', 'flags'],
   properties: {
     isReceipt: { type: 'boolean', description: 'False if the image is not a receipt, invoice or order confirmation.' },
     name: { type: ['string', 'null'], description: 'The item, as a person would say it: brand, product type, model. E.g. "Samsung 55\\" QLED TV QE55Q80D".' },
@@ -34,7 +34,8 @@ const SCHEMA = {
     category: { type: 'string', enum: CATEGORIES },
     price: { type: ['number', 'null'], description: 'What was paid for that item, VAT included, as a plain number.' },
     currency: { type: ['string', 'null'], description: 'ISO 4217 code, e.g. EUR.' },
-    purchased: { type: ['string', 'null'], description: 'Purchase date as YYYY-MM-DD.' },
+    dateText: { type: ['string', 'null'], description: 'The purchase date exactly as printed, e.g. "28.09.2026" or "28 SEP 26".' },
+    purchased: { type: ['string', 'null'], description: 'Purchase date as YYYY-MM-DD, day first unless the receipt is clearly American.' },
     orderNo: { type: ['string', 'null'], description: 'Order, invoice or receipt number, exactly as printed.' },
     returnDays: { type: ['integer', 'null'], description: 'Only if the receipt prints a return period in days; otherwise null.' },
     flags: {
@@ -53,6 +54,37 @@ const SCHEMA = {
   },
 };
 
+/* Dates are parsed here, not trusted to the model: day first, as printed on European receipts.
+   Returns YYYY-MM-DD, or null when the text holds no whole, real date. */
+function parseDate(text: string | null): string | null {
+  const m = /(\d{1,4})\s*[.\/-]\s*(\d{1,2})\s*[.\/-]\s*(\d{2,4})/.exec(text || '');
+  if (!m) return null;
+  let [a, b, c] = [m[1], m[2], m[3]].map(Number);
+  let y: number, mo: number, d: number;
+  if (m[1].length === 4) [y, mo, d] = [a, b, c];
+  else {
+    [d, mo, y] = [a, b, c];
+    if (mo > 12 && d <= 12) [d, mo] = [mo, d]; // an American receipt
+    if (m[3].length === 2) y += 2000;
+  }
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+/* Settle the date in code: what's printed wins over the model's reading, and only code says "future". */
+function settleDate(r: Record<string, any>, today: string) {
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  const date = parseDate(r.dateText) || (iso.test(r.purchased || '') ? r.purchased : null);
+  r.flags = (r.flags || []).filter((f: any) => !(f.field === 'purchased' && /future|after today|not yet/i.test(f.note)));
+  r.purchased = date;
+  if (date && date > today) {
+    r.purchased = null;
+    r.flags.push({ field: 'purchased', note: 'The receipt date reads as ' + (r.dateText || date) + ', which is after today. Check it’s right.' });
+  }
+  return r;
+}
+
 function instructions(today: string) {
   return [
     'You read shopping receipts for a warranty tracker. Today is ' + today + '.',
@@ -61,7 +93,8 @@ function instructions(today: string) {
     'Receipts may be in any language (Slovenian, German, Croatian, Italian…). Dates on European receipts are day first: 03.04.2026 is 3 April 2026.',
     'Prices may use a decimal comma: 1.299,99 means 1299.99.',
     'Use null for anything you cannot read. Never invent an order number or a date.',
-    'Flag any field you are unsure of: blurry digits, a date in the future, a price that does not add up, a currency other than EUR.',
+    'Your training data is older than today, so dates up to ' + today + ' are real and in the past. Do not judge whether a date is in the future; the app checks that.',
+    'Flag any field you are unsure of: blurry digits, a price that does not add up, a currency other than EUR.',
     'Write flag notes in plain English, one short sentence, addressed to the owner. No flags when everything is clear.',
   ].join('\n');
 }
@@ -111,7 +144,7 @@ Deno.serve(async (req) => {
   const out = await res.json();
   const text = out.choices?.[0]?.message?.content;
   try {
-    return json(JSON.parse(text));
+    return json(settleDate(JSON.parse(text), today));
   } catch {
     console.error('Unparseable answer', text);
     return json({ error: 'Could not read the answer' }, 502);
