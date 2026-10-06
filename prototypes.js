@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    url: 'https://bledara.vercel.app',
+    name: 'Bledara',
+    deployed: '2026-10-06',
+    status: 'wip',
+    description:
+      'A SaaS management platform for finance and IT: every software subscription found, bought, paid for, managed and cancelled from one ledger. Step 1 of 7: data model, accounts, five roles enforced on the server, audit log and a seeded demo company. Next.js, Prisma, Postgres.',
+    tags: ['saas', 'next.js', 'prisma', 'postgres', 'auth'],
+    accent: '#2a6f78',
+    art: 'bledara',
+  },
+  {
     slug: 'warranty-tracker-v3',
     name: 'Warranty tracker v3',
     deployed: '2026-09-25',
@@ -92,6 +103,21 @@ const PROTOTYPES = [
 
 /* Pixel art for the tiles: each row is a string, each character a palette key. */
 const PIXEL_ART = {
+  bledara: {
+    palette: { k: '#1b4a50', w: '#f3fbfb', t: '#2a6f78' },
+    rows: [
+      '.kkkkkkkk.',
+      'kwwwwwwwwk',
+      'kwttttttwk',
+      'kwwwwwwwwk',
+      'kwttttwwwk',
+      'kwwwwwwwwk',
+      'kwttwwwtwk',
+      'kwwwwwwwwk',
+      'kwwwwwwwwk',
+      '.kkkkkkkk.',
+    ],
+  },
   receipt: {
     palette: { k: '#1d4a3a', w: '#f4f2ec', g: '#2f7a59' },
     rows: [
