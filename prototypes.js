@@ -12,13 +12,13 @@
  */
 const PROTOTYPES = [
   {
-    url: 'https://bledara.vercel.app',
+    slug: 'bledara',
     name: 'Bledara',
     deployed: '2026-10-06',
     status: 'wip',
     description:
-      'A SaaS management platform for finance and IT: every software subscription found, bought, paid for, managed and cancelled from one ledger. Step 1 of 7: data model, accounts, five roles enforced on the server, audit log and a seeded demo company. Next.js, Prisma, Postgres.',
-    tags: ['saas', 'next.js', 'prisma', 'postgres', 'auth'],
+      'A SaaS management platform for finance and IT: every software subscription found, bought, paid for, managed and cancelled from one ledger. Step 1 of 7 as a clickable prototype on dummy data: five roles, settings, audit log and a 40-tool demo company. Next.js, static export.',
+    tags: ['saas', 'next.js', 'prototype', 'dummy data'],
     accent: '#2a6f78',
     art: 'bledara',
   },

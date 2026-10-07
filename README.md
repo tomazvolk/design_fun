@@ -1,7 +1,8 @@
 # Design Fun
 
-A shelf of small web prototypes. Mostly plain HTML, CSS and JS with no build step; `bledara/` is a
-Next.js app deployed as its own Vercel project and ignored by this static site.
+A shelf of small web prototypes. Mostly plain HTML, CSS and JS with no build step. Bledara is a
+Next.js app: its source is in `bledara-app/` (ignored by Vercel) and `bledara/` is the committed
+static export, rebuilt with `pnpm export` inside `bledara-app/`.
 
 The root page is a dashboard: one tile per prototype with its name, deployment date
 and a short description. Each prototype lives in its own folder.
@@ -10,7 +11,7 @@ and a short description. Each prototype lives in its own folder.
 
 | Prototype | Folder | Deployed | What it is |
 | --- | --- | --- | --- |
-| Bledara | `bledara/` | 2026-10-06 | SaaS management platform (Next.js, Prisma, Postgres): subscriptions, cards, approvals, renewals, accounting, insights. Deployed as its own Vercel project |
+| Bledara | `bledara/` (built from `bledara-app/`) | 2026-10-06 | SaaS management platform prototype on dummy data: subscriptions, roles, settings, audit log. Next.js static export |
 | Warranty tracker v2 | `warranty-tracker-v2/` | 2026-09-23 | Warranty tracker redesigned bright and minimal: white, black type, hairlines, one accent |
 | Warranty tracker | `warranty-tracker/` | 2026-09-22 | Receipt vault PWA: accounts, warranty and return reminders, claim PDFs |
 | Leaky v2 | `leaky-v2/` | 2026-09-21 | Leaky restyled as 80s arcade pixel art |
