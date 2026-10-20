@@ -15,6 +15,11 @@ import dairy from "../src/data/source/dairy-grains-nuts.mjs";
 import pantryA from "../src/data/source/pantry-a.mjs";
 import pantryB from "../src/data/source/pantry-b.mjs";
 import { ALIASES, DISHES, DROP, EXTRA, COMBOS, REASONS } from "../src/data/source/meta.mjs";
+import descA from "../src/data/source/descriptions-a.mjs";
+import descB from "../src/data/source/descriptions-b.mjs";
+import descC from "../src/data/source/descriptions-c.mjs";
+
+const DESCRIPTIONS = { ...descA, ...descB, ...descC };
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -78,6 +83,7 @@ for (const [id, src] of Object.entries(raw)) {
     cuisines: src.cuisines ?? {}, chips: src.chips ?? [],
     dishes: (src.dishes || "").split(/\s+/).filter(Boolean).filter((d) => d !== "everything").map(dishNode),
     art: src.art ?? null, hub: false, degree: 0,
+    description: DESCRIPTIONS[id] ?? null,
   };
   for (const c of Object.keys(ing.cuisines)) if (!CUISINES.some((g) => g.id === c)) throw new Error(`${id}: bad cuisine ${c}`);
   ingredients.push(ing);
@@ -177,6 +183,8 @@ const sparse = ingredients.filter((i) => i.degree < 6).map((i) => `${i.id}(${i.d
 console.log(`graph.json: ${ingredients.length} ingredients, ${edges.size} edges, ${dishes.size} dishes, ${combos.length} combos, ${(json.length / 1024).toFixed(0)} KB`);
 console.log(`tiers: works ${tiers[1]}, recommended ${tiers[2]}, highly ${tiers[3]}, holy grail ${tiers[4]}; two-way listings with different tiers: ${disagreements}; dish mentions folded in: ${dishMentions}`);
 console.log(`hubs: ${hubs.slice(0, 10).map((h) => `${h}(${byId.get(h).degree})`).join(" ")} …`);
+const undescribed = ingredients.filter((i) => !i.description).map((i) => i.id);
+if (undescribed.length) console.log(`no description: ${undescribed.join(" ")}`);
 if (sparse.length) console.log(`sparse (<6 partners): ${sparse.join(" ")}`);
 if (badCombos.length) console.log(`combos dropped: ${badCombos.map((c) => c.ingredients.join("+")).join(", ")}`);
 if (unknown.size) console.log(`unknown tokens dropped: ${[...unknown].sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k}×${v}`).join(" ")}`);

@@ -58,8 +58,15 @@ export function IngredientPage() {
               {anchors.length > 0 && <p className="mt-2 text-[0.9375rem] font-medium">{tierLine}</p>}
             </div>
           </header>
-          {ing.aliases.length > 0 && <p className="mt-3 text-[0.875rem] text-muted">Also: {ing.aliases.join(", ")}</p>}
-          {ing.techniques.length > 0 && <p className="mt-1 text-[0.875rem] text-muted">Techniques: {ing.techniques.join(", ")}</p>}
+          {ing.description && <p className="mt-5 text-[1.0625rem] leading-relaxed">{ing.description}</p>}
+          <dl className="card mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 p-4 text-[0.9375rem]">
+            {ing.aliases.length > 0 && <><dt className="t-label-muted pt-0.5">Also</dt><dd>{ing.aliases.join(", ")}</dd></>}
+            <dt className="t-label-muted pt-0.5">Season</dt><dd>{ing.season === "all" ? "All year" : ing.season.map(cap).join(", ")}</dd>
+            {ing.techniques.length > 0 && <><dt className="t-label-muted pt-0.5">Cook</dt><dd>{ing.techniques.join(", ")}</dd></>}
+            {Object.keys(ing.cuisines).length > 0 && <><dt className="t-label-muted pt-0.5">Cuisines</dt><dd className="flex flex-wrap gap-1.5">{Object.entries(ing.cuisines).sort((a, b) => b[1] - a[1]).map(([c, t]) => <span key={c} className="rounded-full bg-sunken px-2.5 py-0.5 text-[0.8125rem]">{graph.cuisines.find((x) => x.id === c)?.name ?? c} · {TIER_LABEL[t as 1 | 2 | 3 | 4].toLowerCase()}</span>)}{ing.chips.map((c) => <span key={c} className="rounded-full bg-sunken px-2.5 py-0.5 text-[0.8125rem] text-muted">{c}</span>)}</dd></>}
+            {ing.dishes.length > 0 && <><dt className="t-label-muted pt-0.5">Works in</dt><dd>{ing.dishes.map((d) => graph.dishes.get(d) ?? d).join(", ")}</dd></>}
+            {ing.hub && <><dt className="t-label-muted pt-0.5">Note</dt><dd>One of the 30 most common partners; hidden by the “hide common” filter.</dd></>}
+          </dl>
 
           {/* 2 and 3. Heaviness and volume, one radar each */}
           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">

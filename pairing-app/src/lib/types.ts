@@ -19,6 +19,7 @@ export type Ingredient = {
   chips: string[];
   dishes: string[];
   art: string | null;
+  description: string | null;
   hub: boolean;
   degree: number;
 };
