@@ -1,0 +1,182 @@
+/*
+ * Compiles src/data/source/*.mjs into public/graph.json, the one file the app loads.
+ * Rules follow the PRD's "Rules for the shipped graph": one canonical name per ingredient, three node
+ * types (ingredient, cuisine, dish), undirected edges stored once with the higher tier, every edge tiered,
+ * hubs marked, 15 fixed categories, seasons as a set or "all".
+ */
+import { writeFileSync, mkdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import vegetables from "../src/data/source/vegetables.mjs";
+import fruits from "../src/data/source/fruits.mjs";
+import herbs from "../src/data/source/herbs-spices.mjs";
+import proteins from "../src/data/source/proteins.mjs";
+import dairy from "../src/data/source/dairy-grains-nuts.mjs";
+import pantryA from "../src/data/source/pantry-a.mjs";
+import pantryB from "../src/data/source/pantry-b.mjs";
+import { ALIASES, DISHES, DROP, EXTRA, COMBOS, REASONS } from "../src/data/source/meta.mjs";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+export const CATEGORIES = ["herb", "spice", "vegetable", "fruit", "protein", "seafood", "dairy", "grain", "nut", "oil", "acid", "sweetener", "alcohol", "condiment", "other"];
+export const CUISINES = [
+  { id: "italian", name: "Italian" },
+  { id: "french", name: "French" },
+  { id: "mediterranean", name: "Mediterranean" },
+  { id: "middle-eastern", name: "Middle Eastern" },
+  { id: "indian", name: "Indian" },
+  { id: "east-asian", name: "Chinese & Japanese" },
+  { id: "se-asian", name: "Southeast Asian" },
+  { id: "latin", name: "Mexican & Latin" },
+];
+const TASTES = ["sweet", "sour", "salty", "bitter", "hot", "astringent"];
+const SEASONS = ["spring", "summer", "autumn", "winter"];
+const HUB_COUNT = 30;
+
+const raw = { ...vegetables, ...fruits, ...herbs, ...proteins, ...dairy, ...pantryA, ...pantryB, ...EXTRA };
+
+function parseTaste(str) {
+  const scores = Object.fromEntries(TASTES.map((t) => [t, 0]));
+  let implicit = 0;
+  for (const tok of (str || "").split(/\s+/).filter(Boolean)) {
+    const [word, n] = tok.split(":");
+    if (!TASTES.includes(word)) throw new Error(`unknown taste word "${word}"`);
+    if (n !== undefined) scores[word] = Number(n);
+    else { scores[word] = implicit === 0 ? 3 : 2; implicit++; }
+  }
+  return scores;
+}
+function parseScale(v) {
+  if (typeof v === "number") return { v, lo: v, hi: v };
+  const [lo, hi] = String(v).split("-").map(Number);
+  return { v: (lo + hi) / 2, lo, hi };
+}
+function parseSeason(str) {
+  const toks = String(str).split(/\s+/).filter(Boolean);
+  if (toks.includes("all") || toks.length === 0) return "all";
+  const set = SEASONS.filter((s) => toks.includes(s));
+  return set.length === 4 ? "all" : set;
+}
+const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");
+const humanize = (s) => s.replace(/-/g, " ");
+
+// Pass 1: ingredients and dish nodes.
+const ingredients = [];
+const byId = new Map();
+const dishes = new Map(); // id -> name
+function dishNode(id) {
+  const name = DISHES[id] ?? humanize(id);
+  if (!dishes.has(id)) dishes.set(id, name);
+  return id;
+}
+for (const [id, src] of Object.entries(raw)) {
+  if (!CATEGORIES.includes(src.cat)) throw new Error(`${id}: bad category ${src.cat}`);
+  const ing = {
+    id, name: src.name, aliases: src.aliases ?? [], cat: src.cat,
+    taste: parseTaste(src.taste), weight: parseScale(src.weight), volume: parseScale(src.volume),
+    season: parseSeason(src.season), techniques: (src.techniques || "").split(/\s+/).filter(Boolean),
+    cuisines: src.cuisines ?? {}, chips: src.chips ?? [],
+    dishes: (src.dishes || "").split(/\s+/).filter(Boolean).filter((d) => d !== "everything").map(dishNode),
+    art: src.art ?? null, hub: false, degree: 0,
+  };
+  for (const c of Object.keys(ing.cuisines)) if (!CUISINES.some((g) => g.id === c)) throw new Error(`${id}: bad cuisine ${c}`);
+  ingredients.push(ing);
+  byId.set(id, ing);
+}
+
+// Pass 2: edges.
+const edges = new Map(); // "a|b" sorted -> { a, b, tier, listed: number }
+const unknown = new Map();
+let disagreements = 0;
+let dishMentions = 0;
+const aliasIndex = new Map();
+for (const ing of ingredients) for (const a of ing.aliases) aliasIndex.set(slug(a), ing.id);
+function resolve(tok) {
+  if (byId.has(tok)) return { kind: "ingredient", id: tok };
+  if (ALIASES[tok] && byId.has(ALIASES[tok])) return { kind: "ingredient", id: ALIASES[tok] };
+  if (aliasIndex.has(tok)) return { kind: "ingredient", id: aliasIndex.get(tok) };
+  if (DISHES[tok]) return { kind: "dish", id: tok };
+  if (DROP.has(tok)) return { kind: "drop" };
+  return { kind: "unknown" };
+}
+for (const [id, src] of Object.entries(raw)) {
+  for (const tok of (src.pairs || "").split(/\s+/).filter(Boolean)) {
+    const m = tok.match(/^(.+?):([1-4])$/);
+    if (!m) throw new Error(`${id}: bad pair token "${tok}"`);
+    const [, name, t] = m;
+    const r = resolve(name);
+    if (r.kind === "unknown") { unknown.set(name, (unknown.get(name) ?? 0) + 1); continue; }
+    if (r.kind === "drop") continue;
+    if (r.kind === "dish") { dishMentions++; const ing = byId.get(id); if (!ing.dishes.includes(r.id)) ing.dishes.push(dishNode(r.id)); continue; }
+    if (r.id === id) continue;
+    const [a, b] = [id, r.id].sort();
+    const key = `${a}|${b}`;
+    const tier = Number(t);
+    const e = edges.get(key);
+    if (!e) edges.set(key, { a, b, tier, listed: 1 });
+    else { if (e.tier !== tier) disagreements++; e.tier = Math.max(e.tier, tier); e.listed++; }
+  }
+}
+
+// Adjacency, degree, hubs.
+const adj = new Map(ingredients.map((i) => [i.id, new Set()]));
+for (const e of edges.values()) { adj.get(e.a).add(e.b); adj.get(e.b).add(e.a); }
+for (const ing of ingredients) ing.degree = adj.get(ing.id).size;
+const hubs = [...ingredients].sort((x, y) => y.degree - x.degree).slice(0, HUB_COUNT).map((i) => i.id);
+for (const id of hubs) byId.get(id).hub = true;
+
+// Shared-partner count and reason type per edge.
+function reasonType(a, b, tier) {
+  if (tier >= 3) return "classic";
+  const ta = byId.get(a).taste, tb = byId.get(b).taste;
+  const shared = TASTES.find((t) => ta[t] >= 2 && tb[t] >= 2);
+  if (shared) return `shared-${shared}`;
+  const contrast = (ta.sweet >= 2 && (tb.sour >= 2 || tb.salty >= 2 || tb.bitter >= 2)) || (tb.sweet >= 2 && (ta.sour >= 2 || ta.salty >= 2 || ta.bitter >= 2));
+  if (contrast) return "contrast";
+  const ca = byId.get(a).cuisines, cb = byId.get(b).cuisines;
+  const cuisine = Object.keys(ca).find((c) => ca[c] >= 2 && cb[c] >= 2);
+  if (cuisine) return `cuisine-${cuisine}`;
+  return "works";
+}
+const index = new Map(ingredients.map((i, n) => [i.id, n]));
+const edgeRows = [];
+for (const e of edges.values()) {
+  let shared = 0;
+  const sa = adj.get(e.a), sb = adj.get(e.b);
+  const [small, big] = sa.size < sb.size ? [sa, sb] : [sb, sa];
+  for (const x of small) if (big.has(x)) shared++;
+  const reason = REASONS[`${e.a}|${e.b}`] ?? REASONS[`${e.b}|${e.a}`] ?? null;
+  edgeRows.push([index.get(e.a), index.get(e.b), e.tier, shared, reasonType(e.a, e.b, e.tier), reason]);
+}
+
+// Combos: drop any that reference an unknown ingredient, report them.
+const badCombos = [];
+const combos = COMBOS.map((c) => ({ ingredients: c.ingredients.map((x) => (byId.has(x) ? x : ALIASES[x])), origin: c.origin }))
+  .filter((c) => { const ok = c.ingredients.every((x) => x && byId.has(x)); if (!ok) badCombos.push(c); return ok; });
+
+const graph = {
+  version: "2026.10.20",
+  generated: new Date().toISOString(),
+  categories: CATEGORIES,
+  cuisines: CUISINES,
+  tastes: TASTES,
+  hubs,
+  ingredients,
+  dishes: [...dishes].map(([id, name]) => ({ id, name })),
+  edges: edgeRows,
+  combos,
+};
+mkdirSync(join(root, "public"), { recursive: true });
+const json = JSON.stringify(graph);
+writeFileSync(join(root, "public", "graph.json"), json);
+
+// Report.
+const tiers = [0, 0, 0, 0, 0];
+for (const e of edges.values()) tiers[e.tier]++;
+const sparse = ingredients.filter((i) => i.degree < 6).map((i) => `${i.id}(${i.degree})`);
+console.log(`graph.json: ${ingredients.length} ingredients, ${edges.size} edges, ${dishes.size} dishes, ${combos.length} combos, ${(json.length / 1024).toFixed(0)} KB`);
+console.log(`tiers: works ${tiers[1]}, recommended ${tiers[2]}, highly ${tiers[3]}, holy grail ${tiers[4]}; two-way listings with different tiers: ${disagreements}; dish mentions folded in: ${dishMentions}`);
+console.log(`hubs: ${hubs.slice(0, 10).map((h) => `${h}(${byId.get(h).degree})`).join(" ")} …`);
+if (sparse.length) console.log(`sparse (<6 partners): ${sparse.join(" ")}`);
+if (badCombos.length) console.log(`combos dropped: ${badCombos.map((c) => c.ingredients.join("+")).join(", ")}`);
+if (unknown.size) console.log(`unknown tokens dropped: ${[...unknown].sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k}×${v}`).join(" ")}`);

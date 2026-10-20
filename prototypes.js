@@ -12,6 +12,28 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'pairing',
+    name: 'Pairing Explorer',
+    deployed: '2026-10-20',
+    status: 'wip',
+    description:
+      'A flavour-pairing map you can walk: type an ingredient, see its partners in rings by strength, tap a second and the map narrows to what goes with both. Ingredient pages with taste, character and cuisine charts, saved combinations, bridges for odd pairs. Installable PWA, works offline, graph of 300 ingredients and 12,000 tiered pairings. Next.js static export.',
+    tags: ['pwa', 'food', 'graph', 'next.js', 'prototype'],
+    accent: '#141414',
+    art: 'pairing',
+  },
+  {
+    slug: 'forms',
+    name: 'Odziv',
+    deployed: '2026-10-19',
+    status: 'wip',
+    description:
+      'An EU-hosted Typeform alternative for agencies. Client workspaces, a builder with logic and 12 themes, a one-question-at-a-time respondent view, results with drop-off, a Typeform importer that reports what it could not bring over, and AI that builds forms, asks follow-ups and scores leads (simulated). Dummy data, Next.js static export.',
+    tags: ['forms', 'next.js', 'prototype', 'dummy data'],
+    accent: '#1d6b5a',
+    art: 'odziv',
+  },
+  {
     slug: 'bledara',
     name: 'Bledara',
     deployed: '2026-10-06',
@@ -103,6 +125,36 @@ const PROTOTYPES = [
 
 /* Pixel art for the tiles: each row is a string, each character a palette key. */
 const PIXEL_ART = {
+  pairing: {
+    palette: { k: '#141414', w: '#f2f1ee', p: '#f7d9c8' },
+    rows: [
+      '....kk....',
+      '...k..k...',
+      '..k.kk.k..',
+      '.k.kppk.k.',
+      'k..kppk..k',
+      'k..kppk..k',
+      '.k.kppk.k.',
+      '..k.kk.k..',
+      '...k..k...',
+      '....kk....',
+    ],
+  },
+  odziv: {
+    palette: { k: '#1d6b5a', w: '#f3fbf8', a: '#7fd1c7' },
+    rows: [
+      '.kkkkkkkk.',
+      'kkkkkkkkkk',
+      'kkwwwwwwkk',
+      'kkkkkkkkkk',
+      'kkwwwwkkkk',
+      'kkkkkkkkkk',
+      'kkaakkkkkk',
+      'kkaaawwwkk',
+      'kkkkkkkkkk',
+      '.kkkkkkkk.',
+    ],
+  },
   bledara: {
     palette: { k: '#1b4a50', w: '#f3fbfb', t: '#2a6f78' },
     rows: [

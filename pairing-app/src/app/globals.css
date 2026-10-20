@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/*
+ * Pairing Explorer tokens. Direction: the Lake coloring app. Warm light grey canvas, white cards with
+ * large radii, black line art, one chunky serif for titles, letterspaced small caps for section labels.
+ * Colour arrives through illustrations and a few pastel washes; the UI itself stays black on grey.
+ */
+:root {
+  --bg: #f2f1ee;
+  --surface: #ffffff;
+  --sunken: #e9e7e2;
+  --ink: #141414;
+  --muted: #7d7a76;
+  --faint: #b3b0aa;
+  --hairline: #e3e0da;
+  --accent: #2f6bde;
+  --accent-soft: #e2ebfb;
+  --danger: #c0392b;
+  --peach: #f7d9c8;
+  --butter: #f6e3a6;
+  --sky: #cfe0f4;
+  --lilac: #e6d8f3;
+  --mint: #d6ecdc;
+  --radius-card: 22px;
+  --nav-h: 72px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-hairline: var(--hairline);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-peach: var(--peach);
+  --color-butter: var(--butter);
+  --color-sky: var(--sky);
+  --color-lilac: var(--lilac);
+  --color-mint: var(--mint);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --radius-card: var(--radius-card);
+}
+
+@layer base {
+  * { border-color: var(--hairline); }
+  html { background: var(--bg); color: var(--ink); font-family: var(--font-sans); -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+  body { min-height: 100dvh; overflow-x: hidden; overscroll-behavior-y: none; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+  button, input { font: inherit; color: inherit; }
+  input::placeholder { color: var(--faint); }
+  svg text { user-select: none; -webkit-user-select: none; }
+}
+
+@layer components {
+  /* Chunky editorial serif for titles, soft optical size. */
+  .t-display { font-family: var(--font-display); font-weight: 700; font-variation-settings: "SOFT" 60, "opsz" 72; letter-spacing: -0.015em; line-height: 1.05; }
+  .t-title { font-family: var(--font-display); font-weight: 650; font-variation-settings: "SOFT" 40, "opsz" 36; letter-spacing: -0.01em; line-height: 1.15; }
+  /* Letterspaced small caps for section labels: "IN SEASON NOW". */
+  .t-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); }
+  .t-label-muted { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .card { background: var(--surface); border-radius: var(--radius-card); box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04), 0 8px 24px -16px rgba(20, 20, 20, 0.12); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border-radius: 999px; background: var(--surface); font-size: 1rem; font-weight: 500; white-space: nowrap; transition: transform 120ms ease, background 120ms ease, color 120ms ease; }
+  .chip:active { transform: scale(0.97); }
+  .chip-muted { color: var(--faint); }
+  .chip-on { background: var(--ink); color: #fff; }
+  /* Black pill with uppercase letterspaced label, the Lake primary button. */
+  .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 56px; padding: 0 28px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 0.9375rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; transition: transform 120ms ease, opacity 120ms ease; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.35; }
+  .btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 24px; border-radius: 999px; background: var(--surface); color: var(--ink); border: 1.5px solid var(--ink); font-size: 0.9375rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+  .btn-secondary:disabled { opacity: 0.35; }
+  /* Outlined circle with an arrow, the "next" button. */
+  .btn-circle { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 999px; border: 1.5px solid var(--ink); background: transparent; transition: background 120ms ease, color 120ms ease; }
+  .btn-circle:active { background: var(--ink); color: #fff; }
+  .hairline { border-top: 1px solid var(--hairline); }
+  .sheet { background: var(--bg); border-radius: 28px 28px 0 0; box-shadow: 0 -8px 40px -20px rgba(20, 20, 20, 0.35); }
+  .grabber { width: 44px; height: 5px; border-radius: 999px; background: var(--faint); margin: 10px auto 0; }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .safe-b { padding-bottom: var(--safe-b); }
+}
+
+@keyframes rise { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.anim-rise { animation: rise 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.anim-fade { animation: fade 200ms ease; }
+.anim-pop { animation: pop 180ms ease; }
+@media (prefers-reduced-motion: reduce) { .anim-rise, .anim-fade, .anim-pop { animation: none; } }
