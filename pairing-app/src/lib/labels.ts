@@ -16,8 +16,8 @@ export const VOLUME_LABEL = ["", "very quiet", "quiet", "moderate", "loud", "ver
 export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export const tierWord = (t: Tier) => TIER_LABEL[t];
 export function seasonText(season: "all" | Season[]): string { return season === "all" ? "all year" : season.map(cap).join(", "); }
-export function scaleText(v: { v: number; lo: number; hi: number }, labels: string[]): string {
-  return v.lo === v.hi ? labels[Math.round(v.v)] : `${labels[v.lo]} to ${labels[v.hi]}`;
+export function scaleText(v: { lo: number; hi: number }, labels: string[]): string {
+  return v.lo === v.hi ? labels[v.lo] : `${labels[v.lo]} to ${labels[v.hi]}`;
 }
 /** F6: when an edge has no reason text, say the reason type as a sentence. */
 export function reasonSentence(type: string, a: string, b: string): string {

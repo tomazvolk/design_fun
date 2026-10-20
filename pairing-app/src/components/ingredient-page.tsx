@@ -10,12 +10,12 @@ import { CATEGORY_LABEL, TIER_LABEL, cap } from "@/lib/labels";
 import type { Ingredient } from "@/lib/types";
 import { Chip, SectionLabel, useToast } from "./ui";
 import { Illustration } from "./illustrations";
-import { CharacterSquare, CuisineOctagon, PairingArcs, TasteHexagon } from "./charts";
+import { CuisineOctagon, HeavinessRadar, PairingArcs, TasteHexagon, VolumeRadar } from "./charts";
 import { SaveSheet } from "./explore";
 
 const ARTIST = "Line & Leaf Studio";
 
-/** The ingredient page: one scrolling page, six sections, each a small chart or a visual list. */
+/** The ingredient page: header, four radars (heaviness, volume, taste, cuisine), pairings arcs and proven combos. */
 export function IngredientPage() {
   const params = useSearchParams();
   const router = useRouter();
@@ -61,21 +61,27 @@ export function IngredientPage() {
           {ing.aliases.length > 0 && <p className="mt-3 text-[0.875rem] text-muted">Also: {ing.aliases.join(", ")}</p>}
           {ing.techniques.length > 0 && <p className="mt-1 text-[0.875rem] text-muted">Techniques: {ing.techniques.join(", ")}</p>}
 
-          {/* 2. Taste */}
+          {/* 2 and 3. Heaviness and volume, one radar each */}
+          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <section>
+              <SectionLabel>Heaviness</SectionLabel>
+              <div className="card mt-3 p-3"><HeavinessRadar ingredient={ing} anchors={anchors} /></div>
+            </section>
+            <section>
+              <SectionLabel>Volume</SectionLabel>
+              <div className="card mt-3 p-3"><VolumeRadar ingredient={ing} anchors={anchors} /></div>
+            </section>
+          </div>
+
+          {/* 4. Taste */}
           <section className="mt-8">
             <SectionLabel>Taste</SectionLabel>
             <div className="card mt-3 p-4"><TasteHexagon ingredient={ing} anchors={anchors} /></div>
           </section>
-
-          {/* 3. Character */}
-          <section className="mt-8">
-            <SectionLabel>Character</SectionLabel>
-            <div className="card mt-3 p-4"><CharacterSquare ingredient={ing} anchors={anchors} /></div>
-          </section>
         </div>
 
         <div className="px-5 md:px-0">
-          {/* 4. Cuisine fit */}
+          {/* 5. Cuisine fit */}
           <section className="mt-8 md:mt-0">
             <SectionLabel>Cuisine fit</SectionLabel>
             <div className="card mt-3 p-4">
@@ -85,7 +91,7 @@ export function IngredientPage() {
             </div>
           </section>
 
-          {/* 5. Pairings */}
+          {/* 6. Pairings */}
           <section className="mt-8">
             <SectionLabel>Pairings</SectionLabel>
             <div className="card mt-3 p-4">
@@ -94,7 +100,7 @@ export function IngredientPage() {
             </div>
           </section>
 
-          {/* 6. Proven combos */}
+          {/* 7. Proven combos */}
           <section className="mt-8">
             <SectionLabel>Proven combos</SectionLabel>
             {combos.length === 0 && mine.length === 0 && <p className="mt-3 text-[0.9375rem] text-muted">No established trios recorded for {ing.name} yet.</p>}

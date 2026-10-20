@@ -1,7 +1,7 @@
 "use client";
 
 import type { Cuisine, Edge, Ingredient } from "@/lib/types";
-import { CATEGORY_ORDER, TASTES, VOLUME_LABEL, WEIGHT_LABEL, cap } from "@/lib/labels";
+import { CATEGORY_ORDER, TASTES, VOLUME_LABEL, WEIGHT_LABEL, cap, scaleText } from "@/lib/labels";
 import type { PairingGraph } from "@/lib/graph";
 
 /*
@@ -56,7 +56,7 @@ export function TasteHexagon({ ingredient, anchors }: { ingredient: Ingredient; 
   const text = TASTES.filter((t) => ingredient.taste[t] > 0).map((t) => `${cap(t)} ${ingredient.taste[t]}`).join(" · ") || "No taste scores yet";
   return (
     <figure>
-      <Radar axes={TASTES.map(cap)} max={3} rings={3} series={[...anchors.map((a) => ({ values: TASTES.map((t) => a.taste[t]), kind: "anchor" as const, name: a.name })), { values, kind: "self", name: ingredient.name }]} />
+      <Radar axes={TASTES.map(cap)} max={3} rings={3} size={280} margin={62} labelOffset={12} series={[...anchors.map((a) => ({ values: TASTES.map((t) => a.taste[t]), kind: "anchor" as const, name: a.name })), { values, kind: "self", name: ingredient.name }]} />
       <figcaption className="mt-1 text-center text-[0.8125rem] text-muted">{text}{anchors.length > 0 && <span> · dashed: {anchors.map((a) => a.name).join(", ")}</span>}</figcaption>
     </figure>
   );
@@ -85,34 +85,33 @@ export function CuisineOctagon({ ingredient, anchors, cuisines, onAxis }: { ingr
   );
 }
 
-export function CharacterSquare({ ingredient, anchors }: { ingredient: Ingredient; anchors: Ingredient[] }) {
-  const size = 220, pad = 16, inner = size - pad * 2;
-  const px = (v: number) => pad + ((v - 1) / 4) * inner;
-  const py = (v: number) => size - pad - ((v - 1) / 4) * inner;
-  const wide = (s: { lo: number; hi: number }) => s.hi - s.lo >= 2;
-  const text = `${cap(WEIGHT_LABEL[Math.round(ingredient.weight.v)] ?? "")} weight · ${VOLUME_LABEL[Math.round(ingredient.volume.v)] ?? ""} volume`;
+/**
+ * Heaviness and volume are one value on a five-step scale, so each gets a five-axis radar: the axes are the
+ * steps, the shape peaks at the ingredient's value and spreads across its range ("light to medium" becomes a
+ * plateau over two axes). Anchors are dashed grey outlines on the same pentagon, so overlap and gaps read at a glance.
+ */
+function membership(scale: { lo: number; hi: number }, step: number): number {
+  if (step >= scale.lo && step <= scale.hi) return 3;
+  const d = Math.min(Math.abs(step - scale.lo), Math.abs(step - scale.hi));
+  return d === 1 ? 1.5 : 0;
+}
+function ScaleRadar({ ingredient, anchors, pick, labels, what }: { ingredient: Ingredient; anchors: Ingredient[]; pick: (i: Ingredient) => { lo: number; hi: number }; labels: string[]; what: string }) {
+  const steps = [1, 2, 3, 4, 5];
+  const axes = steps.map((i) => cap(labels[i]));
+  const own = pick(ingredient);
+  const text = own.lo === own.hi ? cap(labels[own.lo]) : `${cap(labels[own.lo])} to ${labels[own.hi]}`;
   return (
     <figure>
-      <div className="mx-auto flex w-full max-w-[300px] items-stretch gap-1">
-        <div className="flex w-5 shrink-0 items-center justify-center text-[0.75rem] text-muted" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>quiet → loud</div>
-        <div className="min-w-0 flex-1">
-        <svg viewBox={`0 0 ${size} ${size}`} className="block w-full" aria-hidden="true">
-          <rect x={pad} y={pad} width={inner} height={inner} fill="#fff" stroke={GRID} />
-          <line x1={size / 2} y1={pad} x2={size / 2} y2={size - pad} stroke={GRID} />
-          <line x1={pad} y1={size / 2} x2={size - pad} y2={size / 2} stroke={GRID} />
-          {anchors.map((a) => <circle key={a.id} cx={px(a.weight.v)} cy={py(a.volume.v)} r={6} fill={ANCHOR} fillOpacity={0.5} />)}
-          {wide(ingredient.weight) || wide(ingredient.volume) ? (
-            <line x1={px(ingredient.weight.lo)} y1={py(ingredient.volume.lo)} x2={px(ingredient.weight.hi)} y2={py(ingredient.volume.hi)} stroke={ACCENT} strokeWidth={10} strokeLinecap="round" strokeOpacity={0.8} />
-          ) : (
-            <circle cx={px(ingredient.weight.v)} cy={py(ingredient.volume.v)} r={8} fill={ACCENT} />
-          )}
-        </svg>
-        <div className="mt-1 flex justify-between text-[0.75rem] text-muted"><span>light</span><span>weight</span><span>heavy</span></div>
-        </div>
-      </div>
-      <figcaption className="mt-2 text-center text-[0.8125rem] text-muted">{text}{anchors.length > 0 && <span> · grey: {anchors.map((a) => a.name).join(", ")}</span>}</figcaption>
+      <Radar axes={axes} max={3} rings={3} size={260} margin={70} labelOffset={10} series={[...anchors.map((a) => ({ values: steps.map((i) => membership(pick(a), i)), kind: "anchor" as const, name: a.name })), { values: steps.map((i) => membership(own, i)), kind: "self", name: ingredient.name }]} />
+      <figcaption className="mt-1 text-center text-[0.8125rem] text-muted">{text} {what}{anchors.length > 0 && <span> · dashed: {anchors.map((a) => `${a.name} ${scaleText(pick(a), labels)}`).join(", ")}</span>}</figcaption>
     </figure>
   );
+}
+export function HeavinessRadar({ ingredient, anchors }: { ingredient: Ingredient; anchors: Ingredient[] }) {
+  return <ScaleRadar ingredient={ingredient} anchors={anchors} pick={(i) => i.weight} labels={WEIGHT_LABEL} what="weight" />;
+}
+export function VolumeRadar({ ingredient, anchors }: { ingredient: Ingredient; anchors: Ingredient[] }) {
+  return <ScaleRadar ingredient={ingredient} anchors={anchors} pick={(i) => i.volume} labels={VOLUME_LABEL} what="volume" />;
 }
 
 /**
