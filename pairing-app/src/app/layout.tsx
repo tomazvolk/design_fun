@@ -1,13 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { Fraunces, Inter } from "next/font/google";
+import { Inter, Young_Serif } from "next/font/google";
 import { StoreProvider } from "@/lib/store";
 import { Shell } from "@/components/shell";
 import { APP_NAME, BASE_PATH } from "@/lib/config";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin", "latin-ext"] });
-const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin", "latin-ext"], axes: ["SOFT", "opsz"], weight: "variable" });
+const young = Young_Serif({ variable: "--font-young", subsets: ["latin", "latin-ext"], weight: "400" });
 
 export const metadata: Metadata = {
   title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f2f1ee",
+  themeColor: "#f3f1ea",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -29,7 +29,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${fraunces.variable} h-full`}>
+    <html lang="en" className={`${inter.variable} ${young.variable} h-full`}>
       <body className="min-h-full">
         <StoreProvider>
           <Suspense fallback={null}>

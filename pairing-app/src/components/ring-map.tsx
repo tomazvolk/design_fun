@@ -2,14 +2,15 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { Ingredient } from "@/lib/types";
-import { labelPlacement, type RingLayout } from "@/lib/rings";
-import { Illustration } from "./illustrations";
+import { arcPath, labelPlacement, wobblyCircle, type WheelLayout } from "@/lib/rings";
+import { CATEGORY_SHORT, CATEGORY_TINT } from "@/lib/labels";
+import { ArtGlyph } from "./illustrations";
 
-const DOT = { small: 3.5, medium: 5.5, large: 8 } as const;
-const FONT = { small: 11.5, medium: 12.5, large: 14 } as const;
+const DISC = { small: 11, medium: 14, large: 18 } as const;
+const GLYPH = { small: 15, medium: 19, large: 25 } as const;
 
 type Props = {
-  layout: RingLayout;
+  layout: WheelLayout;
   anchors: Ingredient[];
   onTap: (id: string) => void;
   onDoubleTap: (id: string) => void;
@@ -18,21 +19,20 @@ type Props = {
 };
 
 /**
- * Screen 2: the ring map as SVG. Nodes are text labels with a small dot. Pinch to zoom, drag to pan,
- * single tap opens the card, double tap adds the node as an anchor. Rendering stays in SVG because a ring
- * never shows more than 25 nodes (PRD stack note); Canvas is the fallback, not the start.
+ * The Flavour Wheel. Pastel wedges by category behind three pencil rings; every partner is its line drawing
+ * on a tinted disc; the hub carries the anchors drawn large. Nodes keep their identity across layouts, so when
+ * an anchor is added or removed each drawing glides to its new ring and wedge (the one authored motion).
+ * Pinch to zoom, drag to pan, tap for the card, double-tap to add as an anchor.
  */
 export function RingMap({ layout, anchors, onTap, onDoubleTap, onPlus, onCentre }: Props) {
-  const svgRef = useRef<SVGSVGElement>(null);
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
+  const [dragging, setDragging] = useState(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ start: { x: number; y: number; k: number }; mid: { x: number; y: number }; dist: number; moved: boolean } | null>(null);
   const lastTap = useRef<{ id: string; t: number } | null>(null);
   const tapTimer = useRef<number | null>(null);
   const size = layout.size;
   const half = size / 2;
-
-  const [dragging, setDragging] = useState(false);
 
   const onPointerDown = (e: React.PointerEvent) => {
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -49,7 +49,6 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onPlus, onCentre 
     const g = gesture.current;
     if (pts.length === 1) {
       const dx = pts[0].x - g.mid.x, dy = pts[0].y - g.mid.y;
-      // Capture only once a drag is real: capturing on pointerdown would retarget the click and the node taps would never fire.
       if (!g.moved && Math.hypot(dx, dy) > 6) { g.moved = true; (e.currentTarget as Element).setPointerCapture?.(e.pointerId); }
       if (g.moved) setView({ x: g.start.x + dx, y: g.start.y + dy, k: g.start.k });
     } else {
@@ -65,10 +64,7 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onPlus, onCentre 
     if (pointers.current.size === 0) { const moved = gesture.current?.moved; gesture.current = null; setDragging(false); if (moved) lastTap.current = null; }
     else { const pts = [...pointers.current.values()]; gesture.current = { start: { ...view }, mid: pts[0], dist: 0, moved: true }; }
   };
-  const onWheel = (e: React.WheelEvent) => {
-    const k = Math.min(3, Math.max(0.6, view.k * (e.deltaY < 0 ? 1.1 : 0.9)));
-    setView((v) => ({ ...v, k }));
-  };
+  const onWheel = (e: React.WheelEvent) => { const k = Math.min(3, Math.max(0.6, view.k * (e.deltaY < 0 ? 1.1 : 0.9))); setView((v) => ({ ...v, k })); };
 
   const tapNode = useCallback((id: string) => {
     if (gesture.current?.moved) return;
@@ -84,62 +80,82 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onPlus, onCentre 
     tapTimer.current = window.setTimeout(() => { tapTimer.current = null; onTap(id); }, 280);
   }, [onTap, onDoubleTap]);
 
-  const centre = anchors[0];
+  const hubR = layout.hub;
   const multi = anchors.length > 1;
+  const hubSlots = anchors.slice(0, 5).map((a, i, arr) => {
+    if (arr.length === 1) return { a, x: 0, y: -6, s: 64 };
+    const ang = -Math.PI / 2 + (i / arr.length) * Math.PI * 2;
+    const r = arr.length === 2 ? 20 : 26;
+    return { a, x: Math.cos(ang) * r, y: Math.sin(ang) * r - 4, s: arr.length === 2 ? 34 : 26 };
+  });
+
   return (
     <svg
-      ref={svgRef}
       viewBox={`${-half} ${-half} ${size} ${size}`}
       className="h-full w-full touch-none select-none"
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onWheel={onWheel}
-      role="group" aria-label="Pairing map"
+      role="group" aria-label="Pairing wheel"
     >
-      <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`} style={{ transition: dragging ? "none" : "transform 160ms ease" }}>
-        {layout.rings.map((ring) => (
-          <circle key={ring.index} r={ring.radius} fill="none" stroke="#d9d6d0" strokeWidth={1} />
+      <g style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})`, transition: dragging ? "none" : "transform 160ms ease" }}>
+        {/* wedges: category tints, inner edge at the hub, outer edge past the last ring */}
+        {layout.wedges.map((w) => (
+          <path key={w.cat} d={arcPath(hubR + 8, layout.rim, w.start, w.end)} fill={CATEGORY_TINT[w.cat]} fillOpacity={w.count > 0 ? 0.55 : 0.25} stroke="var(--paper)" strokeWidth={2} />
         ))}
-        {/* The anchor at the centre is drawn, not dotted. */}
-        <g className="cursor-pointer" onClick={() => { if (!gesture.current?.moved) onCentre(); }} role="button" aria-label={multi ? `${anchors.length} anchors` : centre?.name}>
-          <circle r={48} fill="#fff" stroke="#141414" strokeWidth={1.5} />
-          {multi ? (
-            <>
-              <text y={-4} textAnchor="middle" fontSize={22} fontWeight={700} fontFamily="var(--font-display)" fill="#141414">{anchors.length}</text>
-              <text y={14} textAnchor="middle" fontSize={10} letterSpacing={1.2} fill="#7d7a76" fontFamily="var(--font-sans)">ANCHORS</text>
-            </>
-          ) : centre ? (
-            <>
-              <foreignObject x={-30} y={-38} width={60} height={60}><div className="flex h-full w-full items-center justify-center text-ink"><Illustration art={centre.art} cat={centre.cat} size={56} strokeWidth={2.2} /></div></foreignObject>
-              <text y={36} textAnchor="middle" fontSize={10.5} fontWeight={600} fill="#141414" fontFamily="var(--font-sans)">{centre.name.length > 14 ? centre.name.slice(0, 13) + "…" : centre.name}</text>
-            </>
-          ) : null}
+        {/* category names along the rim */}
+        <defs>
+          {layout.wedges.map((w) => {
+            const r = layout.rim + 12;
+            const p = (a: number) => `${(Math.cos(a) * r).toFixed(1)} ${(Math.sin(a) * r).toFixed(1)}`;
+            const mid = (w.start + w.end) / 2;
+            const flip = Math.sin(mid) > 0.15; // bottom half reads the other way
+            const a1 = flip ? w.end : w.start, a2 = flip ? w.start : w.end;
+            return <path key={w.cat} id={`rim-${w.cat}`} d={`M ${p(a1)} A ${r} ${r} 0 ${Math.abs(w.end - w.start) > Math.PI ? 1 : 0} ${flip ? 0 : 1} ${p(a2)}`} fill="none" />;
+          })}
+        </defs>
+        {layout.wedges.filter((w) => w.count > 0 && w.end - w.start > 0.22).map((w) => (
+          <text key={w.cat} className="wedge-label" dy={Math.sin((w.start + w.end) / 2) > 0.15 ? -4 : 9}>
+            <textPath href={`#rim-${w.cat}`} startOffset="50%" textAnchor="middle">{CATEGORY_SHORT[w.cat]}</textPath>
+          </text>
+        ))}
+        {/* pencil rings */}
+        {layout.rings.map((ring, i) => (
+          <path key={ring.index} d={wobblyCircle(ring.radius, i + 1)} fill="none" stroke="var(--ink)" strokeOpacity={0.28} strokeWidth={1.1} strokeDasharray={i === 0 ? undefined : "3 4"} />
+        ))}
+        {/* hub: the anchors, drawn */}
+        <g className="cursor-pointer" onClick={() => { if (!gesture.current?.moved) onCentre(); }} role="button" aria-label={multi ? `${anchors.length} anchors` : anchors[0]?.name}>
+          <circle r={hubR + 3} fill="var(--card)" stroke="var(--ink)" strokeWidth={1.4} />
+          <path d={wobblyCircle(hubR - 5, 9, 1)} fill="none" stroke="var(--ink)" strokeOpacity={0.35} strokeWidth={1} />
+          <g className="text-ink">
+            {hubSlots.map((s) => <ArtGlyph key={s.a.id} art={s.a.art} cat={s.a.cat} x={s.x} y={s.y} size={s.s} strokeWidth={s.s > 40 ? 2.2 : 2.6} />)}
+          </g>
+          <text y={multi ? hubR - 14 : hubR - 16} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--ink)" fontFamily="var(--font-sans)">
+            {multi ? `${anchors.length} anchors` : anchors[0] ? (anchors[0].name.length > 13 ? anchors[0].name.slice(0, 12) + "…" : anchors[0].name) : ""}
+          </text>
         </g>
-        {layout.rings.map((ring) => (
-          <g key={ring.index}>
-            {ring.nodes.map((n) => {
-              // Dense rings (more than 14 nodes) get radial labels, read outward like spokes, so neighbours never overlap.
-              const radial = ring.nodes.length > 14;
-              const left = Math.cos(n.angle) < 0;
-              const p = radial
-                ? { anchor: (left ? "end" : "start") as "start" | "end", dx: left ? -(DOT[n.partner.size] + 5) : DOT[n.partner.size] + 5, dy: 4 }
-                : labelPlacement(n.angle);
-              const deg = (n.angle * 180) / Math.PI + (radial && left ? 180 : 0);
-              const id = n.partner.ing.id;
-              return (
-                <g key={id} opacity={n.faded ? 0.3 : 1} className="cursor-pointer" onClick={() => tapNode(id)} role="button" aria-label={`${n.partner.ing.name}${n.faded ? ", pairs with some anchors" : ""}`}>
-                  <circle cx={n.x} cy={n.y} r={DOT[n.partner.size] + 10} fill="transparent" />
-                  <circle cx={n.x} cy={n.y} r={DOT[n.partner.size]} fill="#141414" />
-                  <text x={n.x + p.dx} y={n.y + p.dy} textAnchor={p.anchor} transform={radial ? `rotate(${deg} ${n.x} ${n.y})` : undefined} fontSize={FONT[n.partner.size]} fontWeight={n.partner.size === "large" ? 700 : n.partner.size === "medium" ? 600 : 500} fill="#141414" fontFamily="var(--font-sans)" paintOrder="stroke" stroke="#f2f1ee" strokeWidth={4} strokeLinejoin="round">
-                    {n.partner.ing.name}
-                  </text>
-                </g>
-              );
-            })}
-            {ring.plus && (
-              <g className="cursor-pointer" onClick={() => { if (!gesture.current?.moved) onPlus(ring.index); }} role="button" aria-label={`${ring.overflow} more in this ring`}>
-                <circle cx={ring.plus.x} cy={ring.plus.y} r={14} fill="#f2f1ee" stroke="#141414" strokeWidth={1.2} />
-                <text x={ring.plus.x} y={ring.plus.y + 4} textAnchor="middle" fontSize={11} fontWeight={600} fill="#141414" fontFamily="var(--font-sans)">+{ring.overflow}</text>
-              </g>
-            )}
+        {/* partners: drawings on tinted discs, keyed by id so they glide between layouts */}
+        {layout.nodes.map((n) => {
+          const r = DISC[n.partner.size];
+          // Dense rings (more than 14 nodes) take radial labels, read outward like the rim names, so neighbours never overlap.
+          const radial = layout.rings[n.ring].nodes.length > 14;
+          const left = Math.cos(n.angle) < 0;
+          const p = radial ? { anchor: (left ? "end" : "start") as "start" | "end", dx: left ? -(r + 5) : r + 5, dy: 4 } : labelPlacement(n.angle, r);
+          const deg = (n.angle * 180) / Math.PI + (radial && left ? 180 : 0);
+          const id = n.partner.ing.id;
+          return (
+            <g key={id} className="glide cursor-pointer" style={{ transform: `translate(${n.x}px, ${n.y}px)`, opacity: n.faded ? 0.32 : 1 }} onClick={() => tapNode(id)} role="button" aria-label={`${n.partner.ing.name}${n.faded ? ", pairs with some anchors" : ""}`}>
+              <circle r={r + 12} fill="transparent" />
+              <circle r={r} fill={CATEGORY_TINT[n.partner.ing.cat]} stroke="var(--ink)" strokeWidth={n.partner.size === "large" ? 1.4 : 1} />
+              <g className="text-ink"><ArtGlyph art={n.partner.ing.art} cat={n.partner.ing.cat} size={GLYPH[n.partner.size]} strokeWidth={2.8} /></g>
+              <text x={p.dx} y={p.dy} textAnchor={p.anchor} transform={radial ? `rotate(${deg})` : undefined} fontSize={11} fontWeight={n.partner.size === "small" ? 500 : 700} fill="var(--ink)" fontFamily="var(--font-sans)" paintOrder="stroke" stroke="var(--paper)" strokeWidth={3.5} strokeLinejoin="round" strokeOpacity={0.9}>
+                {n.partner.ing.name}
+              </text>
+            </g>
+          );
+        })}
+        {layout.rings.map((ring) => ring.plus && (
+          <g key={`plus-${ring.index}`} className="cursor-pointer" style={{ transform: `translate(${ring.plus.x}px, ${ring.plus.y}px)` }} onClick={() => { if (!gesture.current?.moved) onPlus(ring.index); }} role="button" aria-label={`${ring.overflow} more in this ring`}>
+            <rect x={-20} y={-11} width={40} height={22} rx={11} fill="var(--card)" stroke="var(--ink)" strokeWidth={1.2} />
+            <text y={4} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--ink)" fontFamily="var(--font-sans)">+{ring.overflow}</text>
           </g>
         ))}
       </g>

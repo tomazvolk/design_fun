@@ -1,4 +1,6 @@
 import type { Category } from "@/lib/types";
+import { cn } from "cn";
+import { CATEGORY_TINT } from "@/lib/labels";
 
 /*
  * Black line art in a coloring-book style, 64x64 viewBox, stroke only. Bespoke drawings for the most
@@ -89,6 +91,26 @@ const PLACEHOLDER: Record<Category, string> = {
 };
 
 export function hasArt(art: string | null): boolean { return !!art && art in ART; }
+export function artPaths(art: string | null, cat: Category): string[] { return ART[art ?? ""] ?? ART[PLACEHOLDER[cat]] ?? ART.leaf; }
+
+/** The drawing inside an SVG: a <g> scaled from the 64-unit art box, centred on (x, y). */
+export function ArtGlyph({ art, cat, x = 0, y = 0, size = 24, strokeWidth = 2.4, opacity }: { art: string | null; cat: Category; x?: number; y?: number; size?: number; strokeWidth?: number; opacity?: number }) {
+  const k = size / 64;
+  return (
+    <g transform={`translate(${x - size / 2} ${y - size / 2}) scale(${k})`} fill="none" stroke="currentColor" strokeWidth={strokeWidth / k} strokeLinecap="round" strokeLinejoin="round" opacity={opacity}>
+      {artPaths(art, cat).map((d, i) => <path key={i} d={d} />)}
+    </g>
+  );
+}
+
+/** A tinted disc carrying the drawing: the ingredient's mark in chips, rows and cards. */
+export function Mark({ art, cat, size = 36, className, ring }: { art: string | null; cat: Category; size?: number; className?: string; ring?: boolean }) {
+  return (
+    <span className={cn("mark", className)} style={{ width: size, height: size, ["--tint" as string]: CATEGORY_TINT[cat], boxShadow: ring ? "0 0 0 2px var(--card), 0 0 0 3.5px var(--ink)" : undefined }} aria-hidden="true">
+      <Illustration art={art} cat={cat} size={Math.round(size * 0.66)} strokeWidth={2.6} />
+    </span>
+  );
+}
 
 export function Illustration({ art, cat, size = 64, wash, className, strokeWidth = 2 }: { art: string | null; cat: Category; size?: number; wash?: string; className?: string; strokeWidth?: number }) {
   const paths = ART[art ?? ""] ?? ART[PLACEHOLDER[cat]] ?? ART.leaf;

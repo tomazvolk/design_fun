@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { PairingGraph } from "@/lib/graph";
-import { layoutRings } from "@/lib/rings";
+import { layoutWheel } from "@/lib/rings";
 import { DEFAULT_FILTERS } from "@/lib/explore-state";
 import type { GraphJson } from "@/lib/types";
 
@@ -93,14 +93,21 @@ describe("F3 partners", () => {
 
 describe("F4 ring placement", () => {
   it("caps a ring at 24 with the overflow at 6 o'clock", () => {
-    const layout = layoutRings(g.partners(["garlic"], DEFAULT_FILTERS));
+    const layout = layoutWheel(g.partners(["garlic"], DEFAULT_FILTERS));
     for (const ring of layout.rings) {
       expect(ring.nodes.length).toBeLessThanOrEqual(24);
       if (ring.overflow > 0) { expect(ring.plus).not.toBeNull(); expect(ring.plus!.y).toBeGreaterThan(ring.radius * 0.9); }
     }
   });
+  it("keeps categories in the fixed order around the wheel, herbs first", () => {
+    const layout = layoutWheel(g.partners(["garlic"], DEFAULT_FILTERS));
+    const order = layout.wedges.map((w) => w.cat);
+    expect(order[0]).toBe("herb");
+    for (let i = 1; i < layout.wedges.length; i++) expect(layout.wedges[i].start).toBeGreaterThanOrEqual(layout.wedges[i - 1].end - 1e-9);
+    for (const n of layout.nodes) { const w = layout.wedges.find((x) => x.cat === n.partner.ing.cat)!; expect(n.angle).toBeGreaterThanOrEqual(w.start); expect(n.angle).toBeLessThanOrEqual(w.end); }
+  });
   it("puts tier 4 and 3 inside, 2 in the middle, 1 and partials outside", () => {
-    const layout = layoutRings(g.partners(["fennel", "orange"], DEFAULT_FILTERS));
+    const layout = layoutWheel(g.partners(["fennel", "orange"], DEFAULT_FILTERS));
     for (const n of layout.rings[0].nodes) expect(n.partner.tier).toBeGreaterThanOrEqual(3);
     for (const n of layout.rings[1].nodes) expect(n.partner.tier).toBe(2);
     for (const n of layout.rings[2].nodes) expect(n.faded || n.partner.tier === 1).toBe(true);

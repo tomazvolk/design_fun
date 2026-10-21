@@ -9,7 +9,8 @@ import { exploreHref } from "@/lib/explore-state";
 import { CATEGORY_LABEL, TIER_LABEL, cap } from "@/lib/labels";
 import type { Ingredient } from "@/lib/types";
 import { Chip, SectionLabel, useToast } from "./ui";
-import { Illustration } from "./illustrations";
+import { Illustration, Mark } from "./illustrations";
+import { CATEGORY_TINT } from "@/lib/labels";
 import { CuisineOctagon, HeavinessRadar, PairingArcs, TasteHexagon, VolumeRadar } from "./charts";
 import { SaveSheet } from "./explore";
 
@@ -33,37 +34,35 @@ export function IngredientPage() {
   if (!graph) return <div className="flex h-[70dvh] items-center justify-center text-muted">Loading…</div>;
   if (!ing) return <div className="px-6 pt-20 text-center"><p className="t-title text-[1.5rem]">No such ingredient.</p><Link href="/" className="mt-4 inline-block underline underline-offset-4">Back to search</Link></div>;
 
-  const tierLine = anchors.map((a) => { const e = graph.edge(ing.id, a.id); return e ? `${TIER_LABEL[e.tier]} with ${a.name}` : `Not with ${a.name}`; }).join(" · ");
   const openMap = (ids: string[]) => { pushRecent(ing.id); router.push(exploreHref(ids)); };
   const chips = ing.chips;
 
   return (
     <div className="pb-[calc(var(--safe-b)+96px)]">
-      <div className="sticky top-0 z-20 flex items-center gap-2 bg-bg/95 px-3 pt-[calc(var(--safe-t)+8px)] pb-2 backdrop-blur">
-        <button type="button" aria-label="Back" onClick={() => (history.length > 1 ? router.back() : router.push("/"))} className="inline-flex size-11 items-center justify-center rounded-full"><ArrowLeftIcon className="size-5" /></button>
-        <span className="t-label-muted">Ingredient</span>
+      <div className="sticky top-0 z-20 flex items-center gap-2 bg-paper/92 px-3 pt-[calc(var(--safe-t)+8px)] pb-2 backdrop-blur-md">
+        <button type="button" aria-label="Back" onClick={() => (history.length > 1 ? router.back() : router.push("/"))} className="fab size-10 [&_svg]:size-4"><ArrowLeftIcon /></button>
+        {anchors.length > 0 && <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">{anchors.map((a) => <span key={a.id} className="chip h-8 gap-1.5 pr-3 pl-1 text-[0.8125rem]"><Mark art={a.art} cat={a.cat} size={22} />{a.name}</span>)}</div>}
       </div>
       <div className="md:grid md:grid-cols-2 md:gap-10 md:px-8">
         <div className="px-5 md:px-0">
           {/* 1. Header */}
-          <header className="flex items-start gap-5">
-            <Illustration art={ing.art} cat={ing.cat} size={112} strokeWidth={1.5} wash="var(--butter)" className="shrink-0 text-ink" />
-            <div className="min-w-0 pt-2">
-              <h1 className="t-display text-[2.25rem]">{ing.name}</h1>
-              <div className="mt-2 flex flex-wrap gap-1.5 text-[0.8125rem]">
-                <span className="rounded-full bg-surface px-2.5 py-1">{CATEGORY_LABEL[ing.cat]}</span>
-                {(ing.season === "all" ? ["all year"] : ing.season).map((s) => <span key={s} className="rounded-full bg-surface px-2.5 py-1">{cap(s)}</span>)}
+          <header className="relative overflow-hidden rounded-[28px] px-5 pt-6 pb-5" style={{ background: CATEGORY_TINT[ing.cat] }}>
+            <div className="flex items-end gap-4">
+              <Illustration art={ing.art} cat={ing.cat} size={128} strokeWidth={1.4} className="shrink-0 text-ink" />
+              <div className="min-w-0 pb-1">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-ink-2">{CATEGORY_LABEL[ing.cat]} · {ing.season === "all" ? "all year" : ing.season.join(", ")}</p>
+                <h1 className="t-display mt-1 text-[2.5rem]">{ing.name}</h1>
               </div>
-              <p className="mt-2 text-[0.75rem] text-faint">Artwork by {ARTIST}</p>
-              {anchors.length > 0 && <p className="mt-2 text-[0.9375rem] font-medium">{tierLine}</p>}
             </div>
+            {anchors.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{anchors.map((a) => { const e = graph.edge(ing.id, a.id); return <span key={a.id} className={e ? "stamp" : "stamp stamp-ink"}>{e ? `${TIER_LABEL[e.tier]} · ${a.name}` : `not with ${a.name}`}</span>; })}</div>}
+            <p className="mt-3 text-[0.6875rem] text-ink-2/70">Artwork by {ARTIST}</p>
           </header>
-          {ing.description && <p className="mt-5 text-[1.0625rem] leading-relaxed">{ing.description}</p>}
-          <dl className="card mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 p-4 text-[0.9375rem]">
+          {ing.description && <p className="t-title mt-6 text-[1.375rem] leading-snug text-ink">{ing.description}</p>}
+          <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2.5 border-t border-hairline pt-4 text-[0.9375rem]">
             {ing.aliases.length > 0 && <><dt className="t-label-muted pt-0.5">Also</dt><dd>{ing.aliases.join(", ")}</dd></>}
             <dt className="t-label-muted pt-0.5">Season</dt><dd>{ing.season === "all" ? "All year" : ing.season.map(cap).join(", ")}</dd>
             {ing.techniques.length > 0 && <><dt className="t-label-muted pt-0.5">Cook</dt><dd>{ing.techniques.join(", ")}</dd></>}
-            {Object.keys(ing.cuisines).length > 0 && <><dt className="t-label-muted pt-0.5">Cuisines</dt><dd className="flex flex-wrap gap-1.5">{Object.entries(ing.cuisines).sort((a, b) => b[1] - a[1]).map(([c, t]) => <span key={c} className="rounded-full bg-sunken px-2.5 py-0.5 text-[0.8125rem]">{graph.cuisines.find((x) => x.id === c)?.name ?? c} · {TIER_LABEL[t as 1 | 2 | 3 | 4].toLowerCase()}</span>)}{ing.chips.map((c) => <span key={c} className="rounded-full bg-sunken px-2.5 py-0.5 text-[0.8125rem] text-muted">{c}</span>)}</dd></>}
+            {Object.keys(ing.cuisines).length > 0 && <><dt className="t-label-muted pt-0.5">Cuisines</dt><dd className="flex flex-wrap gap-1.5">{Object.entries(ing.cuisines).sort((a, b) => b[1] - a[1]).map(([c, t]) => <span key={c} className="rounded-full bg-card px-2.5 py-0.5 text-[0.8125rem] shadow-[0_1px_1px_rgba(23,22,20,0.05)]">{graph.cuisines.find((x) => x.id === c)?.name ?? c} <span className="text-muted">· {TIER_LABEL[t as 1 | 2 | 3 | 4].toLowerCase()}</span></span>)}{ing.chips.map((c) => <span key={c} className="rounded-full border border-hairline px-2.5 py-0.5 text-[0.8125rem] text-muted">{c}</span>)}</dd></>}
             {ing.dishes.length > 0 && <><dt className="t-label-muted pt-0.5">Works in</dt><dd>{ing.dishes.map((d) => graph.dishes.get(d) ?? d).join(", ")}</dd></>}
             {ing.hub && <><dt className="t-label-muted pt-0.5">Note</dt><dd>One of the 30 most common partners; hidden by the “hide common” filter.</dd></>}
           </dl>
@@ -93,7 +92,7 @@ export function IngredientPage() {
             <SectionLabel>Cuisine fit</SectionLabel>
             <div className="card mt-3 p-4">
               <CuisineOctagon ingredient={ing} anchors={anchors} cuisines={graph.cuisines} onAxis={(c) => { if (!(ing.cuisines[c] >= 1)) { toast(`${ing.name} has no ${graph.cuisines.find((x) => x.id === c)?.name} edge`); return; } pushRecent(ing.id); router.push(exploreHref([ing.id, ...anchorIds], { seasons: ["spring", "summer", "autumn", "winter"], categories: [], hideHubs: false, cuisine: c })); }} />
-              {chips.length > 0 && <div className="mt-3 flex flex-wrap justify-center gap-2">{chips.map((c) => <span key={c} className="rounded-full bg-sunken px-3 py-1 text-[0.8125rem] text-muted">{c}</span>)}</div>}
+              {chips.length > 0 && <div className="mt-3 flex flex-wrap justify-center gap-2">{chips.map((c) => <span key={c} className="rounded-full bg-paper-deep px-3 py-1 text-[0.8125rem] text-ink-2">{c}</span>)}</div>}
               <p className="mt-2 text-center text-[0.75rem] text-faint">Tap an axis to see partners shared with that cuisine.</p>
             </div>
           </section>
@@ -127,7 +126,7 @@ export function IngredientPage() {
           </section>
         </div>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/90 to-transparent px-5 pb-[calc(var(--safe-b)+16px)] pt-6">
+      <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-paper via-paper/90 to-transparent px-5 pb-[calc(var(--safe-b)+16px)] pt-6 md:left-auto md:right-6 md:w-[360px] md:rounded-none md:bg-none">
         <button type="button" className="btn-primary w-full" onClick={() => openMap([ing.id, ...anchorIds])}>{anchors.length > 0 ? "Back to the map" : "Explore from here"}</button>
       </div>
       <SaveSheet ids={saveFor} onClose={() => setSaveFor(null)} onSave={async (ids, note) => { const r = await saveCombination(ids, note); toast(r.ok ? "Saved" : r.reason); setSaveFor(null); }} />
@@ -138,20 +137,20 @@ export function IngredientPage() {
 function ComboCard({ ids, origin, yours, onOpen, onHold }: { ids: string[]; origin: string; yours?: boolean; onOpen: () => void; onHold?: () => void }) {
   const { graph } = useStore();
   return (
-    <Chip className="card h-auto w-full flex-col items-start gap-2 rounded-[18px] px-4 py-3 whitespace-normal" onClick={onOpen} onLongPress={onHold}>
+    <Chip className="card h-auto w-full flex-col items-start gap-2.5 rounded-[20px] px-4 py-4 whitespace-normal" onClick={onOpen} onLongPress={onHold}>
       <span className="flex flex-wrap items-center gap-1.5">
         {ids.map((id, i) => {
           const ing = graph?.get(id);
           return (
             <span key={id} className="flex items-center gap-1.5">
               {i > 0 && <span className="text-faint">+</span>}
-              {ing && <Illustration art={ing.art} cat={ing.cat} size={24} strokeWidth={2.6} className="text-ink" />}
+              {ing && <Mark art={ing.art} cat={ing.cat} size={30} />}
               <span className="text-[0.9375rem] font-medium">{ing?.name ?? id}</span>
             </span>
           );
         })}
       </span>
-      <span className="text-[0.8125rem] text-muted">{yours ? `Yours${origin !== "yours" ? ` · ${origin}` : ""}` : origin}</span>
+      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">{yours ? `Yours${origin !== "yours" ? ` · ${origin}` : ""}` : origin}</span>
     </Chip>
   );
 }

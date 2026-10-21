@@ -7,12 +7,12 @@ import { ListIcon, MapIcon, PlusIcon, SearchIcon, SlidersHorizontalIcon, XIcon, 
 import { cn } from "cn";
 import { useStore } from "@/lib/store";
 import { useExploreState, DEFAULT_FILTERS, exploreHref } from "@/lib/explore-state";
-import { layoutRings } from "@/lib/rings";
-import { CATEGORY_LABEL, CATEGORY_ORDER, SEASONS, TIER_LABEL, cap, reasonSentence, seasonText } from "@/lib/labels";
+import { layoutWheel } from "@/lib/rings";
+import { CATEGORY_LABEL, CATEGORY_ORDER, CATEGORY_SHORT, CATEGORY_TINT, SEASONS, TIER_LABEL, cap, reasonSentence, seasonText } from "@/lib/labels";
 import { MAX_ANCHORS, NOTE_MAX } from "@/lib/config";
 import type { Bridge, Category, Filters, Ingredient, Partner, PartnerResult, SearchResult } from "@/lib/types";
 import { Chip, IconButton, SectionLabel, Sheet, useToast } from "./ui";
-import { Illustration } from "./illustrations";
+import { Mark } from "./illustrations";
 import { RingMap } from "./ring-map";
 
 /* ========================= Explore: search is home; with anchors, the map ========================= */
@@ -40,7 +40,7 @@ export function SearchField({ autoFocus, onPick, placeholder = "Ingredient", exc
       <div className="relative">
         <SearchIcon className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-faint" />
         <input ref={ref} value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} aria-label="Search ingredients" autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} enterKeyHint="search"
-          className="h-14 w-full rounded-full bg-surface pl-13 pr-12 text-[1.0625rem] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-16px_rgba(0,0,0,0.12)] outline-none"
+          className="card h-14 w-full rounded-full pl-13 pr-12 text-[1.0625rem] outline-none transition-shadow focus:shadow-[0_1px_1px_rgba(23,22,20,0.04),0_14px_30px_-16px_rgba(23,22,20,0.35)]"
           onKeyDown={(e) => { if (e.key === "Enter" && results[0]) onPick(results[0]); }} />
         {q && <button type="button" aria-label="Clear" onClick={() => { setQ(""); ref.current?.focus(); }} className="absolute right-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-muted"><XIcon className="size-5" /></button>}
       </div>
@@ -48,19 +48,19 @@ export function SearchField({ autoFocus, onPick, placeholder = "Ingredient", exc
         <ul className="card mt-3 overflow-hidden" role="listbox" aria-label="Matches">
           {results.map((r) => (
             <li key={`${r.kind}:${r.id}`}>
-              <button type="button" role="option" aria-selected={false} onClick={() => { setQ(""); onPick(r); }} className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left hover:bg-sunken/60">
-                {r.kind === "ingredient" ? <Illustration art={graph?.get(r.id)?.art ?? null} cat={r.cat} size={30} strokeWidth={2.4} className="shrink-0 text-ink" /> : <span className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-full bg-sunken text-[0.6875rem] font-semibold uppercase tracking-wider text-muted">{r.kind === "cuisine" ? "C" : "D"}</span>}
+              <button type="button" role="option" aria-selected={false} onClick={() => { setQ(""); onPick(r); }} className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left hover:bg-paper-deep/60">
+                {r.kind === "ingredient" ? <Mark art={graph?.get(r.id)?.art ?? null} cat={r.cat} size={36} /> : <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-paper-deep text-[0.6875rem] font-semibold uppercase tracking-wider text-muted">{r.kind === "cuisine" ? "C" : "D"}</span>}
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-[1.0625rem] font-medium">{r.kind === "ingredient" && r.via ? <><span className="text-muted">{r.via}</span> → {r.name}</> : r.name}</span>
                 </span>
-                <span className="shrink-0 rounded-full bg-sunken px-2.5 py-1 text-[0.75rem] font-medium text-muted">{r.kind === "ingredient" ? CATEGORY_LABEL[r.cat] : r.kind}</span>
+                <span className="shrink-0 rounded-full bg-paper-deep px-2.5 py-1 text-[0.75rem] font-medium text-muted">{r.kind === "ingredient" ? CATEGORY_LABEL[r.cat] : r.kind}</span>
               </button>
             </li>
           ))}
           {results.length === 0 && (
             <li className="px-4 py-4 text-[0.9375rem] text-muted">
               No ingredient called ‘{q.trim()}’. Try a simpler name.
-              {closest.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{closest.map((i) => <Chip key={i.id} size="sm" onClick={() => { setQ(""); onPick({ kind: "ingredient", id: i.id, name: i.name, cat: i.cat }); }}>{i.name}</Chip>)}</div>}
+              {closest.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{closest.map((i) => <Chip key={i.id} size="sm" mark={<Mark art={i.art} cat={i.cat} size={26} />} onClick={() => { setQ(""); onPick({ kind: "ingredient", id: i.id, name: i.name, cat: i.cat }); }}>{i.name}</Chip>)}</div>}
             </li>
           )}
         </ul>
@@ -74,7 +74,7 @@ function SearchHome() {
   const { setAnchors, filters, setFilters } = useExploreState();
   const [picked, setPicked] = useState<{ kind: "cuisine" | "dish"; id: string; name: string } | null>(null);
   const season = useMemo(() => (graph ? graph.inSeason(new Date().getMonth(), hemisphere).slice(0, 8) : []), [graph, hemisphere]);
-  const pickedList = useMemo(() => (graph && picked ? (picked.kind === "cuisine" ? graph.ingredientsForCuisine(picked.id) : graph.ingredientsForDish(picked.id)).slice(0, 24) : []), [graph, picked]);
+  const pickedList = useMemo(() => (graph && picked && !picked.id.startsWith("cat:") ? (picked.kind === "cuisine" ? graph.ingredientsForCuisine(picked.id) : graph.ingredientsForDish(picked.id)).slice(0, 24) : []), [graph, picked]);
   const open = (id: string) => { pushRecent(id); setAnchors([id]); };
   const onPick = (r: SearchResult) => {
     if (r.kind === "ingredient") return open(r.id);
@@ -83,29 +83,50 @@ function SearchHome() {
     setPicked({ kind: r.kind, id: r.id, name: r.name });
   };
   if (!graph) return <Loading />;
+  const byCat = (c: Category) => graph.ingredients.filter((i) => i.cat === c).sort((x, y) => y.degree - x.degree);
   return (
     <div className="px-4 pt-[calc(var(--safe-t)+20px)] md:px-8">
-      <h1 className="t-display mb-5 text-[2.5rem]">What&rsquo;s in the pan?</h1>
+      <h1 className="t-display mb-5 text-[2.75rem]">What&rsquo;s in the pan?</h1>
       <SearchField autoFocus={onboarded} onPick={onPick} />
-      {picked && (
+      {picked && !picked.id.startsWith("cat:") && (
         <section className="mt-8">
-          <div className="flex items-center justify-between"><SectionLabel>{picked.name} · pick an ingredient</SectionLabel><button type="button" aria-label="Clear" onClick={() => { setPicked(null); if (picked.kind === "cuisine") setFilters({ ...filters, cuisine: null }); }} className="inline-flex size-9 items-center justify-center rounded-full text-muted"><XIcon className="size-4" /></button></div>
-          {picked.kind === "cuisine" && <p className="mt-1 text-[0.875rem] text-muted">The map will show only partners that belong to this cuisine until you reset filters.</p>}
-          <div className="mt-3 flex flex-wrap gap-2">{pickedList.map((i) => <Chip key={i.id} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
+          <div className="flex items-center justify-between"><h2 className="t-title text-[1.375rem]">{picked.name}</h2><button type="button" aria-label="Clear" onClick={() => { setPicked(null); if (picked.kind === "cuisine") setFilters({ ...filters, cuisine: null }); }} className="inline-flex size-9 items-center justify-center rounded-full text-muted"><XIcon className="size-4" /></button></div>
+          <p className="mt-1 text-[0.875rem] text-muted">{picked.kind === "cuisine" ? "Pick an ingredient to start from. The wheel will show only partners of this cuisine until you reset filters." : "Ingredients that work in it. Pick one to start from."}</p>
+          <div className="mt-3 flex flex-wrap gap-2">{pickedList.map((i) => <Chip key={i.id} mark={<Mark art={i.art} cat={i.cat} size={30} />} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
         </section>
       )}
       {recents.length > 0 && (
         <section className="mt-8">
           <SectionLabel>Recent</SectionLabel>
-          <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">{recents.map((id) => graph.get(id)).filter((i): i is Ingredient => !!i).map((i) => <Chip key={i.id} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
+          <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">{recents.map((id) => graph.get(id)).filter((i): i is Ingredient => !!i).map((i) => <Chip key={i.id} mark={<Mark art={i.art} cat={i.cat} size={30} />} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
         </section>
       )}
       <section className="mt-8">
         <SectionLabel>In season now</SectionLabel>
-        <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">{season.map((i) => <Chip key={i.id} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
+        <div className="no-scrollbar -mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-2">
+          {season.map((i) => (
+            <button key={i.id} type="button" onClick={() => open(i.id)} className="card flex w-[116px] shrink-0 flex-col items-center gap-2 px-2 pt-4 pb-3 transition-transform active:scale-[0.97]">
+              <Mark art={i.art} cat={i.cat} size={64} />
+              <span className="t-title text-[1rem] leading-tight">{i.name}</span>
+              <span className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted">{CATEGORY_SHORT[i.cat]}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+      <section className="mt-8">
+        <SectionLabel>By family</SectionLabel>
+        <p className="mt-1 text-[0.875rem] text-muted">The wheel keeps these in this order, herbs at the top.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {CATEGORY_ORDER.map((c) => (
+            <Chip key={c} size="sm" on={picked?.id === `cat:${c}`} mark={<span className="mark" style={{ width: 18, height: 18, ["--tint" as string]: CATEGORY_TINT[c] }} />} onClick={() => setPicked(picked?.id === `cat:${c}` ? null : { kind: "dish", id: `cat:${c}`, name: CATEGORY_SHORT[c] })}>{CATEGORY_SHORT[c]}</Chip>
+          ))}
+        </div>
+        {picked?.id.startsWith("cat:") && (
+          <div className="mt-3 flex flex-wrap gap-2">{byCat(picked.id.slice(4) as Category).map((i) => <Chip key={i.id} mark={<Mark art={i.art} cat={i.cat} size={30} />} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
+        )}
       </section>
       <section className="card mt-10 flex items-center gap-4 p-5">
-        <Illustration art="fennel" cat="vegetable" size={64} wash="var(--peach)" strokeWidth={1.8} className="shrink-0 text-ink" />
+        <Mark art="fennel" cat="vegetable" size={72} />
         <div>
           <h2 className="t-title text-[1.25rem]">Try the main flow</h2>
           <p className="mt-1 text-[0.9375rem] text-muted">Fennel, then orange, then read why olives.</p>
@@ -129,7 +150,7 @@ function MapScreen() {
   const [listRing, setListRing] = useState<number | null>(null);
 
   const result = useMemo<PartnerResult>(() => graph!.partners(anchorIds, filters), [graph, anchorIds, filters]);
-  const layout = useMemo(() => layoutRings(result), [result]);
+  const layout = useMemo(() => layoutWheel(result), [result]);
   const anchors = result.anchors;
 
   const addAnchor = (id: string) => {
@@ -161,21 +182,22 @@ function MapScreen() {
       <div className="flex min-h-0 flex-1 flex-col">
         {/* Top bar: anchor chips in the order added, each with ×, then + */}
         <div className="no-scrollbar flex shrink-0 items-center gap-2 overflow-x-auto px-4 pt-[calc(var(--safe-t)+12px)] pb-2" aria-label="Anchors">
-          <Link href="/" aria-label="Back to search" className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-surface"><SearchIcon className="size-4" /></Link>
+          <Link href="/" aria-label="Back to search" className="fab size-10 shrink-0 [&_svg]:size-4"><SearchIcon /></Link>
           {anchors.map((a) => (
-            <span key={a.id} className="chip chip-on gap-2 pr-2">
+            <span key={a.id} className="chip chip-on gap-2 pr-1.5">
+              <Mark art={a.art} cat={a.cat} size={30} />
               <Link href={`/ingredient/?id=${a.id}&a=${anchorIds.filter((x) => x !== a.id).join(",")}`} className="underline-offset-4 hover:underline">{a.name}</Link>
               <button type="button" aria-label={`Remove ${a.name}`} onClick={() => removeAnchor(a.id)} className="inline-flex size-7 items-center justify-center rounded-full bg-white/15"><XIcon className="size-4" /></button>
             </span>
           ))}
-          <button type="button" aria-label="Add an ingredient" onClick={() => setSheet("add")} className="chip w-10 justify-center px-0"><PlusIcon className="size-5" /></button>
+          <button type="button" aria-label="Add an ingredient" onClick={() => setSheet("add")} className="chip chip-plain w-11 justify-center px-0"><PlusIcon className="size-5" /></button>
         </div>
 
         <div className="relative min-h-0 flex-1">
           {view === "map" ? (
             <>
-              <RingMap key={anchorIds.join(",")} layout={layout} anchors={anchors} onTap={(id) => setCard(id)} onDoubleTap={addAnchor} onPlus={(ring) => openList(ring)} onCentre={() => setSheet("anchors")} />
-              <RingLegend />
+              <RingMap layout={layout} anchors={anchors} onTap={(id) => setCard(id)} onDoubleTap={addAnchor} onPlus={(ring) => openList(ring)} onCentre={() => setSheet("anchors")} />
+              <p className="pointer-events-none absolute left-4 top-2 text-[0.6875rem] uppercase tracking-[0.14em] text-muted">{result.full.length} partner{result.full.length === 1 ? "" : "s"}{anchors.length > 1 ? " of all" : ""}{result.partial.length > 0 && anchors.length > 1 ? ` · ${result.partial.length} of some` : ""}</p>
               {result.full.length === 0 && result.partial.length === 0 && (
                 <div className="absolute inset-x-4 top-4">
                   <EmptyNotice result={result} filters={filters} onReset={() => setFilters(DEFAULT_FILTERS)} onPick={(id) => setCard(id)} />
@@ -219,14 +241,6 @@ function MapScreen() {
   );
 }
 
-function RingLegend() {
-  return (
-    <div className="pointer-events-none absolute left-4 top-3 flex flex-col gap-0.5 text-[0.6875rem] uppercase tracking-[0.12em] text-faint">
-      <span>inner · classic</span><span>middle · recommended</span><span>outer · works</span>
-    </div>
-  );
-}
-
 function EmptyNotice({ result, filters, onReset, onPick }: { result: PartnerResult; filters: Filters; onReset: () => void; onPick: (id: string) => void }) {
   const names = result.anchors.map((a) => a.name);
   const filtered = filters !== DEFAULT_FILTERS && (result.filteredOut > 0 || filters.hideHubs || filters.cuisine || filters.seasons.length < SEASONS.length || filters.categories.length < CATEGORY_ORDER.length);
@@ -236,7 +250,7 @@ function EmptyNotice({ result, filters, onReset, onPick }: { result: PartnerResu
         <>
           <p className="text-[0.9375rem] font-medium">Nothing pairs with all of these.{result.bridges.length > 0 && " These bridge them:"}</p>
           {result.bridges.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">{result.bridges.map((b) => <Chip key={b.ing.id} size="sm" onClick={() => onPick(b.ing.id)}>{b.ing.name}</Chip>)}</div>
+            <div className="mt-3 flex flex-wrap gap-2">{result.bridges.map((b) => <Chip key={b.ing.id} size="sm" mark={<Mark art={b.ing.art} cat={b.ing.cat} size={26} />} onClick={() => onPick(b.ing.id)}>{b.ing.name}</Chip>)}</div>
           )}
           <p className="mt-2 text-[0.8125rem] text-muted">Bridges reach {names.slice(0, -1).join(", ")} and {names.at(-1)} in two hops. They are not full matches.</p>
         </>
@@ -290,15 +304,15 @@ function ListRow({ partner, onTap, onAdd }: { partner: Partner; onTap: () => voi
         onPointerMove={(e) => { if (!start.current) return; const ddx = e.clientX - start.current.x, ddy = e.clientY - start.current.y; if (!horizontal.current && Math.abs(ddx) > 8 && Math.abs(ddx) > Math.abs(ddy)) horizontal.current = true; if (horizontal.current) { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); setDx(Math.max(0, Math.min(120, ddx))); } }}
         onPointerUp={() => { if (dx > 80) onAdd(); setDx(0); start.current = null; }}
         onPointerCancel={() => { setDx(0); start.current = null; }}
-        className={cn("relative flex min-h-14 w-full items-center gap-3 bg-surface px-4 py-2 text-left", partner.missing.length > 0 && "opacity-70")}
+        className={cn("row", partner.missing.length > 0 && "opacity-70")}
         style={{ transform: `translateX(${dx}px)`, transition: dx ? "none" : "transform 160ms ease", touchAction: "pan-y" }}>
-        <Illustration art={partner.ing.art} cat={partner.ing.cat} size={28} strokeWidth={2.4} className="shrink-0 text-ink" />
+        <Mark art={partner.ing.art} cat={partner.ing.cat} size={40} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[1.0625rem] font-medium">{partner.ing.name}</span>
           {partner.missing.length > 0 && <span className="block text-[0.75rem] text-muted">not with {partner.missing.join(", ")}</span>}
         </span>
-        <span className="rounded-full bg-sunken px-2.5 py-1 text-[0.75rem] font-medium text-muted">{CATEGORY_LABEL[partner.ing.cat]}</span>
-        <span className="flex h-3 w-6 items-end gap-0.5" aria-label={`${partner.size} node`}>{[1, 2, 3].map((n) => <span key={n} className={cn("w-1.5 rounded-sm", n <= bars ? "bg-ink" : "bg-hairline")} style={{ height: `${n * 4}px` }} />)}</span>
+        <span className="stamp stamp-ink">{TIER_LABEL[partner.tier]}</span>
+        <span className="flex h-3 w-6 items-end gap-0.5" aria-label={`${partner.size} node`}>{[1, 2, 3].map((n) => <span key={n} className={cn("w-1.5 rounded-sm", n <= bars ? "bg-ink" : "bg-pencil")} style={{ height: `${n * 4}px` }} />)}</span>
       </button>
     </li>
   );
@@ -311,24 +325,23 @@ function IngredientCard({ id, partner, bridge, anchors, onClose, onAdd, onSave }
   if (!ing) return null;
   const tasteWords = (["sweet", "sour", "salty", "bitter", "hot", "astringent"] as const).filter((t) => ing.taste[t] >= 2);
   const worksIn = [...ing.dishes.map((d) => graph!.dishes.get(d) ?? d), ...Object.keys(ing.cuisines).map((c) => graph!.cuisines.find((x) => x.id === c)?.name ?? c)].slice(0, 8);
-  const tierLine = anchors.map((a) => { const e = partner?.edges[a.id] ?? graph!.edge(id, a.id); return e ? `${TIER_LABEL[e.tier]} with ${a.name}` : `Not with ${a.name}`; }).join(" · ");
   const isAnchor = anchors.some((a) => a.id === id);
   return (
     <Sheet open onClose={onClose} labelledBy="card-title">
       <div className="flex items-start gap-4">
-        <Illustration art={ing.art} cat={ing.cat} size={64} strokeWidth={1.8} className="shrink-0 text-ink" />
+        <Mark art={ing.art} cat={ing.cat} size={72} />
         <div className="min-w-0 flex-1">
-          <h2 id="card-title" className="t-title text-[1.75rem]">{ing.name}</h2>
+          <h2 id="card-title" className="t-title text-[1.875rem]">{ing.name}</h2>
           <p className="mt-1 text-[0.875rem] text-muted">{CATEGORY_LABEL[ing.cat]} · {seasonText(ing.season)}{ing.hub ? " · common" : ""}</p>
-          {anchors.length > 0 && <p className="mt-1 text-[0.875rem] font-medium">{tierLine}</p>}
+          {anchors.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{anchors.map((a) => { const e = partner?.edges[a.id] ?? graph!.edge(id, a.id); return <span key={a.id} className={cn("stamp", !e && "stamp-ink")}>{e ? `${TIER_LABEL[e.tier]} · ${a.name}` : `not with ${a.name}`}</span>; })}</div>}
         </div>
         <button type="button" aria-label="Close" onClick={onClose} className="-mr-2 -mt-1 inline-flex size-10 shrink-0 items-center justify-center rounded-full"><XIcon className="size-5" /></button>
       </div>
       {(tasteWords.length > 0 || ing.weight.v || ing.volume.v) && (
         <div className="mt-4 flex flex-wrap gap-2 text-[0.875rem]">
-          {tasteWords.map((t) => <span key={t} className="rounded-full bg-surface px-3 py-1.5">{cap(t)}</span>)}
-          <span className="rounded-full bg-surface px-3 py-1.5">{["", "very light", "light", "medium", "heavy", "very heavy"][Math.round(ing.weight.v)]}</span>
-          <span className="rounded-full bg-surface px-3 py-1.5">{["", "very quiet", "quiet", "moderate", "loud", "very loud"][Math.round(ing.volume.v)]}</span>
+          {tasteWords.map((t) => <span key={t} className="rounded-full bg-card px-3 py-1.5">{cap(t)}</span>)}
+          <span className="rounded-full bg-card px-3 py-1.5">{["", "very light", "light", "medium", "heavy", "very heavy"][Math.round(ing.weight.v)]}</span>
+          <span className="rounded-full bg-card px-3 py-1.5">{["", "very quiet", "quiet", "moderate", "loud", "very loud"][Math.round(ing.volume.v)]}</span>
         </div>
       )}
       {anchors.length > 0 && !isAnchor && (
@@ -347,7 +360,7 @@ function IngredientCard({ id, partner, bridge, anchors, onClose, onAdd, onSave }
       {worksIn.length > 0 && (
         <section className="mt-5">
           <SectionLabel muted>Works in</SectionLabel>
-          <div className="mt-2 flex flex-wrap gap-2">{worksIn.map((w) => <span key={w} className="rounded-full bg-sunken px-3 py-1.5 text-[0.875rem] text-muted">{w}</span>)}</div>
+          <div className="mt-2 flex flex-wrap gap-2">{worksIn.map((w) => <span key={w} className="rounded-full bg-paper-deep px-3 py-1.5 text-[0.875rem] text-ink-2">{w}</span>)}</div>
         </section>
       )}
       <div className="mt-6 flex flex-col gap-3">
@@ -372,7 +385,7 @@ export function FiltersSheet({ open, onClose, filters, onChange }: { open: boole
       </section>
       <section className="mt-7">
         <div className="flex items-baseline justify-between"><SectionLabel muted>Category</SectionLabel><span className="text-[0.75rem] text-muted">hold for “only”</span></div>
-        <div className="mt-3 flex flex-wrap gap-2">{CATEGORY_ORDER.map((c) => <Chip key={c} on={filters.categories.includes(c)} muted pressed={filters.categories.includes(c)} onClick={() => onChange({ ...filters, categories: toggle(filters.categories, c) })} onLongPress={() => onChange({ ...filters, categories: [c] })}>{CATEGORY_LABEL[c as Category]}</Chip>)}</div>
+        <div className="mt-3 flex flex-wrap gap-2">{CATEGORY_ORDER.map((c) => <Chip key={c} on={filters.categories.includes(c)} muted pressed={filters.categories.includes(c)} mark={<span className="mark" style={{ width: 18, height: 18, ["--tint" as string]: CATEGORY_TINT[c] }} />} onClick={() => onChange({ ...filters, categories: toggle(filters.categories, c) })} onLongPress={() => onChange({ ...filters, categories: [c] })}>{CATEGORY_LABEL[c as Category]}</Chip>)}</div>
       </section>
       {cuisine && (
         <section className="mt-7">
@@ -381,9 +394,9 @@ export function FiltersSheet({ open, onClose, filters, onChange }: { open: boole
         </section>
       )}
       <section className="mt-7">
-        <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-surface px-4 py-4">
+        <label className="card flex cursor-pointer items-center justify-between gap-4 px-4 py-4">
           <span><span className="block text-[1rem] font-medium">Hide common ingredients</span><span className="block text-[0.8125rem] text-muted">Suppresses the 30 biggest hubs so the unusual partners come forward.</span></span>
-          <button type="button" role="switch" aria-checked={filters.hideHubs} onClick={() => onChange({ ...filters, hideHubs: !filters.hideHubs })} className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", filters.hideHubs ? "bg-ink" : "bg-hairline")}><span className={cn("absolute top-0.5 left-0.5 size-6 rounded-full bg-white shadow transition-transform", filters.hideHubs && "translate-x-5")} /></button>
+          <button type="button" role="switch" aria-checked={filters.hideHubs} onClick={() => onChange({ ...filters, hideHubs: !filters.hideHubs })} className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", filters.hideHubs ? "bg-ink" : "bg-pencil")}><span className={cn("absolute top-0.5 left-0.5 size-6 rounded-full bg-white shadow transition-transform", filters.hideHubs && "translate-x-5")} /></button>
         </label>
       </section>
       <div className="mt-8 flex flex-col gap-3">
@@ -407,7 +420,7 @@ function SaveSheetBody({ ids, onClose, onSave }: { ids: string[]; onClose: () =>
   return (
     <Sheet open onClose={onClose} title="Save combination" height="auto">
       <p className="t-title text-[1.25rem]">{names.join(" + ")}</p>
-      <input value={note} onChange={(e) => setNote(e.target.value.slice(0, NOTE_MAX))} placeholder="A note, like “Sunday salad”" aria-label="Note" maxLength={NOTE_MAX} autoFocus enterKeyHint="done" onKeyDown={(e) => { if (e.key === "Enter") onSave(ids, note); }} className="mt-4 h-14 w-full rounded-2xl bg-surface px-4 text-[1.0625rem] outline-none" />
+      <input value={note} onChange={(e) => setNote(e.target.value.slice(0, NOTE_MAX))} placeholder="A note, like “Sunday salad”" aria-label="Note" maxLength={NOTE_MAX} autoFocus enterKeyHint="done" onKeyDown={(e) => { if (e.key === "Enter") onSave(ids, note); }} className="card mt-4 h-14 w-full rounded-2xl px-4 text-[1.0625rem] outline-none" />
       <p className="mt-1 text-right text-[0.75rem] text-faint">{note.length}/{NOTE_MAX}</p>
       <button type="button" className="btn-primary mt-3 w-full" onClick={() => onSave(ids, note)}>Save</button>
     </Sheet>

@@ -7,9 +7,9 @@ import { cn } from "cn";
 
 /* Three swipeable slides: illustration, one-line serif headline, two lines of body, a circle-arrow button. */
 const SLIDES = [
-  { art: "fennel", cat: "vegetable", wash: "var(--peach)", title: "Start with what's in the pan.", body: "Type one ingredient and see everything it goes with, strongest partners nearest the centre." },
-  { art: "orange", cat: "fruit", wash: "var(--butter)", title: "Tap a second. Watch it narrow.", body: "The map re-centres on what both ingredients share, so you build the dish outward." },
-  { art: "olive", cat: "condiment", wash: "var(--sky)", title: "Keep the ones you like.", body: "Save a combination with a note. It works offline, in the kitchen, one-handed." },
+  { art: "fennel", cat: "vegetable", wash: "var(--c-vegetable)", title: "Start with what's in the pan.", body: "Type one ingredient and see everything it goes with on a wheel, strongest partners nearest the centre." },
+  { art: "orange", cat: "fruit", wash: "var(--c-fruit)", title: "Tap a second. Watch it narrow.", body: "The wheel re-centres on what both ingredients share, so you build the dish outward." },
+  { art: "olive", cat: "condiment", wash: "var(--c-condiment)", title: "Keep the ones you like.", body: "Save a combination with a note. It works offline, in the kitchen, one-handed." },
 ] as const;
 
 export function Onboarding({ onDone }: { onDone: () => void }) {
@@ -19,15 +19,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const onScroll = () => { const el = track.current; if (!el) return; setIndex(Math.round(el.scrollLeft / el.clientWidth)); };
   const last = index === SLIDES.length - 1;
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-bg anim-fade" role="dialog" aria-label="Welcome">
+    <div className="fixed inset-0 z-50 flex flex-col bg-paper anim-fade" role="dialog" aria-label="Welcome">
       <div className="flex justify-end px-5 pt-[calc(var(--safe-t)+14px)]">
         <button type="button" onClick={onDone} className="h-11 px-3 text-[1.0625rem] font-semibold text-faint">Skip</button>
       </div>
       <div ref={track} onScroll={onScroll} className="no-scrollbar flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto">
         {SLIDES.map((s, i) => (
           <section key={i} className="flex w-full shrink-0 snap-center flex-col items-center justify-center px-8 text-center" aria-hidden={i !== index}>
-            <Illustration art={s.art} cat={s.cat} size={220} wash={s.wash} strokeWidth={1.4} className="text-ink" />
-            <h1 className="t-display mt-10 text-[2.125rem]">{s.title}</h1>
+            <Illustration art={s.art} cat={s.cat} size={240} wash={s.wash} strokeWidth={1.3} className="text-ink" />
+            <h1 className="t-display mt-8 text-[2.25rem]">{s.title}</h1>
             <p className="mt-4 max-w-[30ch] text-[1.0625rem] leading-relaxed text-muted">{s.body}</p>
           </section>
         ))}

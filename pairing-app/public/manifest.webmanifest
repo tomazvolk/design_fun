@@ -7,8 +7,8 @@
   "scope": "/pairing/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f2f1ee",
-  "theme_color": "#f2f1ee",
+  "background_color": "#f3f1ea",
+  "theme_color": "#f3f1ea",
   "lang": "en",
   "categories": ["food", "lifestyle", "utilities"],
   "icons": [
