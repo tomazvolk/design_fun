@@ -16,6 +16,17 @@ export const CATEGORY_SHORT: Record<Category, string> = {
   herb: "Herbs", spice: "Spices", vegetable: "Vegetables", fruit: "Fruit", protein: "Meat & eggs", seafood: "Seafood", dairy: "Dairy", grain: "Grains",
   nut: "Nuts", oil: "Oils", acid: "Acids", sweetener: "Sweet", alcohol: "Drinks", condiment: "Condiments", other: "Other",
 };
+/** Seven families around the wheel, in fixed order clockwise from 12 o'clock. */
+export const FAMILIES: { id: string; label: string; tint: string; cats: Category[] }[] = [
+  { id: "herbs", label: "Herbs & spices", tint: "var(--f-herbs)", cats: ["herb", "spice"] },
+  { id: "veg", label: "Vegetables", tint: "var(--f-veg)", cats: ["vegetable"] },
+  { id: "fruit", label: "Fruit", tint: "var(--f-fruit)", cats: ["fruit"] },
+  { id: "meat", label: "Meat & fish", tint: "var(--f-meat)", cats: ["protein", "seafood"] },
+  { id: "dairy", label: "Dairy", tint: "var(--f-dairy)", cats: ["dairy"] },
+  { id: "grains", label: "Grains & nuts", tint: "var(--f-grains)", cats: ["grain", "nut"] },
+  { id: "pantry", label: "Pantry & drinks", tint: "var(--f-pantry)", cats: ["oil", "acid", "sweetener", "condiment", "alcohol", "other"] },
+];
+export const familyOf = (c: Category) => FAMILIES.find((f) => f.cats.includes(c))!;
 export const SEASONS: Season[] = ["spring", "summer", "autumn", "winter"];
 export const TASTES: Taste[] = ["sweet", "sour", "salty", "bitter", "hot", "astringent"];
 export const TIER_LABEL: Record<Tier, string> = { 4: "Holy grail", 3: "Classic", 2: "Recommended", 1: "Works" };

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { PairingGraph } from "@/lib/graph";
 import { layoutWheel } from "@/lib/rings";
+import { familyOf } from "@/lib/labels";
 import { DEFAULT_FILTERS } from "@/lib/explore-state";
 import type { GraphJson } from "@/lib/types";
 
@@ -92,24 +93,32 @@ describe("F3 partners", () => {
 });
 
 describe("F4 ring placement", () => {
-  it("caps a ring at 24 with the overflow at 6 o'clock", () => {
+  it("caps a ring at 24 and reports the overflow", () => {
     const layout = layoutWheel(g.partners(["garlic"], DEFAULT_FILTERS));
-    for (const ring of layout.rings) {
-      expect(ring.nodes.length).toBeLessThanOrEqual(24);
-      if (ring.overflow > 0) { expect(ring.plus).not.toBeNull(); expect(ring.plus!.y).toBeGreaterThan(ring.radius * 0.9); }
-    }
+    for (const ring of layout.rings) expect(ring.count).toBeLessThanOrEqual(24);
+    expect(layout.overflow).toBe(layout.rings.reduce((s, r) => s + r.overflow, 0));
   });
-  it("keeps categories in the fixed order around the wheel, herbs first", () => {
+  it("keeps families in the fixed order around the wheel, herbs first", () => {
     const layout = layoutWheel(g.partners(["garlic"], DEFAULT_FILTERS));
-    const order = layout.wedges.map((w) => w.cat);
-    expect(order[0]).toBe("herb");
+    expect(layout.wedges[0].id).toBe("herbs");
     for (let i = 1; i < layout.wedges.length; i++) expect(layout.wedges[i].start).toBeGreaterThanOrEqual(layout.wedges[i - 1].end - 1e-9);
-    for (const n of layout.nodes) { const w = layout.wedges.find((x) => x.cat === n.partner.ing.cat)!; expect(n.angle).toBeGreaterThanOrEqual(w.start); expect(n.angle).toBeLessThanOrEqual(w.end); }
+    for (const n of layout.nodes) { const w = layout.wedges.find((x) => familyOf(n.partner.ing.cat).id === x.id)!; expect(n.angle).toBeGreaterThanOrEqual(w.start); expect(n.angle).toBeLessThanOrEqual(w.end); }
+  });
+  it("places labels without overlapping each other on busy wheels", () => {
+    for (const anchors of [["garlic"], ["lemon"], ["fennel", "orange"], ["chicken"]]) {
+      const nodes = layoutWheel(g.partners(anchors, DEFAULT_FILTERS)).nodes;
+      let clashes = 0;
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i].label.rect, b = nodes[j].label.rect;
+        if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) clashes++;
+      }
+      expect(clashes, anchors.join("+")).toBe(0);
+    }
   });
   it("puts tier 4 and 3 inside, 2 in the middle, 1 and partials outside", () => {
     const layout = layoutWheel(g.partners(["fennel", "orange"], DEFAULT_FILTERS));
-    for (const n of layout.rings[0].nodes) expect(n.partner.tier).toBeGreaterThanOrEqual(3);
-    for (const n of layout.rings[1].nodes) expect(n.partner.tier).toBe(2);
-    for (const n of layout.rings[2].nodes) expect(n.faded || n.partner.tier === 1).toBe(true);
+    for (const n of layout.nodes.filter((x) => x.ring === 0)) expect(n.partner.tier).toBeGreaterThanOrEqual(3);
+    for (const n of layout.nodes.filter((x) => x.ring === 1)) expect(n.partner.tier).toBe(2);
+    for (const n of layout.nodes.filter((x) => x.ring === 2)) expect(n.faded || n.partner.tier === 1).toBe(true);
   });
 });

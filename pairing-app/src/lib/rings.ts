@@ -1,104 +1,151 @@
-import type { Category, Partner, PartnerResult } from "./types";
-import { CATEGORY_ORDER } from "./labels";
+import type { Partner, PartnerResult } from "./types";
+import { CATEGORY_ORDER, FAMILIES, familyOf } from "./labels";
 import { RING_CAP } from "./config";
 
 /*
- * The Flavour Wheel layout. Categories are wedges in the fixed order around the hub (herbs at 12 o'clock,
- * clockwise); tiers are rings. A wedge's angular width follows how many partners it holds on this map, with a
- * sliver kept for empty categories so the order never changes. Within a wedge, a ring's partners are spread
- * evenly. F4 still holds: tier 4 and 3 inner, 2 middle, 1 outer, partials always outer and faded, 24 per ring
- * with the overflow collapsed into a "+N" tab at the ring's end.
+ * The Flavour Wheel, drawn at full size and scrolled rather than shrunk to fit.
+ *
+ * Seven families are wedges in a fixed order clockwise from 12 o'clock, with a gap at the top that carries the
+ * ring key. Tiers are rings: 4 and 3 inner, 2 middle, 1 outer, partial matches outer and faded (F4), 24 per ring.
+ * Ring radii grow with how many partners a ring holds, so nodes keep at least MIN_ARC pixels between them; then
+ * every label is placed greedily beside, opposite, above or below its node, wherever it collides with nothing.
  */
-export type WheelNode = {
-  partner: Partner;
-  ring: 0 | 1 | 2;
-  angle: number;
-  x: number;
-  y: number;
-  faded: boolean;
-};
-export type Wedge = { cat: Category; start: number; end: number; count: number };
-export type Ring = { index: 0 | 1 | 2; radius: number; nodes: WheelNode[]; overflow: number; plus: { x: number; y: number } | null };
-export type WheelLayout = { rings: Ring[]; wedges: Wedge[]; nodes: WheelNode[]; size: number; hub: number; rim: number };
+export type Rect = { x: number; y: number; w: number; h: number };
+export type WheelLabel = { x: number; y: number; anchor: "start" | "middle" | "end"; rect: Rect };
+export type WheelNode = { partner: Partner; ring: 0 | 1 | 2; angle: number; x: number; y: number; r: number; faded: boolean; label: WheelLabel };
+export type Wedge = { id: string; label: string; tint: string; start: number; end: number; count: number; labelPos: { x: number; y: number; anchor: "start" | "middle" | "end" } };
+export type Ring = { index: 0 | 1 | 2; radius: number; count: number; overflow: number };
+export type WheelLayout = { rings: Ring[]; wedges: Wedge[]; nodes: WheelNode[]; size: number; hub: number; rim: number; gap: number; overflow: number };
 
-export const HUB_R = 72;
-export const RING_RADII = [152, 228, 304];
-export const RIM_R = 340;
-const EMPTY_WEDGE = 0.035; // radians kept for a category with nothing on this map
-const WEDGE_PAD = 0.05;
-const MIN_ARC = 46;
+export const HUB_R = 66;
+export const DISC = { small: 15, medium: 18, large: 22 } as const;
+export const LABEL_SIZE = 13;
+const MIN_ARC = 78;
+const RING_STEP = 112;
+const BASE = [175, 175 + RING_STEP, 175 + RING_STEP * 2];
+const GAP = 0.34;
+const PAD = 0.035;
+const EMPTY = 0.05;
+
+export const textWidth = (s: string, bold: boolean) => s.length * (bold ? 7.7 : 7.1) + 2;
+const hit = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const overlap = (a: Rect, b: Rect) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 
 export function layoutWheel(result: PartnerResult, cap = RING_CAP): WheelLayout {
   const buckets: { partner: Partner; faded: boolean }[][] = [[], [], []];
   for (const p of result.full) buckets[p.tier >= 3 ? 0 : p.tier === 2 ? 1 : 2].push({ partner: p, faded: false });
   for (const p of result.partial) buckets[2].push({ partner: p, faded: true });
-
-  // Cap each ring by shared count (full matches before partials), then sort the shown set by category.
   const shown = buckets.map((items) => {
     const ranked = [...items].sort((x, y) => Number(x.faded) - Number(y.faded) || y.partner.shared - x.partner.shared);
-    return { items: ranked.slice(0, cap), overflow: items.length - Math.min(items.length, cap) };
+    return { items: ranked.slice(0, cap), overflow: Math.max(0, items.length - cap) };
   });
 
-  // Wedge widths from what each category needs on its densest ring: nodes want at least MIN_ARC pixels of
-  // arc between them, and that arc costs more angle on the inner ring than on the outer one.
-  const counts = Object.fromEntries(CATEGORY_ORDER.map((c) => [c, 0])) as Record<Category, number>;
-  const need = Object.fromEntries(CATEGORY_ORDER.map((c) => [c, 0])) as Record<Category, number>;
-  shown.forEach((ring, ri) => {
-    const perCat = new Map<Category, number>();
-    for (const it of ring.items) { counts[it.partner.ing.cat]++; perCat.set(it.partner.ing.cat, (perCat.get(it.partner.ing.cat) ?? 0) + 1); }
-    for (const [cat, n] of perCat) need[cat] = Math.max(need[cat], (n * MIN_ARC) / RING_RADII[ri] + WEDGE_PAD * 2);
+  // Per ring and family counts.
+  const counts = shown.map((ring) => {
+    const m = new Map<string, number>();
+    for (const it of ring.items) { const f = familyOf(it.partner.ing.cat).id; m.set(f, (m.get(f) ?? 0) + 1); }
+    return m;
   });
-  const totalNeed = Object.values(need).reduce((a, b) => a + b, 0);
-  const emptyCount = CATEGORY_ORDER.filter((c) => counts[c] === 0).length;
-  const free = 2 * Math.PI - emptyCount * EMPTY_WEDGE;
-  const wedges: Wedge[] = [];
-  let cursor = -Math.PI / 2;
-  for (const cat of CATEGORY_ORDER) {
-    const width = counts[cat] === 0 ? EMPTY_WEDGE : totalNeed === 0 ? free / (CATEGORY_ORDER.length - emptyCount) : (need[cat] / totalNeed) * free;
-    wedges.push({ cat, start: cursor, end: cursor + width, count: counts[cat] });
-    cursor += width;
+  const usable = 2 * Math.PI - GAP;
+
+  // Radii: big enough that every node gets MIN_ARC of arc, and at least RING_STEP apart.
+  const radii = [0, 0, 0];
+  for (let i = 0; i < 3; i++) {
+    const n = shown[i].items.length;
+    const needed = (n * MIN_ARC) / (usable - FAMILIES.length * PAD * 2);
+    radii[i] = Math.max(BASE[i], needed, i > 0 ? radii[i - 1] + RING_STEP : 0);
   }
-  const wedgeOf = Object.fromEntries(wedges.map((w) => [w.cat, w])) as Record<Category, Wedge>;
 
-  const rings: Ring[] = shown.map((ring, index) => {
-    const radius = RING_RADII[index];
-    const byCat = new Map<Category, { partner: Partner; faded: boolean }[]>();
-    for (const it of ring.items) { const l = byCat.get(it.partner.ing.cat) ?? []; l.push(it); byCat.set(it.partner.ing.cat, l); }
-    const nodes: WheelNode[] = [];
-    for (const [cat, items] of byCat) {
-      items.sort((x, y) => Number(x.faded) - Number(y.faded) || y.partner.shared - x.partner.shared);
-      const w = wedgeOf[cat];
-      const span = Math.max(0, w.end - w.start - WEDGE_PAD * 2);
-      const n = items.length;
+  // Wedge widths: each family takes the angle its densest ring needs.
+  const need = FAMILIES.map((f) => {
+    let w = 0;
+    for (let i = 0; i < 3; i++) { const n = counts[i].get(f.id) ?? 0; if (n) w = Math.max(w, (n * MIN_ARC) / radii[i] + PAD * 2); }
+    return w;
+  });
+  const emptyCount = need.filter((w) => w === 0).length;
+  const free = usable - emptyCount * EMPTY;
+  const totalNeed = need.reduce((a, b) => a + b, 0) || 1;
+  const rim = radii[2] + 46;
+  const wedges: Wedge[] = [];
+  let cursor = -Math.PI / 2 + GAP / 2;
+  FAMILIES.forEach((f, i) => {
+    const width = need[i] === 0 ? EMPTY : (need[i] / totalNeed) * free;
+    const mid = cursor + width / 2;
+    const c = Math.cos(mid);
+    const lr = rim + 20;
+    wedges.push({
+      id: f.id, label: f.label, tint: f.tint, start: cursor, end: cursor + width,
+      count: [0, 1, 2].reduce((s, r) => s + (counts[r].get(f.id) ?? 0), 0),
+      labelPos: { x: Math.cos(mid) * lr, y: Math.sin(mid) * lr + 4, anchor: Math.abs(c) < 0.25 ? "middle" : c > 0 ? "start" : "end" },
+    });
+    cursor += width;
+  });
+  const wedgeOf = Object.fromEntries(wedges.map((w) => [w.id, w]));
+
+  // Node positions: evenly through each family's wedge, in category order then shared count.
+  const nodes: WheelNode[] = [];
+  shown.forEach((ring, ri) => {
+    const byFam = new Map<string, { partner: Partner; faded: boolean }[]>();
+    for (const it of ring.items) { const f = familyOf(it.partner.ing.cat).id; const l = byFam.get(f) ?? []; l.push(it); byFam.set(f, l); }
+    for (const [fid, items] of byFam) {
+      items.sort((x, y) => Number(x.faded) - Number(y.faded) || CATEGORY_ORDER.indexOf(x.partner.ing.cat) - CATEGORY_ORDER.indexOf(y.partner.ing.cat) || y.partner.shared - x.partner.shared);
+      const w = wedgeOf[fid];
+      const span = Math.max(0, w.end - w.start - PAD * 2);
       items.forEach((it, i) => {
-        const angle = n === 1 ? (w.start + w.end) / 2 : w.start + WEDGE_PAD + (span * (i + 0.5)) / n;
-        nodes.push({ partner: it.partner, ring: index as 0 | 1 | 2, angle, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, faded: it.faded });
+        const angle = w.start + PAD + (span * (i + 0.5)) / items.length;
+        // stagger alternate nodes slightly in and out so neighbours' labels have more room
+        const rr = radii[ri] + (items.length > 2 ? (i % 2 === 0 ? -10 : 10) : 0);
+        nodes.push({ partner: it.partner, ring: ri as 0 | 1 | 2, angle, x: Math.cos(angle) * rr, y: Math.sin(angle) * rr, r: DISC[it.partner.size], faded: it.faded, label: { x: 0, y: 0, anchor: "start", rect: { x: 0, y: 0, w: 0, h: 0 } } });
       });
     }
-    nodes.sort((a, b) => a.angle - b.angle);
-    const plusAngle = Math.PI / 2;
-    const plus = ring.overflow > 0 ? { x: Math.cos(plusAngle) * (radius + 24), y: Math.sin(plusAngle) * (radius + 24) } : null;
-    return { index: index as 0 | 1 | 2, radius, nodes, overflow: ring.overflow, plus };
   });
-  return { rings, wedges, nodes: rings.flatMap((r) => r.nodes), size: (RIM_R + 36) * 2, hub: HUB_R, rim: RIM_R };
+
+  // Labels: greedy, biggest nodes first, avoiding every disc, the hub, the ring key and labels already placed.
+  const placed: Rect[] = [{ x: -HUB_R - 4, y: -HUB_R - 4, w: HUB_R * 2 + 8, h: HUB_R * 2 + 8 }];
+  for (const n of nodes) placed.push({ x: n.x - n.r - 2, y: n.y - n.r - 2, w: n.r * 2 + 4, h: n.r * 2 + 4 });
+  for (const r of radii) placed.push({ x: -50, y: -r - 12, w: 100, h: 24 });
+  const order = [...nodes].sort((a, b) => b.r - a.r || a.ring - b.ring);
+  const H = LABEL_SIZE + 4;
+  for (const n of order) {
+    const bold = n.partner.size !== "small";
+    const w = textWidth(n.partner.ing.name, bold);
+    const out = Math.cos(n.angle) >= 0 ? 1 : -1;
+    const side = (dir: number): WheelLabel => dir > 0
+      ? { x: n.x + n.r + 6, y: n.y + 4.5, anchor: "start", rect: { x: n.x + n.r + 5, y: n.y - H / 2, w, h: H } }
+      : { x: n.x - n.r - 6, y: n.y + 4.5, anchor: "end", rect: { x: n.x - n.r - 5 - w, y: n.y - H / 2, w, h: H } };
+    const above: WheelLabel = { x: n.x, y: n.y - n.r - 6, anchor: "middle", rect: { x: n.x - w / 2, y: n.y - n.r - 6 - H + 3, w, h: H } };
+    const below: WheelLabel = { x: n.x, y: n.y + n.r + 15, anchor: "middle", rect: { x: n.x - w / 2, y: n.y + n.r + 3, w, h: H } };
+    const radialOut = Math.sin(n.angle) < 0 ? above : below;
+    const radialIn = Math.sin(n.angle) < 0 ? below : above;
+    const candidates = [side(out), radialOut, side(-out), radialIn];
+    const own = { x: n.x - n.r - 2, y: n.y - n.r - 2, w: n.r * 2 + 4, h: n.r * 2 + 4 };
+    const others = placed.filter((p) => !(p.x === own.x && p.y === own.y && p.w === own.w));
+    let best = candidates[0], bestCost = Infinity;
+    for (const c of candidates) {
+      const cost = others.reduce((s, p) => s + (hit(c.rect, p) ? overlap(c.rect, p) : 0), 0);
+      if (cost < bestCost) { best = c; bestCost = cost; }
+      if (cost === 0) break;
+    }
+    n.label = best;
+    placed.push(best.rect);
+  }
+  nodes.sort((a, b) => a.ring - b.ring || a.angle - b.angle);
+
+  const overflow = shown.reduce((s, r) => s + r.overflow, 0);
+  const extent = Math.max(rim + 60, ...nodes.map((n) => Math.max(Math.abs(n.label.rect.x), Math.abs(n.label.rect.x + n.label.rect.w)) + 16), ...wedges.map((w) => Math.abs(w.labelPos.x) + w.label.length * 8 + 20));
+  return {
+    rings: shown.map((r, i) => ({ index: i as 0 | 1 | 2, radius: radii[i], count: r.items.length, overflow: r.overflow })),
+    wedges, nodes, size: Math.ceil(extent) * 2, hub: HUB_R, rim, gap: GAP, overflow,
+  };
 }
 
-/** Where a node's label goes relative to its mark, reading outward from the hub. */
-export function labelPlacement(angle: number, offset: number): { anchor: "start" | "middle" | "end"; dx: number; dy: number } {
-  const c = Math.cos(angle), s = Math.sin(angle);
-  if (Math.abs(c) < 0.18) return { anchor: "middle", dx: 0, dy: s < 0 ? -(offset + 4) : offset + 12 };
-  const lift = Math.abs(c) < 0.55 ? (s < 0 ? -5 : 9) : 4;
-  return c > 0 ? { anchor: "start", dx: offset + 4, dy: lift } : { anchor: "end", dx: -(offset + 4), dy: lift };
-}
-
-/** A slightly hand-drawn circle: the ring guides are pencil lines, not compass lines. */
-export function wobblyCircle(r: number, seed = 1, wobble = 1.6, steps = 72): string {
+/** A slightly hand-drawn circle: ring guides are pencil lines, not compass lines. */
+export function wobblyCircle(r: number, seed = 1, wobble = 1.6, steps = 96): string {
   const pts: string[] = [];
   for (let i = 0; i <= steps; i++) {
     const a = (i / steps) * Math.PI * 2;
     const n = Math.sin(a * 3 + seed) * wobble + Math.cos(a * 7 + seed * 2) * (wobble * 0.5);
-    const rr = r + n;
-    pts.push(`${(Math.cos(a) * rr).toFixed(1)},${(Math.sin(a) * rr).toFixed(1)}`);
+    pts.push(`${(Math.cos(a) * (r + n)).toFixed(1)},${(Math.sin(a) * (r + n)).toFixed(1)}`);
   }
   return `M ${pts.join(" L ")} Z`;
 }

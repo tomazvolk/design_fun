@@ -179,7 +179,7 @@ function MapScreen() {
 
   return (
     <div className="flex h-[calc(100dvh-var(--nav-h)-var(--safe-b))] flex-col md:flex-row">
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Top bar: anchor chips in the order added, each with ×, then + */}
         <div className="no-scrollbar flex shrink-0 items-center gap-2 overflow-x-auto px-4 pt-[calc(var(--safe-t)+12px)] pb-2" aria-label="Anchors">
           <Link href="/" aria-label="Back to search" className="fab size-10 shrink-0 [&_svg]:size-4"><SearchIcon /></Link>
@@ -193,11 +193,14 @@ function MapScreen() {
           <button type="button" aria-label="Add an ingredient" onClick={() => setSheet("add")} className="chip chip-plain w-11 justify-center px-0"><PlusIcon className="size-5" /></button>
         </div>
 
-        <div className="relative min-h-0 flex-1">
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           {view === "map" ? (
             <>
-              <RingMap layout={layout} anchors={anchors} onTap={(id) => setCard(id)} onDoubleTap={addAnchor} onPlus={(ring) => openList(ring)} onCentre={() => setSheet("anchors")} />
-              <p className="pointer-events-none absolute left-4 top-2 text-[0.6875rem] uppercase tracking-[0.14em] text-muted">{result.full.length} partner{result.full.length === 1 ? "" : "s"}{anchors.length > 1 ? " of all" : ""}{result.partial.length > 0 && anchors.length > 1 ? ` · ${result.partial.length} of some` : ""}</p>
+              <RingMap layout={layout} anchors={anchors} onTap={(id) => setCard(id)} onDoubleTap={addAnchor} onCentre={() => setSheet("anchors")} />
+              {layout.overflow > 0 && (
+                <button type="button" onClick={() => openList(null)} className="chip chip-plain absolute bottom-4 left-1/2 h-10 -translate-x-1/2 text-[0.875rem]">+{layout.overflow} more in the list</button>
+              )}
+              <p className="pointer-events-none absolute left-4 top-2 rounded-full bg-paper/85 px-2 py-0.5 backdrop-blur-sm text-[0.6875rem] uppercase tracking-[0.14em] text-muted">{result.full.length} partner{result.full.length === 1 ? "" : "s"}{anchors.length > 1 ? " of all" : ""}{result.partial.length > 0 && anchors.length > 1 ? ` · ${result.partial.length} of some` : ""}</p>
               {result.full.length === 0 && result.partial.length === 0 && (
                 <div className="absolute inset-x-4 top-4">
                   <EmptyNotice result={result} filters={filters} onReset={() => setFilters(DEFAULT_FILTERS)} onPick={(id) => setCard(id)} />
