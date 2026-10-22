@@ -23,11 +23,11 @@ function polygon(values: number[], max: number, r: number): string {
   }).join(" ");
 }
 
-function Radar({ axes, max, rings, series, tint, size = 280, margin = 60 }: { axes: string[]; max: number; rings: number; series: { values: number[]; kind: "self" | "anchor"; name: string }[]; tint: string; size?: number; margin?: number }) {
+export function Radar({ axes, max, rings, series, tint, size = 280, margin = 60 }: { axes: string[]; max: number; rings: number; series: { values: number[]; kind: "self" | "anchor"; name: string }[]; tint: string; size?: number; margin?: number }) {
   const r = size / 2 - margin;
   const n = axes.length;
   return (
-    <svg viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} className="mx-auto block w-full max-w-[340px]" aria-hidden="true">
+    <svg viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} className="mx-auto block w-full max-w-[380px]" aria-hidden="true">
       {Array.from({ length: rings }, (_, i) => (
         <path key={i} d={wobblyCircle(((i + 1) / rings) * r, i + 3, 0.9)} fill={i === rings - 1 ? "var(--card)" : "none"} stroke={INK} strokeOpacity={i === rings - 1 ? 0.35 : 0.18} strokeWidth={1} strokeDasharray={i === rings - 1 ? undefined : "2 4"} />
       ))}
@@ -63,7 +63,7 @@ export function TasteHexagon({ ingredient, anchors }: { ingredient: Ingredient; 
   const text = TASTES.filter((t) => ingredient.taste[t] > 0).map((t) => `${cap(t)} ${ingredient.taste[t]}`).join(" · ") || "No taste scores yet";
   return (
     <figure>
-      <Radar axes={TASTES.map(cap)} max={3} rings={3} tint={tintOf(ingredient)} series={[...anchors.map((a) => ({ values: TASTES.map((t) => a.taste[t]), kind: "anchor" as const, name: a.name })), { values, kind: "self", name: ingredient.name }]} />
+      <Radar axes={TASTES.map(cap)} max={3} rings={3} size={320} margin={84} tint={tintOf(ingredient)} series={[...anchors.map((a) => ({ values: TASTES.map((t) => a.taste[t]), kind: "anchor" as const, name: a.name })), { values, kind: "self", name: ingredient.name }]} />
       <figcaption className="mt-1 text-center text-[0.8125rem] text-muted">{text}{anchors.length > 0 && <span> · dashed: {anchors.map((a) => a.name).join(", ")}</span>}</figcaption>
     </figure>
   );
@@ -73,13 +73,13 @@ export function CuisineOctagon({ ingredient, anchors, cuisines, onAxis }: { ingr
   const values = cuisines.map((c) => ingredient.cuisines[c.id] ?? 0);
   const text = cuisines.filter((c) => (ingredient.cuisines[c.id] ?? 0) > 0).map((c) => `${c.name} ${ingredient.cuisines[c.id]}`).join(" · ") || "No cuisine edges";
   const short = (name: string) => name.replace("Chinese & Japanese", "Chinese · Japanese").replace("Mexican & Latin", "Mexican · Latin").replace("Southeast Asian", "SE Asian");
-  const size = 340, margin = 78, r = size / 2 - margin, n = cuisines.length;
+  const size = 380, margin = 104, r = size / 2 - margin, n = cuisines.length;
   return (
     <figure>
       <div className="relative">
         <Radar axes={cuisines.map((c) => short(c.name))} max={4} rings={4} size={size} margin={margin} tint={tintOf(ingredient)} series={[...anchors.map((a) => ({ values: cuisines.map((c) => a.cuisines[c.id] ?? 0), kind: "anchor" as const, name: a.name })), { values, kind: "self", name: ingredient.name }]} />
         {onAxis && (
-          <svg viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} className="absolute inset-0 mx-auto block w-full max-w-[340px]" aria-label="Filter the map by cuisine">
+          <svg viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} className="absolute inset-0 mx-auto block w-full max-w-[380px]" aria-label="Filter the map by cuisine">
             {cuisines.map((c, i) => {
               const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
               return <circle key={c.id} cx={Math.cos(a) * (r + 14)} cy={Math.sin(a) * (r + 14)} r={26} fill="transparent" className="cursor-pointer" onClick={() => onAxis(c.id)} role="button" aria-label={`Show partners shared with ${c.name}`} />;

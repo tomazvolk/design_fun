@@ -14,6 +14,10 @@ import type { Bridge, Category, Filters, Ingredient, Partner, PartnerResult, Sea
 import { Chip, IconButton, SectionLabel, Sheet, useToast } from "./ui";
 import { Mark } from "./illustrations";
 import { RingMap } from "./ring-map";
+import { BubblesView, CompareView, GridView, RankedView, RowsView } from "./variants/pairing-views";
+import { useVariant, VariantBar } from "./variants/shared";
+
+const PAIRING_VERSIONS = ["Rows", "Grid", "Ranked", "Bubbles", "Compare", "Wheel"];
 
 /* ========================= Explore: search is home; with anchors, the map ========================= */
 export function Explore() {
@@ -148,6 +152,7 @@ function MapScreen() {
   const [sheet, setSheet] = useState<null | "filters" | "add" | "anchors">(null);
   const [saveFor, setSaveFor] = useState<string[] | null>(null);
   const [listRing, setListRing] = useState<number | null>(null);
+  const [version, setVersion] = useVariant("pe:pairing-version", PAIRING_VERSIONS.length);
 
   const result = useMemo<PartnerResult>(() => graph!.partners(anchorIds, filters), [graph, anchorIds, filters]);
   const layout = useMemo(() => layoutWheel(result), [result]);
@@ -193,8 +198,14 @@ function MapScreen() {
           <button type="button" aria-label="Add an ingredient" onClick={() => setSheet("add")} className="chip chip-plain w-11 justify-center px-0"><PlusIcon className="size-5" /></button>
         </div>
 
+        <VariantBar value={version} onChange={(v) => { setVersion(v); setView("map"); }} labels={PAIRING_VERSIONS} className="mx-4 mb-1 shrink-0" />
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-          {view === "map" ? (
+          {view === "map" && version === 1 ? <RowsView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
+          : view === "map" && version === 2 ? <GridView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
+          : view === "map" && version === 3 ? <RankedView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
+          : view === "map" && version === 4 ? <BubblesView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
+          : view === "map" && version === 5 ? <CompareView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
+          : view === "map" ? (
             <>
               <RingMap layout={layout} anchors={anchors} onTap={(id) => setCard(id)} onDoubleTap={addAnchor} onCentre={() => setSheet("anchors")} />
               {layout.overflow > 0 && (
