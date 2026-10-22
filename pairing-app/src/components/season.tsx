@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { exploreHref } from "@/lib/explore-state";
+import { profileHref } from "@/lib/explore-state";
 import { seasonForMonth } from "@/lib/graph";
 import { CATEGORY_ORDER, CATEGORY_SHORT, CATEGORY_TINT, cap } from "@/lib/labels";
 import type { Category, Ingredient } from "@/lib/types";
@@ -20,7 +20,7 @@ export function SeasonScreen() {
   const season = seasonForMonth(month, hemisphere);
   const list = graph ? graph.inSeason(month, hemisphere) : [];
   const groups = CATEGORY_ORDER.map((c) => ({ cat: c, items: list.filter((i) => i.cat === c) })).filter((g) => g.items.length > 0);
-  const open = (i: Ingredient) => { pushRecent(i.id); router.push(exploreHref([i.id])); };
+  const open = (i: Ingredient) => { pushRecent(i.id); router.push(profileHref(i.id)); };
   const monthName = new Intl.DateTimeFormat(undefined, { month: "long" }).format(new Date());
   return (
     <div className="px-4 pt-[calc(var(--safe-t)+20px)] md:px-8">

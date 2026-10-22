@@ -58,6 +58,12 @@ export function exploreHref(anchors: string[], filters: Filters = DEFAULT_FILTER
   return s ? `/?${s}` : "/";
 }
 
+/** The ingredient profile, optionally carrying the current anchors so it can show how it pairs with them. */
+export function profileHref(id: string, anchors: string[] = []): string {
+  const a = anchors.filter((x) => x !== id);
+  return `/ingredient/?id=${encodeURIComponent(id)}${a.length ? `&a=${a.map(encodeURIComponent).join(",")}` : ""}`;
+}
+
 export function countNonDefault(f: Filters): number {
   let n = 0;
   if (f.seasons.length !== SEASONS.length) n++;

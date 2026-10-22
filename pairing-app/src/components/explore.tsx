@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ListIcon, MapIcon, PlusIcon, SearchIcon, SlidersHorizontalIcon, XIcon, ShareIcon, BookmarkIcon } from "lucide-react";
 import { cn } from "cn";
 import { useStore } from "@/lib/store";
-import { useExploreState, DEFAULT_FILTERS, exploreHref } from "@/lib/explore-state";
+import { useExploreState, DEFAULT_FILTERS, exploreHref, profileHref } from "@/lib/explore-state";
 import { layoutWheel } from "@/lib/rings";
 import { CATEGORY_LABEL, CATEGORY_ORDER, CATEGORY_SHORT, CATEGORY_TINT, SEASONS, TIER_LABEL, cap, reasonSentence, seasonText } from "@/lib/labels";
 import { MAX_ANCHORS, NOTE_MAX } from "@/lib/config";
@@ -79,7 +79,8 @@ function SearchHome() {
   const [picked, setPicked] = useState<{ kind: "cuisine" | "dish"; id: string; name: string } | null>(null);
   const season = useMemo(() => (graph ? graph.inSeason(new Date().getMonth(), hemisphere).slice(0, 8) : []), [graph, hemisphere]);
   const pickedList = useMemo(() => (graph && picked && !picked.id.startsWith("cat:") ? (picked.kind === "cuisine" ? graph.ingredientsForCuisine(picked.id) : graph.ingredientsForDish(picked.id)).slice(0, 24) : []), [graph, picked]);
-  const open = (id: string) => { pushRecent(id); setAnchors([id]); };
+  const router = useRouter();
+  const open = (id: string) => { pushRecent(id); router.push(profileHref(id)); };
   const onPick = (r: SearchResult) => {
     if (r.kind === "ingredient") return open(r.id);
     // Cuisines and dishes can only be filters (F2): remember the cuisine filter and offer its ingredients to start from.
@@ -165,6 +166,7 @@ function MapScreen() {
     setCard(null);
     setAnchors([...anchorIds, id]);
   };
+  const openProfile = (id: string) => { pushRecent(id); router.push(profileHref(id, anchorIds)); };
   const removeAnchor = (id: string) => setAnchors(anchorIds.filter((a) => a !== id));
   const openList = (ring: number | null) => { setListRing(ring); setView("list"); };
   const share = async () => {
@@ -200,29 +202,29 @@ function MapScreen() {
 
         <VariantBar value={version} onChange={(v) => { setVersion(v); setView("map"); }} labels={PAIRING_VERSIONS} className="mx-4 mb-1 shrink-0" />
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-          {view === "map" && version === 1 ? <RowsView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
-          : view === "map" && version === 2 ? <GridView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
-          : view === "map" && version === 3 ? <RankedView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
-          : view === "map" && version === 4 ? <BubblesView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
-          : view === "map" && version === 5 ? <CompareView result={result} onTap={(id) => setCard(id)} onAdd={addAnchor} />
+          {view === "map" && version === 1 ? <RowsView result={result} onTap={openProfile} onAdd={addAnchor} />
+          : view === "map" && version === 2 ? <GridView result={result} onTap={openProfile} onAdd={addAnchor} />
+          : view === "map" && version === 3 ? <RankedView result={result} onTap={openProfile} onAdd={addAnchor} />
+          : view === "map" && version === 4 ? <BubblesView result={result} onTap={openProfile} onAdd={addAnchor} />
+          : view === "map" && version === 5 ? <CompareView result={result} onTap={openProfile} onAdd={addAnchor} />
           : view === "map" ? (
             <>
-              <RingMap layout={layout} anchors={anchors} onTap={(id) => setCard(id)} onDoubleTap={addAnchor} onCentre={() => setSheet("anchors")} />
+              <RingMap layout={layout} anchors={anchors} onTap={openProfile} onDoubleTap={addAnchor} onCentre={() => setSheet("anchors")} />
               {layout.overflow > 0 && (
                 <button type="button" onClick={() => openList(null)} className="chip chip-plain absolute bottom-4 left-1/2 h-10 -translate-x-1/2 text-[0.875rem]">+{layout.overflow} more in the list</button>
               )}
               <p className="pointer-events-none absolute left-4 top-2 rounded-full bg-paper/85 px-2 py-0.5 backdrop-blur-sm text-[0.6875rem] uppercase tracking-[0.14em] text-muted">{result.full.length} partner{result.full.length === 1 ? "" : "s"}{anchors.length > 1 ? " of all" : ""}{result.partial.length > 0 && anchors.length > 1 ? ` · ${result.partial.length} of some` : ""}</p>
               {result.full.length === 0 && result.partial.length === 0 && (
                 <div className="absolute inset-x-4 top-4">
-                  <EmptyNotice result={result} filters={filters} onReset={() => setFilters(DEFAULT_FILTERS)} onPick={(id) => setCard(id)} />
+                  <EmptyNotice result={result} filters={filters} onReset={() => setFilters(DEFAULT_FILTERS)} onPick={openProfile} />
                 </div>
               )}
               {result.full.length === 0 && (result.partial.length > 0) && anchors.length >= 2 && (
-                <div className="absolute inset-x-4 top-4"><EmptyNotice result={result} filters={filters} onReset={() => setFilters(DEFAULT_FILTERS)} onPick={(id) => setCard(id)} /></div>
+                <div className="absolute inset-x-4 top-4"><EmptyNotice result={result} filters={filters} onReset={() => setFilters(DEFAULT_FILTERS)} onPick={openProfile} /></div>
               )}
             </>
           ) : (
-            <ListView result={result} initialRing={listRing} onTap={(id) => setCard(id)} onAdd={addAnchor} />
+            <ListView result={result} initialRing={listRing} onTap={openProfile} onAdd={addAnchor} />
           )}
           <div className="pointer-events-none absolute inset-x-4 bottom-4 flex items-end justify-between">
             <div className="pointer-events-auto flex gap-2">
