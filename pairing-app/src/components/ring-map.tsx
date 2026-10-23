@@ -7,6 +7,7 @@ import { arcPath, LABEL_SIZE, wobblyCircle, type WheelLayout } from "@/lib/rings
 import { CATEGORY_TINT } from "@/lib/labels";
 import { ArtGlyph } from "./illustrations";
 import { photoUrl } from "@/lib/photo";
+import { BASE_PATH } from "@/lib/config";
 
 const GLYPH = { small: 20, medium: 24, large: 30 } as const;
 const ZOOMS = [0.55, 0.75, 1, 1.3];
@@ -107,7 +108,9 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onCentre }: Props
           {/* hub */}
           <g className="cursor-pointer" onClick={onCentre} role="button" aria-label={multi ? `${anchors.length} anchors: save or share` : `${anchors[0]?.name}: save or share`}>
             <circle r={hubR + 4} fill="var(--card)" stroke="var(--ink)" strokeWidth={1.6} />
-            <g className="text-ink">{hubSlots.map((s) => <ArtGlyph key={s.a.id} art={s.a.art} cat={s.a.cat} x={s.x} y={s.y} size={s.s} strokeWidth={s.s > 40 ? 2.2 : 2.6} />)}</g>
+            <g className="text-ink">{hubSlots.map((s) => s.a.image
+              ? <image key={s.a.id} href={`${BASE_PATH}/${s.a.image}`} x={s.x - s.s * 0.6} y={s.y - s.s * 0.6} width={s.s * 1.2} height={s.s * 1.2} preserveAspectRatio="xMidYMid meet" />
+              : <ArtGlyph key={s.a.id} art={s.a.art} cat={s.a.cat} x={s.x} y={s.y} size={s.s} strokeWidth={s.s > 40 ? 2.2 : 2.6} />)}</g>
             <text y={hubR - 14} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--ink)" fontFamily="var(--font-sans)">
               {multi ? `${anchors.length} anchors` : anchors[0] ? (anchors[0].name.length > 14 ? anchors[0].name.slice(0, 13) + "…" : anchors[0].name) : ""}
             </text>
@@ -119,8 +122,10 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onCentre }: Props
             return (
               <g key={id} className="glide cursor-pointer" style={{ transform: `translate(${n.x}px, ${n.y}px)`, opacity: n.faded ? 0.35 : 1 }} onClick={() => tapNode(id)} role="button" aria-label={`${n.partner.ing.name}${n.faded ? ", pairs with some anchors" : ""}`}>
                 <circle r={n.r + 10} fill="transparent" />
-                <circle r={n.r} fill={n.partner.ing.photo?.color ?? CATEGORY_TINT[n.partner.ing.cat]} />
-                {n.partner.ing.photo ? (
+                <circle r={n.r} fill={n.partner.ing.image ? CATEGORY_TINT[n.partner.ing.cat] : n.partner.ing.photo?.color ?? CATEGORY_TINT[n.partner.ing.cat]} />
+                {n.partner.ing.image ? (
+                  <image href={`${BASE_PATH}/${n.partner.ing.image}`} x={-n.r * 0.86} y={-n.r * 0.86} width={n.r * 1.72} height={n.r * 1.72} preserveAspectRatio="xMidYMid meet" />
+                ) : n.partner.ing.photo ? (
                   <>
                     <clipPath id={`clip-${String(n.partner.ing.photo.id).replace(/[^\w-]/g, "")}`}><circle r={n.r} /></clipPath>
                     <image href={photoUrl(n.partner.ing.photo, n.r * 2)} x={-n.r} y={-n.r} width={n.r * 2} height={n.r * 2} preserveAspectRatio="xMidYMid slice" clipPath={`url(#clip-${String(n.partner.ing.photo.id).replace(/[^\w-]/g, "")})`} />

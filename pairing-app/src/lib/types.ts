@@ -24,6 +24,8 @@ export type Ingredient = {
   art: string | null;
   description: string | null;
   photo: Photo | null;
+  /** Hand-drawn art shipped in public/art, path relative to the base path. */
+  image: string | null;
   hub: boolean;
   degree: number;
 };

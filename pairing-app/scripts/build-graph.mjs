@@ -96,6 +96,13 @@ for (const [id, src] of Object.entries(raw)) {
 const photosPath = join(root, "src", "data", "photos.json");
 const PHOTOS = existsSync(photosPath) ? JSON.parse(readFileSync(photosPath, "utf8")) : {};
 let withPhoto = 0;
+// Hand-drawn art in public/art/<id>.(webp|png|svg) wins over photos and the built-in line drawings.
+let withArt = 0;
+for (const ing of ingredients) {
+  const file = ["webp", "png", "svg"].map((ext) => `${ing.id}.${ext}`).find((f) => existsSync(join(root, "public", "art", f)));
+  ing.image = file ? `art/${file}` : null;
+  if (file) withArt++;
+}
 for (const ing of ingredients) {
   const e = PHOTOS[ing.id];
   if (!e || e.none || !e.alts?.length) continue;
@@ -197,7 +204,7 @@ for (const e of edges.values()) tiers[e.tier]++;
 const sparse = ingredients.filter((i) => i.degree < 6).map((i) => `${i.id}(${i.degree})`);
 console.log(`graph.json: ${ingredients.length} ingredients, ${edges.size} edges, ${dishes.size} dishes, ${combos.length} combos, ${(json.length / 1024).toFixed(0)} KB`);
 console.log(`tiers: works ${tiers[1]}, recommended ${tiers[2]}, highly ${tiers[3]}, holy grail ${tiers[4]}; two-way listings with different tiers: ${disagreements}; dish mentions folded in: ${dishMentions}`);
-console.log(`photos: ${withPhoto} of ${ingredients.length} ingredients`);
+console.log(`photos: ${withPhoto}, hand-drawn art: ${withArt} of ${ingredients.length} ingredients`);
 console.log(`hubs: ${hubs.slice(0, 10).map((h) => `${h}(${byId.get(h).degree})`).join(" ")} …`);
 const undescribed = ingredients.filter((i) => !i.description).map((i) => i.id);
 if (undescribed.length) console.log(`no description: ${undescribed.join(" ")}`);
