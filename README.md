@@ -11,6 +11,7 @@ and a short description. Each prototype lives in its own folder.
 
 | Prototype | Folder | Deployed | What it is |
 | --- | --- | --- | --- |
+| Warranty landing page | `warranty-landing/` | 2026-10-23 | Marketing landing page for Warranty tracker v3, built with the Proof skill: Minimal light in the app's brand, links into the live app |
 | Pairing Explorer | `pairing/` (built from `pairing-app/`) | 2026-10-20 | Flavour-pairing map PWA: ring map by strength, multi-anchor intersection, ingredient pages with charts, saved combinations, offline. 300 ingredients, 12,000 tiered pairings. Next.js static export |
 | Odziv | `forms/` (built from `forms-app/`) | 2026-10-19 | EU-hosted Typeform alternative: workspaces, builder with logic and themes, conversational respondent view, results with drop-off, Typeform importer, simulated AI (form from prompt, follow-ups, lead scores). Dummy data, Next.js static export |
 | Bledara | `bledara/` (built from `bledara-app/`) | 2026-10-06 | SaaS management platform prototype on dummy data: subscriptions, roles, settings, audit log. Next.js static export |

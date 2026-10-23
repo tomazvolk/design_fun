@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'warranty-landing',
+    name: 'Warranty landing page',
+    deployed: '2026-10-23',
+    status: 'wip',
+    description:
+      'A marketing landing page for Warranty tracker v3, built with the Proof skill (Minimal, light) in the app\u2019s own Geist and forest green. The vault hangs on a ruled field in the hero, then two-deadline and claim-PDF feature rows, three steps from receipt to reminder, Free and Plus plans, and questions. Links into the live app.',
+    tags: ['landing page', 'marketing', 'proof', 'vanilla html'],
+    accent: '#163300',
+    art: 'receiptLanding',
+  },
+  {
     slug: 'pairing',
     name: 'Pairing Explorer',
     deployed: '2026-10-20',
@@ -183,6 +194,21 @@ const PIXEL_ART = {
       '.kwwwwwwk.',
       '.kwkwwkwk.',
       '.k.k..k.k.',
+    ],
+  },
+  receiptLanding: {
+    palette: { b: '#163300', w: '#ffffff', k: '#9fe870' },
+    rows: [
+      '.bbbbbbbb.',
+      'bbwwwwwwbb',
+      'bbwkkkkwbb',
+      'bbwwwwwwbb',
+      'bbwkkwwwbb',
+      'bbwwwwwkbb',
+      'bbwwwwkwbb',
+      'bbwkwkwwbb',
+      'bbwwkwwwbb',
+      '.bbbbbbbb.',
     ],
   },
   receiptV2: {
