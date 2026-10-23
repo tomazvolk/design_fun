@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'warranty-landing-v2',
+    name: 'Warranty landing page v2',
+    deployed: '2026-10-23',
+    status: 'wip',
+    description:
+      'The Warranty tracker landing page in Proof\u2019s Colorful direction: a periwinkle sky hero with the vault as a paper sheet and a reminder landing on it, Playfair serif claims, pill buttons, and pastel rooms for the steps (yellow) and plans (green). Same content and claims as v1.',
+    tags: ['landing page', 'marketing', 'proof', 'v2'],
+    accent: '#B8CAF5',
+    art: 'receiptLanding',
+  },
+  {
     slug: 'warranty-landing',
     name: 'Warranty landing page',
     deployed: '2026-10-23',

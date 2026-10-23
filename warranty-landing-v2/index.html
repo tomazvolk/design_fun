@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en" data-page="landing" data-archetype="A" data-style="colorful" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warranty tracker · Keep the receipt, catch the deadline</title>
+<meta name="description" content="Warranty tracker keeps your receipts, tracks each item's return window and warranty, and reminds you before either runs out.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+/* Colorful style (visual-style-colorful.md), its own palette and fonts */
+:root {
+    --bg: #FCF9F7;
+    --surface-1: #F5F5F7;
+    --surface-2: #E4E4E8;
+    --text: #030302;
+    --text-inverse: #FFFFFF;
+    --accent: #030302;
+    --accent-text: #FFFFFF;
+
+    --scene-blue:     #B8CAF5;
+    --scene-green:    #9BD8A9;
+    --scene-yellow:   #FFE48D;
+
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-mono:    'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --font-body:    'DM Sans', -apple-system, sans-serif;
+
+    --nav-h: 94px;
+
+    --fs-hero: clamp(52px, 6vw, 66px);
+    --fs-section: clamp(36px, 4vw, 54px);
+    --fs-feature: 32px;
+    --ff-feature: var(--font-display);
+    --fs-card: 20px;
+    --ff-card: var(--font-body);
+    --fw-display: 400;
+    --fw-feature: 400;
+    --op-sub: 0.75;
+    --gap-card: 24px;
+    --r-card: 16px;
+    --r-frame: 24px;
+    --gap-head: 48px;
+    --gap-rows: 120px;
+
+    --paper-shadow:
+        0 50px 40px rgba(0, 0, 0, 0.01),
+        0 50px 40px rgba(0, 0, 0, 0.02),
+        0 20px 40px rgba(0, 0, 0, 0.05),
+        0 3px 10px  rgba(0, 0, 0, 0.08);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+    margin: 0;
+    padding-top: var(--nav-h);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 18px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+[id] { scroll-margin-top: var(--nav-h); }
+a { color: inherit; }
+h1, h2, h3, p { margin: 0; }
+h1, h2 { text-wrap: balance; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+.container { max-width: 920px; margin: 0 auto; padding: 0 32px; }
+.container-wide { max-width: 1172px; margin: 0 auto; padding: 0 32px; }
+section { padding-top: 120px; padding-bottom: 120px; }
+.scene-section { padding-top: 0; padding-bottom: 0; }
+.scene-section + section { padding-top: 168px; }              /* pause after a scene (§3, detail 5) */
+section:not(.scene-section) + .scene-section { margin-top: 0; }
+
+.scene {
+    border-radius: 24px;
+    padding: 120px 60px;
+    margin: 0 20px;
+}
+.scene-yellow { background: var(--scene-yellow); }
+.scene-green  { background: var(--scene-green); }
+
+.label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.72px;
+    text-transform: uppercase;
+    opacity: 0.5;
+}
+.section-title {
+    font-family: var(--font-display);
+    font-size: var(--fs-section);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+.section-title em { font-style: italic; }
+.section-sub { font-size: 18px; line-height: 1.6; opacity: var(--op-sub); max-width: 540px; }
+.head-center { text-align: center; margin: 0 auto var(--gap-head); max-width: 720px; }
+.head-center .section-sub { margin: 24px auto 0; }
+
+/* ─── Buttons (§8) ─── */
+.btn-dark, .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    font-size: 16px;
+    font-weight: 500;
+    font-family: var(--font-body);
+    line-height: 24px;
+    letter-spacing: -0.02em;
+    border-radius: 9999px;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.btn-dark {
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    transition: transform 0.2s ease-in-out;
+}
+.btn-dark:hover { transform: translateY(-1px); }
+.btn-outline {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid rgba(3, 3, 2, 0.2);
+    transition: border-color 0.3s linear;
+}
+.btn-outline:hover { border-color: var(--text); }
+
+/* ─── Navigation: floating pill ─── */
+nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 12px 20px;
+}
+nav > .nav-pill {
+    max-width: 920px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    background: rgba(252, 249, 247, 0.92);
+    border-radius: 9999px;
+    border: 1px solid var(--surface-2);
+    padding: 8px 8px 8px 24px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+}
+nav a {
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--text);
+    opacity: 0.75;
+    text-decoration: none;
+    transition: opacity 0.3s linear;
+    letter-spacing: -0.02em;
+}
+nav a:hover { opacity: 1; }
+nav a.btn-dark { opacity: 1; color: var(--accent-text); }
+.brand { display: inline-flex; align-items: center; gap: 10px; opacity: 1 !important; font-family: var(--font-display) !important; font-size: 20px !important; letter-spacing: -0.02em; text-decoration: none; }
+.brand svg { width: 26px; height: 26px; flex-shrink: 0; }
+.nav-links { display: flex; gap: 28px; }
+.nav-actions { margin-left: auto; display: flex; align-items: center; gap: 20px; }
+.nav-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 14px 12px;
+    margin-left: auto;
+}
+.nav-toggle-bar { width: 22px; height: 2px; background: var(--text); display: block; }
+.nav-toggle[aria-expanded="true"] .bar-1 { transform: translateY(7px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] .bar-2 { opacity: 0; }
+.nav-toggle[aria-expanded="true"] .bar-3 { transform: translateY(-7px) rotate(-45deg); }
+.nav-panel { display: none; }
+
+/* ─── Product visual base, Colorful binding (product-visuals §2) ─── */
+.pv {
+    --pv-mat: transparent;
+    --pv-r-outer: 24px;
+    --pv-r-inner: 16px;
+    --pv-r-control: 8px;
+    --pv-text: 13px;
+    --pv-row: 32px;
+    position: relative;
+    font-family: var(--font-body);
+    font-size: var(--pv-text);
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1.4;
+}
+[data-mock] {
+    --mock-positive:  #1F8A65;
+    --mock-negative:  #CF2D56;
+    --mock-attention: #FECC33;
+    --tint-pink:   #FFE1F7;
+    --tint-yellow: #FFFFD9;
+    --tint-green:  #CAEBD2;
+    --tint-blue:   #DDFCFF;
+    --tint-peach:  #FDF4E4;
+}
+.pv-mat { background: var(--pv-mat); border-radius: var(--pv-r-outer); padding: 6% 6% 0; overflow: hidden; }
+.pv-panel { background: var(--bg); border-radius: var(--pv-r-inner); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10); }
+.card-paper { background: var(--bg); box-shadow: var(--paper-shadow); }
+.pv-row {
+    display: grid;
+    align-items: center;
+    gap: 12px;
+    min-height: var(--pv-row);
+    padding: 0 12px;
+    border-top: 1px solid var(--surface-2);
+}
+.pv-row.is-focused { background: var(--tint-peach); }
+.pv-mono  { font-family: var(--font-mono); }
+.pv-muted { opacity: 0.6; }
+.pv-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.72px; text-transform: uppercase; opacity: 0.5; }
+.pv-kpi   { font-family: var(--font-body); font-size: 20px; font-weight: 500; }
+.pv-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    line-height: 1.7;
+    border: 1px solid var(--surface-2);
+    border-radius: var(--pv-r-control);
+    white-space: nowrap;
+}
+.pv-pill.is-strong { background: var(--text); color: var(--text-inverse); border-color: transparent; }
+.pv-pill.is-neg { color: var(--mock-negative); border-color: transparent; background: color-mix(in srgb, var(--mock-negative) 12%, transparent); }
+.pv-pill.is-pos { color: var(--mock-positive); border-color: transparent; background: color-mix(in srgb, var(--mock-positive) 12%, transparent); }
+.pv-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; display: inline-block; }
+.pv-dot.is-att { background: var(--mock-attention); }
+.pv-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 16px;
+    line-height: 34px;
+    border-radius: 9999px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 500;
+    white-space: nowrap;
+}
+/* Category tags: the product's own content tints (§1 Content Tints) */
+.tag { display: inline-flex; padding: 0 8px; border-radius: 4px; font-size: 11px; line-height: 1.8; white-space: nowrap; }
+.tag-electronics { background: var(--tint-pink); }
+.tag-tools       { background: var(--tint-yellow); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mock-attention) 50%, transparent); }
+.tag-appliances  { background: var(--tint-blue); }
+.tag-furniture   { background: var(--tint-green); }
+.tag-kitchen     { background: var(--tint-peach); box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+
+/* Span line: grey for what's gone, ink for what's left, today ticked */
+.span { position: relative; display: flex; height: 6px; border-radius: 4px; }
+.span .gone { background: var(--surface-2); border-radius: 4px 0 0 4px; }
+.span .left { flex: 1; background: var(--text); border-radius: 0 4px 4px 0; }
+.span .today { position: absolute; top: -4px; width: 2px; height: 14px; background: var(--text); border-radius: 1px; }
+.span.is-urgent .left, .span.is-urgent .today { background: var(--mock-negative); }
+.span.is-soon .left { background: var(--mock-attention); }
+.span.is-ended .gone { flex: 1; border-radius: 4px; }
+.fig-urgent { color: var(--mock-negative); }
+
+/* ─── Hero: sky scene with paper (§10 Hero showcase) ─── */
+.hero-scene-wrap { padding-top: 0; padding-bottom: 0; }
+.hero-scene {
+    position: relative; isolation: isolate;
+    margin: 0 20px;
+    border-radius: 24px;
+    background: linear-gradient(180deg,
+        color-mix(in srgb, #B8CAF5 88%, #4890E3) 0%,
+        #B8CAF5 38%,
+        color-mix(in srgb, #B8CAF5 45%, #FCF9F7) 78%,
+        color-mix(in srgb, #B8CAF5 25%, #FCF9F7) 100%);
+    padding: 120px 60px 0;
+    overflow: hidden;
+    text-align: center;
+}
+.sky-grain {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    opacity: .22; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.ht-cloud { position: absolute; z-index: 0; pointer-events: none; }
+.ht-cloud::before, .ht-cloud::after { content: ""; position: absolute; inset: 0; -webkit-mask: var(--cloud); mask: var(--cloud); }
+.ht-cloud::before { background: rgba(255,255,255,.55); filter: blur(14px); }
+.ht-cloud::after  { background: radial-gradient(circle, #FFFFFF 1.3px, transparent 1.9px) 0 0 / 5px 5px; }
+.cloud-a { left: -60px; top: 230px; width: 300px; height: 230px;
+  --cloud: radial-gradient(closest-side at 35% 60%, #000 55%, transparent),
+           radial-gradient(closest-side at 65% 40%, #000 50%, transparent),
+           radial-gradient(closest-side at 55% 75%, #000 45%, transparent); }
+.cloud-b { right: -40px; top: 120px; width: 260px; height: 170px;
+  --cloud: radial-gradient(closest-side at 40% 55%, #000 50%, transparent),
+           radial-gradient(closest-side at 68% 45%, #000 50%, transparent); }
+.cut { position: absolute; z-index: 0; pointer-events: none; }
+.cut-notebook { transform: rotate(-8deg);
+  background: repeating-linear-gradient(176deg, transparent 0 30px, color-mix(in srgb, #FFE48D 70%, #030302) 30px 31px), #FFE48D;
+  clip-path: polygon(0 18%,8% 14%,16% 19%,24% 11%,33% 16%,42% 8%,52% 13%,62% 5%,72% 10%,82% 3%,92% 8%,100% 0,100% 100%,0 100%); }
+.hero-scene .cut-notebook { right: 6%; bottom: -60px; width: 340px; height: 300px; z-index: 1; }
+
+.hero-scene-copy { position: relative; z-index: 2; max-width: 920px; margin: 0 auto; }
+.hero-title {
+    font-family: var(--font-display);
+    font-size: var(--fs-hero);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.0;
+    margin: 16px 0 0;
+}
+.hero-title em { font-style: italic; }
+.hero-sub { font-size: 18px; line-height: 1.6; opacity: 0.75; max-width: 540px; margin: 24px auto 0; }
+.hero-actions { display: flex; gap: 12px; justify-content: center; margin-top: 48px; }
+
+/* Recipe 2: layered cards, the scene is the mat */
+.hero-paper { position: relative; z-index: 2; max-width: 1172px; margin: 60px auto 0; }
+.pv-layers .pv-mat { display: grid; grid-template-columns: minmax(0, 1fr) 32px minmax(0, 0.42fr); padding: 0 6%; overflow: visible; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.pv-layer-main { grid-column: 1 / 3; grid-row: 1; text-align: left; }
+.pv-layer-float {
+    grid-column: 2 / 4; grid-row: 1;
+    align-self: end; margin-bottom: 12%;
+    position: relative; z-index: 1;
+    padding: 24px;
+    text-align: left;
+}
+.hero-paper .pv-layer-main {
+    border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent);
+    padding: 28px 32px 48px 0;
+}
+.paper-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 0 32px 18px; }
+.vault-group { padding: 14px 32px 8px; }
+.vault-row {
+    grid-template-columns: minmax(0, 1fr) minmax(110px, 170px) 96px;
+    gap: 20px;
+    min-height: 58px;
+    padding: 8px 32px;
+}
+.vault-name { font-size: 14px; font-weight: 500; }
+.vault-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-top: 3px; }
+.vault-meta span:last-child { opacity: 0.6; }
+.vault-fig { text-align: right; font-size: 18px; font-weight: 500; line-height: 1.1; }
+.vault-fig small { display: block; font-size: 11px; font-weight: 400; opacity: 0.6; margin-top: 3px; }
+.toast-sheet { background: var(--tint-peach); }
+.toast-sheet .pv-kpi { font-size: 18px; line-height: 1.3; margin-top: 8px; }
+.toast-sheet p { font-size: 14px; margin-top: 6px; }
+.toast-sheet .toast-actions { display: flex; gap: 8px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+
+/* ─── Feature rows (M16, Colorful) ─── */
+.frow { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--gap-head); align-items: center; }
+.frow.is-flipped { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.frow.is-flipped .frow-text { order: 2; }
+.frow-text h2, .frow-text h3 { font-family: var(--ff-feature); font-size: var(--fs-section); font-weight: 400; letter-spacing: -0.02em; line-height: 1.05; margin: 16px 0 0; }
+.frow-text p { font-size: 18px; line-height: 1.6; opacity: var(--op-sub); margin: 20px 0 0; max-width: 440px; }
+.frow-points { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 12px; font-size: 16px; }
+.frow-points li { padding-top: 12px; border-top: 1px solid rgba(3, 3, 2, 0.12); }
+.frow-visual { --pv-text: 14px; --pv-row: 38px; }
+.frow-visual .pv-mat { padding: 40px 40px 0; }
+.frow-visual .pv-panel { width: 100%; border-bottom-left-radius: 0; border-bottom-right-radius: 0; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); }
+.mat-blue { --pv-mat: color-mix(in srgb, var(--scene-blue) 45%, var(--bg)); }
+.mat-paper { --pv-mat: var(--surface-1); }
+.frow-head { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: space-between; align-items: center; padding: 20px 20px 14px; }
+.item-span-row { grid-template-columns: 84px minmax(0, 1fr) auto; gap: 16px; min-height: 66px; padding: 0 20px; }
+.item-span-cap { display: flex; justify-content: space-between; font-size: 11px; font-family: var(--font-mono); opacity: 0.6; margin-top: 8px; }
+.item-dl-row { grid-template-columns: 112px minmax(0, 1fr); padding: 0 20px; }
+.item-dl-row dt { opacity: 0.6; }
+.item-dl-row dd { margin: 0; }
+
+.claim-doc { padding: 24px 24px 0; }
+.frow-visual .claim-doc { -webkit-mask-image: none; mask-image: none; }
+.claim-doc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 16px; }
+.claim-grid { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 20px; }
+.claim-fields .pv-row { grid-template-columns: 96px minmax(0, 1fr); padding: 0; }
+.claim-fields .pv-row span:first-child { opacity: 0.6; }
+.receipt-thumb {
+    background: var(--tint-yellow);
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+    padding: 12px 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.6;
+    align-self: start;
+}
+.receipt-thumb b { display: block; font-weight: 400; text-align: center; margin-bottom: 6px; }
+.receipt-thumb div { display: flex; justify-content: space-between; gap: 6px; }
+.receipt-thumb hr { border: 0; border-top: 1px dashed rgba(3,3,2,.2); margin: 6px 0; }
+.claim-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 0 36px; }
+
+/* ─── Steps (M15, paper panels on one scene mat) ─── */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap-card); }
+.step { display: grid; grid-template-rows: auto 1fr; }
+.step-visual { --pv-text: 13px; --pv-row: 34px; height: 260px; overflow: hidden; border-radius: var(--r-frame); background: color-mix(in srgb, var(--bg) 45%, transparent); }
+.step-visual .pv-mat { height: 100%; padding: 22px 22px 0; }
+.step-visual .pv-panel { border-bottom-left-radius: 0; border-bottom-right-radius: 0; min-height: 100%; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); }
+.step-panel-head { padding: 12px 12px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.kv { grid-template-columns: 64px minmax(0, 1fr) auto; }
+.kv span:first-child:not(.tag) { opacity: 0.6; }
+.notif { grid-template-columns: minmax(0, 1fr); padding-top: 9px; padding-bottom: 9px; gap: 2px; }
+.notif strong { font-weight: 500; }
+.step-text { padding: 24px 4px 0; }
+.step-num { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.72px; opacity: 0.5; }
+.step-text h3 { font-family: var(--ff-card); font-size: var(--fs-card); font-weight: 500; margin: 8px 0 0; line-height: 1.3; }
+.step-text p { font-size: 16px; line-height: 1.6; opacity: var(--op-sub); margin: 8px 0 0; }
+
+/* ─── Plans (bento width swap, paper cards in the green scene) ─── */
+.plans { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--gap-card); max-width: 920px; margin: 0 auto; }
+.plan { padding: 32px; background: var(--bg); border-radius: 24px; box-shadow: var(--paper-shadow); display: flex; flex-direction: column; text-align: left; transition: transform 0.2s ease-in-out; }
+.plan-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.plan-name { font-size: var(--fs-card); font-weight: 500; }
+.plan-price { font-variant-numeric: lining-nums; font-family: var(--font-display); font-size: 54px; letter-spacing: -0.02em; line-height: 1.05; margin-top: 28px; }
+.plan-price small { font-family: var(--font-body); font-size: 16px; letter-spacing: 0; opacity: 0.6; }
+.plan-alt { font-size: 16px; opacity: 0.6; margin-top: 6px; }
+.plan-list { list-style: none; padding: 0; margin: 32px 0; display: grid; gap: 12px; font-size: 16px; flex: 1; align-content: start; }
+.plan-list li { padding-top: 12px; border-top: 1px solid var(--surface-2); }
+.plan.is-lead .plan-list { grid-template-columns: 1fr 1fr; column-gap: 24px; }
+.plan .btn-dark, .plan .btn-outline { align-self: flex-start; }
+
+/* ─── FAQ ─── */
+.faq-list { max-width: 760px; margin: 0 auto; border-bottom: 1px solid var(--surface-2); }
+.accordion-item { border-top: 1px solid var(--surface-2); }
+.accordion-trigger {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    padding: 24px 0;
+    background: none;
+    border: 0;
+    font-family: var(--font-display);
+    font-size: 24px;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.accordion-icon { flex-shrink: 0; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9999px; border: 1px solid rgba(3,3,2,.2); font-family: var(--font-body); font-size: 20px; line-height: 1; }
+.accordion-trigger[aria-expanded="true"] .accordion-icon { transform: rotate(45deg); }
+.accordion-body { max-height: 0; overflow: hidden; }
+.accordion-body.open { max-height: 400px; }
+.accordion-body p { font-size: 16px; line-height: 1.6; opacity: var(--op-sub); padding: 0 60px 28px 0; }
+
+/* ─── CTA inside the yellow scene ─── */
+.cta-scene { text-align: center; position: relative; overflow: hidden; }
+.cta-title { font-family: var(--font-display); font-size: var(--fs-hero); font-weight: 400; letter-spacing: -0.02em; line-height: 1.0; max-width: 720px; margin: 0 auto; }
+.cta-title em { font-style: italic; }
+.cta-scene .section-sub { margin: 24px auto 0; }
+.cta-buttons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 48px; }
+
+/* ─── Footer ─── */
+footer { padding: 120px 0 48px; }
+.footer-grid { display: grid; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: 32px; }
+.footer-brand .brand { font-size: 22px !important; }
+.footer-brand p { font-size: 16px; opacity: 0.75; max-width: 280px; margin-top: 16px; }
+.footer-col .label { display: block; margin-bottom: 16px; }
+.footer-col ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 16px; }
+.footer-col a { text-decoration: none; opacity: 0.75; transition: opacity 0.3s linear; }
+.footer-col a:hover { opacity: 1; }
+.footer-col li > span { opacity: 0.75; }
+.footer-bottom { display: flex; justify-content: space-between; gap: 16px; margin-top: 96px; padding-top: 24px; border-top: 1px solid var(--surface-2); font-family: var(--font-mono); font-size: 12px; }
+.footer-bottom span { opacity: 0.5; }
+
+/* ─── Motion ─── */
+@media (prefers-reduced-motion: no-preference) {
+    .nav-toggle-bar { transition: transform 0.3s ease, opacity 0.3s ease; }
+    .hero-scene-copy > * { animation: hero-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .hero-scene-copy > :nth-child(2) { animation-delay: 100ms; }
+    .hero-scene-copy > :nth-child(3) { animation-delay: 200ms; }
+    .hero-scene-copy > :nth-child(4) { animation-delay: 300ms; }
+    @keyframes hero-rise { from { opacity: 0; transform: translateY(32px); } }
+
+    [data-mock] .pv-toast {
+        transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    [data-mock] .pv-toast.is-before { opacity: 0; transform: translateY(16px); }
+
+    .reveal {
+        opacity: 0;
+        transform: translateY(32px);
+        transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    .plan:hover { transform: translateY(-4px); }
+    .accordion-body { transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .accordion-icon { transition: transform 0.3s ease; }
+}
+
+/* ─── Narrow screens (§3 table) ─── */
+@media (max-width: 1000px) {
+    .nav-links { display: none; }
+}
+@media (max-width: 767px) {
+    .container, .container-wide { padding: 0 20px; }
+    section { padding-top: 64px; padding-bottom: 64px; }
+    .scene-section { padding-top: 0; padding-bottom: 0; }
+    .scene-section + section { padding-top: 96px; }
+    .scene { border-radius: 16px; margin: 0 12px; padding: 64px 20px; }
+    nav { padding: 12px; }
+    nav > .nav-pill { padding: 6px 6px 6px 18px; }
+    .nav-actions { display: none; }
+    .nav-toggle { display: flex; }
+    .nav-panel.nav-open {
+        display: flex;
+        position: fixed;
+        top: var(--nav-h);
+        left: 12px;
+        right: 12px;
+        background: var(--bg);
+        border: 1px solid var(--surface-2);
+        border-radius: 24px;
+        box-shadow: var(--paper-shadow);
+        padding: 24px;
+        flex-direction: column;
+        gap: 20px;
+        z-index: 99;
+    }
+    .nav-panel a { font-size: 18px; text-decoration: none; }
+    .nav-panel .btn-dark { align-self: flex-start; font-size: 16px; }
+
+    .hero-scene { margin: 0 12px; border-radius: 16px; padding: 72px 20px 0; }
+    .hero-actions { flex-direction: column; align-items: center; }
+    .cloud-b, .cut-notebook { display: none; }
+    .hero-paper { margin-top: 48px; }
+    .pv-layers .pv-mat { grid-template-columns: 1fr; padding: 0; }
+    .pv-layer-main { grid-column: 1; grid-row: 2; }
+    .hero-paper .pv-layer-main { padding: 22px 0 40px; }
+    .pv-layer-float { grid-column: 1; grid-row: 1; margin: 0 0 16px; align-self: start; }
+    .paper-head { padding: 0 16px 14px; }
+    .vault-group { padding: 12px 16px 6px; }
+    .vault-row { grid-template-columns: minmax(0, 1fr) 80px; gap: 10px; padding: 10px 16px; }
+    .vault-row .vault-span { grid-column: 1 / -1; order: 3; }
+    .vault-fig { font-size: 16px; }
+
+    .frow, .frow.is-flipped { grid-template-columns: 1fr; gap: 32px; }
+    .frow.is-flipped .frow-text { order: 0; }
+    .frow-visual .pv-mat { padding: 24px 16px 0; }
+    .item-span-row { grid-template-columns: 64px minmax(0, 1fr); padding: 0 14px; }
+    .item-span-row .pv-pill { display: none; }
+    .item-dl-row { grid-template-columns: 92px minmax(0, 1fr); padding: 0 14px; }
+    .claim-grid { grid-template-columns: 1fr; }
+    .receipt-thumb { display: none; }
+
+    .steps { grid-template-columns: 1fr; gap: 40px; }
+    .plans { grid-template-columns: 1fr; }
+    .plan.is-lead .plan-list { grid-template-columns: 1fr; }
+    .accordion-trigger { font-size: 20px; }
+    .accordion-body p { padding-right: 0; }
+    footer { padding: 72px 0 48px; }
+    .footer-grid { grid-template-columns: 1fr 1fr; gap: 40px 24px; }
+    .footer-brand { grid-column: 1 / -1; }
+    .footer-bottom { flex-direction: column; margin-top: 64px; }
+}
+</style>
+</head>
+<body>
+
+<nav data-section="nav" aria-label="Main">
+  <div class="nav-pill">
+    <a href="#top" class="brand" aria-label="Warranty tracker home">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#030302"/><path d="M22 17h20v30l-3.4-2.2-3.2 2.2-3.4-2.2-3.4 2.2-3.2-2.2L22 47Z" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/><path d="m26.6 31.2 3.8 3.8 7.2-7.8" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Warranty tracker
+    </a>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#questions">Questions</a>
+    </div>
+    <div class="nav-actions">
+      <a href="/warranty-tracker-v3/#/login">Log in</a>
+      <a href="/warranty-tracker-v3/#/signup" class="btn-dark">Start free</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="nav-panel">
+      <span class="nav-toggle-bar bar-1"></span>
+      <span class="nav-toggle-bar bar-2"></span>
+      <span class="nav-toggle-bar bar-3"></span>
+    </button>
+  </div>
+</nav>
+<div class="nav-panel" id="nav-panel">
+  <a href="#how">How it works</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#questions">Questions</a>
+  <a href="/warranty-tracker-v3/#/login">Log in</a>
+  <a href="/warranty-tracker-v3/#/signup" class="btn-dark">Start free</a>
+</div>
+
+<main id="top">
+
+<!-- 1 · Hero — sky scene with paper (M4) -->
+<section data-section="hero" data-layout="full-bleed" data-bg="scene" data-bold="true" class="hero-scene-wrap">
+  <div class="scene hero-scene">
+    <div class="sky-grain" aria-hidden="true"></div>
+    <div class="ht-cloud cloud-a" aria-hidden="true"></div>
+    <div class="ht-cloud cloud-b" aria-hidden="true"></div>
+    <div class="cut cut-notebook" aria-hidden="true"></div>
+
+    <div class="hero-scene-copy">
+      <p class="label">For the things you buy for home</p>
+      <h1 class="hero-title">Keep the receipt. <em>Catch</em> the deadline.</h1>
+      <p class="hero-sub">Warranty tracker reads your receipts, tracks each item's return window and warranty, and reminds you before either runs out.</p>
+      <div class="hero-actions">
+        <a href="/warranty-tracker-v3/#/signup" class="btn-dark">Start your vault</a>
+        <a href="#how" class="btn-outline">See how it works</a>
+      </div>
+    </div>
+
+    <div class="pv pv-layers hero-paper" data-mock role="img" aria-label="The vault with items grouped by what needs attention, and a reminder that a drill's return window closes in 3 days">
+      <div class="pv-mat">
+        <div class="pv-panel pv-layer-main card-paper">
+          <div class="paper-head">
+            <div><div class="pv-kpi">Good evening, Maja</div><div class="pv-muted">One return window closes this week.</div></div>
+            <span class="pv-label">7 items</span>
+          </div>
+          <div class="vault-group pv-label">Needs attention · 2</div>
+          <div class="pv-row vault-row is-focused">
+            <div><div class="vault-name">Cordless drill 18 V</div><div class="vault-meta"><span class="tag tag-tools">Tools</span><span>Hammerhaus · 12 Oct</span></div></div>
+            <div class="vault-span"><div class="span is-urgent"><i class="gone" style="width:79%"></i><i class="left"></i><i class="today" style="left:79%"></i></div></div>
+            <div class="vault-fig fig-urgent">3 days<small>to return</small></div>
+          </div>
+          <div class="pv-row vault-row">
+            <div><div class="vault-name">Robot vacuum S7</div><div class="vault-meta"><span class="tag tag-appliances">Appliances</span><span>Voltena · 15 Nov 2024</span></div></div>
+            <div class="vault-span"><div class="span is-soon"><i class="gone" style="width:97%"></i><i class="left"></i><i class="today" style="left:97%"></i></div></div>
+            <div class="vault-fig">23 days<small>warranty left</small></div>
+          </div>
+          <div class="vault-group pv-label">Covered · 4</div>
+          <div class="pv-row vault-row">
+            <div><div class="vault-name">Noise-cancelling headphones</div><div class="vault-meta"><span class="tag tag-electronics">Electronics</span><span>Voltena · 4 Sep</span></div></div>
+            <div class="vault-span"><div class="span"><i class="gone" style="width:7%"></i><i class="left"></i><i class="today" style="left:7%"></i></div></div>
+            <div class="vault-fig">1 yr 10 mo<small>left</small></div>
+          </div>
+          <div class="pv-row vault-row">
+            <div><div class="vault-name">Oak dining table</div><div class="vault-meta"><span class="tag tag-furniture">Furniture</span><span>Nordvik Home · 2 Mar</span></div></div>
+            <div class="vault-span"><div class="span"><i class="gone" style="width:32%"></i><i class="left"></i><i class="today" style="left:32%"></i></div></div>
+            <div class="vault-fig">1 yr 4 mo<small>left</small></div>
+          </div>
+          <div class="pv-row vault-row">
+            <div><div class="vault-name">Espresso machine Duo</div><div class="vault-meta"><span class="tag tag-kitchen">Kitchen</span><span>Casa Brava · 4 Feb 2025</span></div></div>
+            <div class="vault-span"><div class="span"><i class="gone" style="width:86%"></i><i class="left"></i><i class="today" style="left:86%"></i></div></div>
+            <div class="vault-fig">3 mo<small>left</small></div>
+          </div>
+          <div class="pv-row vault-row">
+            <div><div class="vault-name">Laptop 14″</div><div class="vault-meta"><span class="tag tag-electronics">Electronics</span><span>Bitwise Store · 20 Jun 2025</span></div></div>
+            <div class="vault-span"><div class="span"><i class="gone" style="width:67%"></i><i class="left"></i><i class="today" style="left:67%"></i></div></div>
+            <div class="vault-fig">8 mo<small>left</small></div>
+          </div>
+        </div>
+        <div class="pv-panel pv-layer-float pv-toast card-paper toast-sheet">
+          <p class="pv-label">Reminder · today 09:00</p>
+          <div class="pv-kpi">Return window closes in 3 days</div>
+          <p>Cordless drill 18 V from Hammerhaus. Return it by Monday, 26 October.</p>
+          <div class="toast-actions">
+            <span class="pv-pill is-neg"><span class="pv-dot"></span>Return by 26 Oct</span>
+            <span class="pv-muted">Open item</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 · Features, chapter one: the two spans -->
+<section data-section="features" data-layout="split-right" data-bg="base" id="features">
+  <div class="container-wide">
+    <div class="frow is-flipped">
+      <div class="frow-text">
+        <p class="label">Chapter one · Two deadlines</p>
+        <h2>See what's gone, what's left and <em>where today falls</em></h2>
+        <p>Most things come with a return window and a warranty. Each item shows both, side by side, with today marked on each. Warranty lengths start at the EU legal minimum of two years, per category.</p>
+        <ul class="frow-points">
+          <li>Red only when a date is actually close</li>
+          <li>Change the defaults for each category in Settings</li>
+        </ul>
+      </div>
+      <div class="pv frow-visual mat-blue" data-mock role="img" aria-label="Item sheet for noise-cancelling headphones: return window closed, warranty with 1 year 10 months left">
+        <div class="pv-mat"><div class="pv-panel card-paper">
+          <div class="frow-head">
+            <div><div class="pv-kpi">Noise-cancelling headphones</div><div class="pv-muted">Voltena · bought 4 Sep 2026 · €279.00</div></div>
+            <span class="pv-pill is-pos"><span class="pv-dot"></span>Covered</span>
+          </div>
+          <div class="pv-row item-span-row">
+            <span class="pv-muted">Returns</span>
+            <div><div class="span is-ended"><i class="gone"></i></div><div class="item-span-cap"><span>4 Sep</span><span>Closed 4 Oct</span></div></div>
+            <span class="pv-pill pv-muted">Closed</span>
+          </div>
+          <div class="pv-row item-span-row is-focused">
+            <span>Warranty</span>
+            <div><div class="span"><i class="gone" style="width:7%"></i><i class="left"></i><i class="today" style="left:7%"></i></div><div class="item-span-cap"><span>Today</span><span>Ends 4 Sep 2028</span></div></div>
+            <span class="pv-pill is-strong">1 yr 10 mo</span>
+          </div>
+          <dl style="margin:0">
+            <div class="pv-row item-dl-row"><dt>Category</dt><dd><span class="tag tag-electronics">Electronics</span> · 2 years</dd></div>
+            <div class="pv-row item-dl-row"><dt>Order no.</dt><dd class="pv-mono">VT-20391146</dd></div>
+            <div class="pv-row item-dl-row"><dt>Reminders</dt><dd>5 Aug and 28 Aug 2028, by email</dd></div>
+            <div class="pv-row item-dl-row"><dt>Receipt</dt><dd class="pv-mono">voltena-racun.pdf</dd></div>
+            <div class="pv-row item-dl-row"><dt>Added</dt><dd>4 Sep 2026, from a photo</dd></div>
+          </dl>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 · How it works — yellow scene, paper step panels -->
+<section data-section="how-it-works" data-layout="card-grid" data-bg="scene" class="scene-section" id="how">
+  <div class="scene scene-yellow">
+    <div class="container-wide">
+      <div class="head-center">
+        <h2 class="section-title">From the kitchen drawer to a reminder</h2>
+        <p class="section-sub">Add a receipt the way you have it. The dates and the reminders follow from it.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="pv step-visual" data-mock role="img" aria-label="A receipt photo read into item, shop, date and price, with the price flagged to check">
+            <div class="pv-mat"><div class="pv-panel card-paper">
+              <div class="step-panel-head"><span class="pv-label">Read from photo</span><span class="pv-mono pv-muted">IMG_4182.jpg</span></div>
+              <div class="pv-row kv"><span>Item</span><span>Robot vacuum S7</span><span></span></div>
+              <div class="pv-row kv"><span>Shop</span><span>Voltena</span><span></span></div>
+              <div class="pv-row kv"><span>Date</span><span>15 Nov 2024</span><span></span></div>
+              <div class="pv-row kv is-focused"><span>Price</span><span>€349.90</span><span class="pv-pill"><span class="pv-dot is-att"></span>Check this</span></div>
+              <div class="pv-row kv"><span>Order</span><span class="pv-mono">VT-18802254</span><span></span></div>
+            </div></div>
+          </div>
+          <div class="step-text"><span class="step-num">01</span><h3>Add the receipt</h3><p>Take a photo, upload a PDF or screenshot, or type it in. Anything we're unsure of is marked for you to check.</p></div>
+        </div>
+        <div class="step">
+          <div class="pv step-visual" data-mock role="img" aria-label="Warranty defaults per category for the European Union, two years each">
+            <div class="pv-mat"><div class="pv-panel card-paper">
+              <div class="step-panel-head"><span class="pv-label">Region · European Union</span></div>
+              <div class="pv-row kv"><span class="tag tag-appliances">Appliances</span><span></span><span>2 years</span></div>
+              <div class="pv-row kv is-focused"><span class="tag tag-electronics">Electronics</span><span></span><span>2 years</span></div>
+              <div class="pv-row kv"><span class="tag tag-furniture">Furniture</span><span></span><span>2 years</span></div>
+              <div class="pv-row kv"><span class="tag tag-kitchen">Kitchen</span><span></span><span>2 years</span></div>
+              <div class="pv-row kv"><span class="tag tag-tools">Tools</span><span></span><span>2 years</span></div>
+            </div></div>
+          </div>
+          <div class="step-text"><span class="step-num">02</span><h3>Check the dates</h3><p>The warranty starts at your region's legal minimum for the category. Change it when the maker gives you longer.</p></div>
+        </div>
+        <div class="step">
+          <div class="pv step-visual" data-mock role="img" aria-label="Upcoming reminders: return window in 2 days, warranty endings in 7 and 30 days">
+            <div class="pv-mat"><div class="pv-panel card-paper">
+              <div class="step-panel-head"><span class="pv-label">Coming up</span><span class="pv-muted">Email and device</span></div>
+              <div class="pv-row notif is-focused"><strong>Return closes in 2 days</strong><span class="pv-muted">Cordless drill 18 V · 24 Oct</span></div>
+              <div class="pv-row notif"><strong>Warranty ends in 7 days</strong><span class="pv-muted">Robot vacuum S7 · 8 Nov</span></div>
+              <div class="pv-row notif"><strong>Warranty ends in 30 days</strong><span class="pv-muted">Espresso machine Duo · 5 Jan</span></div>
+              <div class="pv-row notif"><strong>Warranty ends in 30 days</strong><span class="pv-muted">Laptop 14″ · 21 May</span></div>
+            </div></div>
+          </div>
+          <div class="step-text"><span class="step-num">03</span><h3>Get reminded in time</h3><p>30 and 7 days before a warranty ends, and 2 days before a return window closes. On your device, by email, or both.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 · Features, chapter two: claims -->
+<section data-section="feature-showcase" data-layout="split-left" data-bg="base" class="reveal">
+  <div class="container-wide">
+    <div class="frow">
+      <div class="frow-text">
+        <p class="label">Chapter two · The claim</p>
+        <h2>Proof of purchase, <em>ready</em> when it breaks</h2>
+        <p>Open the item, check it's still covered and export a claim-ready PDF with the receipt attached. Hand it to the shop or the maker as it is.</p>
+        <ul class="frow-points">
+          <li>Shop, date, order number and price on one page</li>
+          <li>Claim PDFs are part of Plus</li>
+        </ul>
+      </div>
+      <div class="pv frow-visual mat-paper" data-mock role="img" aria-label="Claim PDF preview for an espresso machine covered until 4 February 2027, with the receipt attached">
+        <div class="pv-mat"><div class="pv-panel card-paper claim-doc">
+          <div class="claim-doc-head">
+            <div><div class="pv-label">Warranty claim · page 1 of 3</div><div class="pv-kpi" style="margin-top:6px">Espresso machine Duo</div></div>
+            <span class="pv-pill is-pos"><span class="pv-dot"></span>Covered</span>
+          </div>
+          <div class="claim-grid">
+            <div class="claim-fields">
+              <div class="pv-row"><span>Shop</span><span>Casa Brava, Ljubljana</span></div>
+              <div class="pv-row"><span>Purchased</span><span>4 Feb 2025</span></div>
+              <div class="pv-row"><span>Order no.</span><span class="pv-mono">CB-55120-07</span></div>
+              <div class="pv-row"><span>Price paid</span><span>€429.00</span></div>
+              <div class="pv-row"><span>Warranty</span><span>2 years · until 4 Feb 2027</span></div>
+              <div class="pv-row"><span>Fault</span><span>Pump stopped building pressure</span></div>
+            </div>
+            <div class="receipt-thumb" aria-hidden="true">
+              <b>CASA BRAVA</b>
+              <div><span>04.02.2025</span><span>14:12</span></div>
+              <hr>
+              <div><span>Duo espresso</span><span>429,00</span></div>
+              <div><span>Descaler</span><span>0,00</span></div>
+              <hr>
+              <div><span>TOTAL EUR</span><span>429,00</span></div>
+              <div><span>Card</span><span>••4417</span></div>
+            </div>
+          </div>
+          <div class="claim-actions">
+            <span class="pv-muted">Receipt and 2 photos attached</span>
+            <span class="pv-btn-primary">Export claim PDF</span>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · Pricing — green scene, paper plan cards -->
+<section data-section="pricing" data-layout="bento" data-bg="scene" class="scene-section" id="pricing">
+  <div class="scene scene-green">
+    <div class="head-center">
+      <h2 class="section-title">Free for ten items. <em>Plus</em> for the rest.</h2>
+      <p class="section-sub">Start with the free plan. Move to Plus when the vault fills up or you need to make a claim.</p>
+    </div>
+    <div class="plans">
+      <div class="plan">
+        <div class="plan-top"><h3 class="plan-name">Free</h3></div>
+        <p class="plan-price">€0</p>
+        <p class="plan-alt">No card needed</p>
+        <ul class="plan-list">
+          <li>Up to 10 items</li>
+          <li>Return and warranty spans</li>
+          <li>Reminders on your device or by email</li>
+          <li>Download your data as JSON</li>
+        </ul>
+        <a href="/warranty-tracker-v3/#/signup" class="btn-outline">Start free</a>
+      </div>
+      <div class="plan is-lead">
+        <div class="plan-top"><h3 class="plan-name">Plus</h3><span class="label">For claim time</span></div>
+        <p class="plan-price">€3.50 <small>a month</small></p>
+        <p class="plan-alt">or €30 a year</p>
+        <ul class="plan-list">
+          <li>Unlimited items</li>
+          <li>Claim-ready PDF for any item</li>
+          <li>Export the whole vault as PDF</li>
+          <li>Everything in Free</li>
+        </ul>
+        <a href="/warranty-tracker-v3/#/signup" class="btn-dark">Start with Plus</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 · FAQ -->
+<section data-section="faq" data-layout="list" data-bg="base" id="questions" class="reveal">
+  <div class="container">
+    <div class="head-center">
+      <h2 class="section-title">Questions</h2>
+    </div>
+    <div class="faq-list">
+      <div class="accordion-item" data-open>
+        <button class="accordion-trigger" type="button"><span>How long a warranty do you assume?</span><span class="accordion-icon" aria-hidden="true">+</span></button>
+        <div class="accordion-body"><p>The legal minimum for your region, per category: two years in the EU. If the maker gives you longer, change it on the item, or change the default for the whole category in Settings.</p></div>
+      </div>
+      <div class="accordion-item">
+        <button class="accordion-trigger" type="button"><span>What if a receipt is hard to read?</span><span class="accordion-icon" aria-hidden="true">+</span></button>
+        <div class="accordion-body"><p>Anything we're unsure of comes back marked "Check this", so you can fix that one field. A receipt with several products becomes one item per line, all sharing the shop, date and photo.</p></div>
+      </div>
+      <div class="accordion-item">
+        <button class="accordion-trigger" type="button"><span>Where is my vault kept?</span><span class="accordion-icon" aria-hidden="true">+</span></button>
+        <div class="accordion-body"><p>In your account, so it follows you across devices. The browser keeps a copy so the vault opens instantly and works offline. Logging out clears that copy.</p></div>
+      </div>
+      <div class="accordion-item">
+        <button class="accordion-trigger" type="button"><span>Which languages does it speak?</span><span class="accordion-icon" aria-hidden="true">+</span></button>
+        <div class="accordion-body"><p>English, Spanish, French, Slovenian and Croatian. Receipts are read into your language, and dates and prices use your country's format.</p></div>
+      </div>
+      <div class="accordion-item">
+        <button class="accordion-trigger" type="button"><span>Can I take my data with me?</span><span class="accordion-icon" aria-hidden="true">+</span></button>
+        <div class="accordion-body"><p>Yes. Download everything as JSON from Settings on any plan, and delete your account there whenever you like.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · CTA — yellow scene -->
+<section data-section="cta" data-layout="centered-stack" data-bg="scene" class="scene-section reveal">
+  <div class="scene scene-yellow cta-scene">
+    <h2 class="cta-title">Start with the receipt <em>in the drawer</em></h2>
+    <p class="section-sub">Take a photo of it and check what we read. Your first ten items are free.</p>
+    <div class="cta-buttons">
+      <a href="/warranty-tracker-v3/#/signup" class="btn-dark">Start your vault</a>
+      <a href="/warranty-tracker-v3/#/login" class="btn-outline">Log in</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer data-section="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#top" class="brand">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#030302"/><path d="M22 17h20v30l-3.4-2.2-3.2 2.2-3.4-2.2-3.4 2.2-3.2-2.2L22 47Z" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/><path d="m26.6 31.2 3.8 3.8 7.2-7.8" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Warranty tracker
+        </a>
+        <p>Every receipt in one place, with the return window and the warranty on each.</p>
+      </div>
+      <div class="footer-col">
+        <span class="label">Product</span>
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#questions">Questions</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <span class="label">App</span>
+        <ul>
+          <li><a href="/warranty-tracker-v3/#/signup">Create an account</a></li>
+          <li><a href="/warranty-tracker-v3/#/login">Log in</a></li>
+          <li><a href="/warranty-tracker-v3/#/forgot">Reset password</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <span class="label">Languages</span>
+        <ul>
+          <li><span>English</span></li>
+          <li><span>Español</span></li>
+          <li><span>Français</span></li>
+          <li><span>Slovenščina</span></li>
+          <li><span>Hrvatski</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Warranty tracker</span>
+      <span>Made for receipts kept at home</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+function onMockVisible(mock, run) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (mock.closest('[data-section="hero"]')) { setTimeout(run, 300); return; }  // §5 hero trigger
+    var io = new IntersectionObserver(function(entries) {
+        if (!entries[0].isIntersecting) return;
+        io.disconnect();
+        setTimeout(run, 400);                                                     // §5: 400ms after it appears
+    }, { threshold: 0 });
+    io.observe(mock);
+}
+
+// Toast slides in (§1.5 D): the reminder sheet lands on the vault
+(function() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll('[data-mock] .pv-toast').forEach(function(toast) {
+        toast.classList.add('is-before');
+        onMockVisible(toast.closest('[data-mock]'), function() { toast.classList.remove('is-before'); });
+    });
+})();
+
+// Scroll reveal (§2)
+(function() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('section.reveal').forEach(function(s) { observer.observe(s); });
+})();
+
+// Accordion (§10)
+(function() {
+    var items = document.querySelectorAll('.faq-list .accordion-item');
+    items.forEach(function(item, index) {
+        var trigger = item.querySelector('.accordion-trigger');
+        var body = item.querySelector('.accordion-body');
+        var bodyId = 'acc-body-' + index;
+        var startOpen = item.hasAttribute('data-open');
+        body.id = bodyId;
+        trigger.setAttribute('aria-expanded', startOpen ? 'true' : 'false');
+        trigger.setAttribute('aria-controls', bodyId);
+        if (startOpen) body.classList.add('open');
+        trigger.addEventListener('click', function() {
+            var isOpen = trigger.getAttribute('aria-expanded') === 'true';
+            items.forEach(function(other) {
+                other.querySelector('.accordion-trigger').setAttribute('aria-expanded', 'false');
+                other.querySelector('.accordion-body').classList.remove('open');
+            });
+            if (!isOpen) {
+                trigger.setAttribute('aria-expanded', 'true');
+                body.classList.add('open');
+            }
+        });
+        trigger.addEventListener('keydown', function(e) {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+            e.preventDefault();
+            var dir = e.key === 'ArrowDown' ? 1 : -1;
+            items[(index + dir + items.length) % items.length].querySelector('.accordion-trigger').focus();
+        });
+    });
+})();
+
+// Mobile nav (§11), panel rendered outside the blurred pill
+(function() {
+    var toggle = document.querySelector('.nav-toggle');
+    var panel = document.getElementById('nav-panel');
+    function close() { toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-label', 'Open menu'); panel.classList.remove('nav-open'); }
+    toggle.addEventListener('click', function() {
+        var isOpen = toggle.getAttribute('aria-expanded') === 'true';
+        if (isOpen) { close(); return; }
+        toggle.setAttribute('aria-expanded', 'true');
+        toggle.setAttribute('aria-label', 'Close menu');
+        panel.classList.add('nav-open');
+    });
+    panel.addEventListener('click', function(e) { if (e.target.closest('a')) close(); });
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('nav') && !e.target.closest('#nav-panel') && panel.classList.contains('nav-open')) close();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && panel.classList.contains('nav-open')) { close(); toggle.focus(); }
+    });
+})();
+</script>
+</body>
+</html>
