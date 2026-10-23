@@ -100,7 +100,8 @@ for (const ing of ingredients) {
   const e = PHOTOS[ing.id];
   if (!e || e.none || !e.alts?.length) continue;
   const chosen = e.query === queryFor(ing.id, ing.name) ? e.alts[pickFor(ing.id)] ?? e.alts[0] : e.alts[0];
-  ing.photo = chosen;
+  const { dl: _dl, ...shipped } = chosen;
+  ing.photo = { provider: "pexels", ...shipped };
   withPhoto++;
 }
 

@@ -122,8 +122,8 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onCentre }: Props
                 <circle r={n.r} fill={n.partner.ing.photo?.color ?? CATEGORY_TINT[n.partner.ing.cat]} />
                 {n.partner.ing.photo ? (
                   <>
-                    <clipPath id={`clip-${n.partner.ing.photo.id}`}><circle r={n.r} /></clipPath>
-                    <image href={photoUrl(n.partner.ing.photo, n.r * 2)} x={-n.r} y={-n.r} width={n.r * 2} height={n.r * 2} preserveAspectRatio="xMidYMid slice" clipPath={`url(#clip-${n.partner.ing.photo.id})`} />
+                    <clipPath id={`clip-${String(n.partner.ing.photo.id).replace(/[^\w-]/g, "")}`}><circle r={n.r} /></clipPath>
+                    <image href={photoUrl(n.partner.ing.photo, n.r * 2)} x={-n.r} y={-n.r} width={n.r * 2} height={n.r * 2} preserveAspectRatio="xMidYMid slice" clipPath={`url(#clip-${String(n.partner.ing.photo.id).replace(/[^\w-]/g, "")})`} />
                     <circle r={n.r - 1.5} fill="none" stroke={CATEGORY_TINT[n.partner.ing.cat]} strokeWidth={3} />
                   </>
                 ) : (

@@ -102,7 +102,7 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (url.hostname === "images.pexels.com") return event.respondWith(photo(req));
+  if (url.hostname === "images.pexels.com" || url.hostname === "images.unsplash.com") return event.respondWith(photo(req));
   if (url.origin !== self.location.origin || !url.pathname.startsWith(BASE)) return;
   if (url.pathname === GRAPH) return event.respondWith(staleWhileRevalidate(req));
   if (url.pathname.startsWith(BASE + "/_next/static/")) return event.respondWith(cacheFirst(req));

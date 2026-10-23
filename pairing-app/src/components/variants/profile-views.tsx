@@ -6,7 +6,7 @@ import type { Combination, Combo, Cuisine, Edge, Ingredient, Tier } from "@/lib/
 import type { PairingGraph } from "@/lib/graph";
 import { CATEGORY_LABEL, CATEGORY_TINT, TASTES, TIER_LABEL, VOLUME_LABEL, WEIGHT_LABEL, cap, familyOf } from "@/lib/labels";
 import { Illustration, Mark } from "../illustrations";
-import { photoUrl } from "@/lib/photo";
+import { creditLinks, photoUrl } from "@/lib/photo";
 import { CuisineOctagon, HeavinessRadar, PairingArcs, Radar, TasteHexagon, VolumeRadar } from "../charts";
 import { Chip } from "../ui";
 import { HBar, Pips, ScaleTrack } from "./shared";
@@ -101,7 +101,7 @@ export function BentoProfile(props: ProfileProps) {
           </div>
         </div>
         <p className="mt-4 text-[0.6875rem] text-ink-2/80">
-          {ing.photo ? <>Photo by <a href={ing.photo.byUrl} target="_blank" rel="noopener noreferrer" className="underline">{ing.photo.by}</a> on <a href={ing.photo.url} target="_blank" rel="noopener noreferrer" className="underline">Pexels</a></> : <>Artwork by {props.artist}</>}
+          {ing.photo ? (() => { const c = creditLinks(ing.photo); return <>Photo by <a href={c.by} target="_blank" rel="noopener noreferrer" className="underline">{ing.photo.by}</a> on <a href={c.site} target="_blank" rel="noopener noreferrer" className="underline">{c.siteName}</a></>; })() : <>Artwork by {props.artist}</>}
         </p>
       </section>
       <section className="card p-5 md:col-span-3"><H2>Taste</H2><TasteHexagon ingredient={ing} anchors={anchors} /></section>

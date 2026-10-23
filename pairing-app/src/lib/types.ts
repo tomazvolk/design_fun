@@ -4,7 +4,7 @@ export type Season = "spring" | "summer" | "autumn" | "winter";
 export type Category = "herb" | "spice" | "vegetable" | "fruit" | "protein" | "seafood" | "dairy" | "grain" | "nut" | "oil" | "acid" | "sweetener" | "alcohol" | "condiment" | "other";
 
 /** A Pexels photo: the original's URL plus credit. Sized copies come from photoUrl(). */
-export type Photo = { id: number; src: string; w: number; h: number; by: string; byUrl: string; url: string; color: string; alt: string };
+export type Photo = { provider: "pexels" | "unsplash"; id: number | string; src: string; w: number; h: number; by: string; byUrl: string; url: string; color: string; alt: string };
 
 export type Scale = { v: number; lo: number; hi: number };
 
