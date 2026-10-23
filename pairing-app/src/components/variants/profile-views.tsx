@@ -11,6 +11,7 @@ import { BASE_PATH } from "@/lib/config";
 import { CuisineOctagon, HeavinessRadar, PairingArcs, Radar, TasteHexagon, VolumeRadar } from "../charts";
 import { Chip } from "../ui";
 import { HBar, Pips, ScaleTrack } from "./shared";
+import { CuisineChart, ScaleChart, TasteChart } from "./profile-charts";
 
 export type ProfileProps = {
   ing: Ingredient;
@@ -84,6 +85,8 @@ const H2 = ({ children, className }: { children: React.ReactNode; className?: st
 export function BentoProfile(props: ProfileProps) {
   const { ing, anchors, graph, onPair, onMore, onCuisine } = props;
   const t = tiers(ing, graph);
+  const [cmpId, setCmpId] = useState<string | null>(null);
+  const cmp = anchors.find((a) => a.id === cmpId) ?? null;
   return (
     <div className="grid grid-cols-1 gap-3 px-4 md:grid-cols-6">
       <section className="relative overflow-hidden rounded-[28px] p-6 md:col-span-6" style={{ background: tint(ing) }}>
@@ -108,13 +111,17 @@ export function BentoProfile(props: ProfileProps) {
           {ing.image ? null : ing.photo ? (() => { const c = creditLinks(ing.photo); return <>Photo by <a href={c.by} target="_blank" rel="noopener noreferrer" className="underline">{ing.photo.by}</a> on <a href={c.site} target="_blank" rel="noopener noreferrer" className="underline">{c.siteName}</a></>; })() : <>Artwork by {props.artist}</>}
         </p>
       </section>
-      <section className="card p-5 md:col-span-3"><H2>Taste</H2><TasteHexagon ingredient={ing} anchors={anchors} /></section>
-      <section className="card p-5 md:col-span-3"><H2>Cuisine</H2><CuisineOctagon ingredient={ing} anchors={anchors} cuisines={graph.cuisines} onAxis={onCuisine} /></section>
-      <section className="card p-5 md:col-span-2">
-        <H2>Heaviness</H2>
-        <div className="mt-4"><ScaleTrack lo={ing.weight.lo} hi={ing.weight.hi} labels={["Very light", "Very heavy"]} tint={tint(ing)} anchors={anchors.map((a) => ({ name: a.name, lo: a.weight.lo, hi: a.weight.hi }))} /></div>
-        <H2 className="mt-6">Volume</H2>
-        <div className="mt-4"><ScaleTrack lo={ing.volume.lo} hi={ing.volume.hi} labels={["Very quiet", "Very loud"]} tint={tint(ing)} anchors={anchors.map((a) => ({ name: a.name, lo: a.volume.lo, hi: a.volume.hi }))} /></div>
+      {anchors.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 md:col-span-6">
+          <span className="t-label-muted mr-1">Compare with</span>
+          {anchors.map((a) => <Chip key={a.id} size="sm" on={cmpId === a.id} pressed={cmpId === a.id} mark={<Mark art={a.art} cat={a.cat} photo={a.photo} image={a.image} size={24} />} onClick={() => setCmpId(cmpId === a.id ? null : a.id)}>{a.name}</Chip>)}
+        </div>
+      )}
+      <section className="card p-5 md:col-span-3"><H2 className="mb-2">Taste</H2><TasteChart ing={ing} tint={tint(ing)} compare={cmp} /></section>
+      <section className="card p-5 md:col-span-3"><H2 className="mb-2">Cuisine</H2><CuisineChart ing={ing} cuisines={graph.cuisines} tint={tint(ing)} compare={cmp} onCuisine={onCuisine} /></section>
+      <section className="card flex flex-col gap-6 p-5 md:col-span-2">
+        <ScaleChart title="Heaviness" value={ing.weight} labels={WEIGHT_LABEL} tint={tint(ing)} compare={cmp ? { name: cmp.name, lo: cmp.weight.lo, hi: cmp.weight.hi } : null} />
+        <ScaleChart title="Volume" value={ing.volume} labels={VOLUME_LABEL} tint={tint(ing)} compare={cmp ? { name: cmp.name, lo: cmp.volume.lo, hi: cmp.volume.hi } : null} />
       </section>
       <section className="card p-5 md:col-span-4"><H2>Facts</H2><div className="mt-3"><Facts ing={ing} graph={graph} /></div></section>
       <section className="card p-5 md:col-span-6">
