@@ -138,4 +138,7 @@ export const SL = {
   "Float along with whatever the pantry pairs next.": "Prepusti se temu, kar bo shramba združila naslednje.",
   "Nothing kept this time.": "Tokrat nisi obdržal ničesar.", "Do it again?": "Še enkrat?",
   "You kept {n} pairings.": ["Obdržal si {n} kombinacijo.", "Obdržal si {n} kombinaciji.", "Obdržal si {n} kombinacije.", "Obdržal si {n} kombinacij."],
+  // explore home
+  "See all": "Vse", "Classic pairs": "Klasični pari", Search: "Iskanje",
+  "{n} ingredients": ["{n} sestavina", "{n} sestavini", "{n} sestavine", "{n} sestavin"],
 };

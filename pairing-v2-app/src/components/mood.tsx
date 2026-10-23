@@ -153,6 +153,14 @@ export function PantryIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+export function LeafIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 28" className={className} aria-hidden="true" fill="currentColor">
+      <path d="M23.5 4.5C12.8 4.4 5.6 9.6 5.6 17.2c0 2 .6 3.8 1.6 5.3 1.5 1.1 3.3 1.7 5.3 1.7 7.6 0 11.4-7.4 11-19.7z" opacity="0.88" />
+      <path d="M5 24.5c3.4-6.2 7.6-10.4 12.6-13" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" opacity="0.9" />
+    </svg>
+  );
+}
 export function RingIcon({ className }: { className?: string }) {
   return <svg viewBox="0 0 28 28" className={className} aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.4"><circle cx="14" cy="14" r="10.5" /></svg>;
 }

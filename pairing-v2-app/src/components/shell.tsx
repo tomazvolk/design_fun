@@ -13,12 +13,13 @@ import { skinStyle, useSkin } from "@/lib/skins";
 import { ToastProvider } from "./ui";
 import { Onboarding } from "./onboarding";
 import { SaveFlowProvider } from "./save-flow";
-import { ChanceIcon, Glow, Monogram, PantryIcon, RingIcon, Spinner } from "./mood";
+import { ChanceIcon, Glow, LeafIcon, Monogram, PantryIcon, RingIcon, Spinner } from "./mood";
 
 const TABS = [
-  { href: "/", label: "Pantry", icon: PantryIcon, match: (p: string) => p === "/" || p.startsWith("/ingredient") || p.startsWith("/season") },
-  { href: "/saved/", label: "Collections", icon: RingIcon, match: (p: string) => p.startsWith("/saved") },
+  { href: "/", label: "Explore", icon: PantryIcon, match: (p: string) => p === "/" || p.startsWith("/ingredient") },
+  { href: "/season/", label: "Season", icon: LeafIcon, match: (p: string) => p.startsWith("/season") },
   { href: "/chance/", label: "Chance", icon: ChanceIcon, match: (p: string) => p.startsWith("/chance") },
+  { href: "/saved/", label: "Saved", icon: RingIcon, match: (p: string) => p.startsWith("/saved") },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -26,7 +27,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { graph, online, onboarded, setOnboarded, installHint, dismissInstallHint, updateReady, applyUpdate, graphError } = useStore();
   const mounted = useMounted();
   const [skin] = useSkin();
-  const hideNav = pathname.startsWith("/ingredient");
   return (
     <ToastProvider>
       <SaveFlowProvider>
@@ -41,22 +41,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
               {translate("Could not load the pairing graph. Check the connection and reload.")}
             </div>
           )}
-          <main className={cn("relative flex-1", !hideNav && "pb-[calc(var(--nav-h)+var(--safe-b))]")}>{children}</main>
-          {!hideNav && (
-            <nav className="fixed inset-x-0 bottom-0 z-30 bg-[#f4f5f8]/95 backdrop-blur-md safe-b" aria-label={translate("Main")}>
-              <div className="mx-auto flex h-[var(--nav-h)] max-w-[640px] items-stretch">
-                {TABS.map((tab) => {
-                  const active = tab.match(pathname);
-                  return (
-                    <Link key={tab.href} href={tab.href} aria-current={active ? "page" : undefined} className={cn("flex flex-1 flex-col items-center justify-center gap-1 text-[0.9375rem] transition-colors duration-300", active ? "text-accent" : "text-muted")}>
-                      <tab.icon className="size-7" />
-                      {translate(tab.label)}
-                    </Link>
-                  );
-                })}
-              </div>
-            </nav>
-          )}
+          <main className="relative flex-1 pb-[calc(var(--nav-h)+var(--safe-b))]">{children}</main>
+          <nav className="fixed inset-x-0 bottom-0 z-30 bg-[#f4f5f8]/95 backdrop-blur-md safe-b" aria-label={translate("Main")}>
+            <div className="mx-auto flex h-[var(--nav-h)] max-w-[640px] items-stretch">
+              {TABS.map((tab) => {
+                const active = tab.match(pathname);
+                return (
+                  <Link key={tab.href} href={tab.href} aria-current={active ? "page" : undefined} className={cn("flex flex-1 flex-col items-center justify-center gap-1 text-[0.8125rem] transition-colors duration-300", active ? "text-accent" : "text-muted")}>
+                    <tab.icon className="size-6" />
+                    {translate(tab.label)}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
           {mounted && installHint && (
             <div className="fixed inset-x-4 bottom-[calc(var(--nav-h)+var(--safe-b)+12px)] z-40 card anim-pop flex items-start gap-3 p-4 md:left-auto md:w-[420px]" role="dialog" aria-label={translate("Add to Home Screen")}>
               <ShareIcon className="mt-0.5 size-5 shrink-0 text-muted" />

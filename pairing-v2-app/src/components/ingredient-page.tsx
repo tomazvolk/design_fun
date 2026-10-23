@@ -46,7 +46,7 @@ export function IngredientPage() {
   const props: ProfileProps = { ing, anchors, graph, combos, mine, artist: ARTIST, onPair, onMore: () => openMap([ing.id]), onCuisine, onCombo: openMap, onHoldCombo: (ids) => save(ids) };
 
   return (
-    <div className="relative pb-[calc(var(--safe-b)+130px)]">
+    <div className="relative pb-[120px]">
       <Glow variant="halo" tint={CATEGORY_TINT[ing.cat]} />
       <div className="sticky top-0 z-20 grid grid-cols-[48px_1fr_48px] items-center bg-paper/85 px-2 pt-[calc(var(--safe-t)+6px)] pb-1 backdrop-blur-md">
         <button type="button" aria-label={t("Back")} onClick={() => (history.length > 1 ? router.back() : router.push("/"))} className="inline-flex size-12 items-center justify-center text-ink-2"><ChevronDownIcon className="size-6" strokeWidth={1.6} /></button>
@@ -56,7 +56,7 @@ export function IngredientPage() {
       <div className="relative mx-auto mt-2 max-w-[1100px]">
         <BentoProfile {...props} />
       </div>
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center px-5 pb-[calc(var(--safe-b)+20px)] pt-16" style={{ background: `linear-gradient(to top, color-mix(in srgb, ${CATEGORY_TINT[ing.cat]} 55%, var(--paper)) 0%, color-mix(in srgb, ${CATEGORY_TINT[ing.cat]} 30%, var(--paper)) 45%, transparent 100%)` }}>
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--nav-h)+var(--safe-b))] z-20 flex flex-col items-center px-5 pb-4 pt-16" style={{ background: `linear-gradient(to top, color-mix(in srgb, ${CATEGORY_TINT[ing.cat]} 55%, var(--paper)) 0%, color-mix(in srgb, ${CATEGORY_TINT[ing.cat]} 30%, var(--paper)) 45%, transparent 100%)` }}>
         <div className="pointer-events-auto flex flex-wrap justify-center gap-3">
           <button type="button" className="btn-primary" onClick={() => openMap(anchorIds.length ? [...anchorIds, ing.id] : [ing.id])}>→ {anchors.length > 0 ? t("Add to the map") : t("See what pairs")}</button>
           {anchors.length > 0 && <button type="button" className="btn-secondary bg-white/40" onClick={() => save([...anchorIds, ing.id])}>{t("Save this pairing")}</button>}
