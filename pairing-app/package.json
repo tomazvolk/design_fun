@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "export": "pnpm build && rm -rf ../pairing && cp -R out ../pairing"
+    "export": "pnpm build && rm -rf ../pairing && cp -R out ../pairing",
+    "photos": "node scripts/fetch-photos.mjs",
+    "photos:review": "node scripts/fetch-photos.mjs --review"
   },
   "dependencies": {
     "cn": "^0.4.0",

@@ -6,6 +6,7 @@ import type { Combination, Combo, Cuisine, Edge, Ingredient, Tier } from "@/lib/
 import type { PairingGraph } from "@/lib/graph";
 import { CATEGORY_LABEL, CATEGORY_TINT, TASTES, TIER_LABEL, VOLUME_LABEL, WEIGHT_LABEL, cap, familyOf } from "@/lib/labels";
 import { Illustration, Mark } from "../illustrations";
+import { photoUrl } from "@/lib/photo";
 import { CuisineOctagon, HeavinessRadar, PairingArcs, Radar, TasteHexagon, VolumeRadar } from "../charts";
 import { Chip } from "../ui";
 import { HBar, Pips, ScaleTrack } from "./shared";
@@ -57,7 +58,7 @@ function Facts({ ing, graph }: { ing: Ingredient; graph: PairingGraph }) {
 function PartnerChips({ items, onPair, max = 10 }: { items: Ingredient[]; onPair: (id: string) => void; max?: number }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {items.slice(0, max).map((p) => <Chip key={p.id} size="sm" mark={<Mark art={p.art} cat={p.cat} size={26} />} onClick={() => onPair(p.id)}>{p.name}</Chip>)}
+      {items.slice(0, max).map((p) => <Chip key={p.id} size="sm" mark={<Mark art={p.art} cat={p.cat} photo={p.photo} size={26} />} onClick={() => onPair(p.id)}>{p.name}</Chip>)}
       {items.length > max && <span className="self-center text-[0.8125rem] text-muted">+{items.length - max}</span>}
     </div>
   );
@@ -68,7 +69,7 @@ function ComboList({ ing, graph, combos, mine, onCombo, onHoldCombo }: ProfilePr
     <li key={key}>
       <Chip className="card h-auto w-full flex-col items-start gap-2.5 rounded-[20px] px-4 py-4 whitespace-normal" onClick={() => onCombo(ids)} onLongPress={yours ? undefined : () => onHoldCombo(ids)}>
         <span className="flex flex-wrap items-center gap-1.5">
-          {ids.map((id, i) => { const x = graph.get(id); return <span key={id} className="flex items-center gap-1.5">{i > 0 && <span className="text-faint">+</span>}{x && <Mark art={x.art} cat={x.cat} size={28} />}<span className="text-[0.9375rem] font-medium">{x?.name ?? id}</span></span>; })}
+          {ids.map((id, i) => { const x = graph.get(id); return <span key={id} className="flex items-center gap-1.5">{i > 0 && <span className="text-faint">+</span>}{x && <Mark art={x.art} cat={x.cat} photo={x.photo} size={28} />}<span className="text-[0.9375rem] font-medium">{x?.name ?? id}</span></span>; })}
         </span>
         <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">{yours ? `Yours${origin ? ` · ${origin}` : ""}` : origin}</span>
       </Chip>
@@ -86,7 +87,12 @@ export function BentoProfile(props: ProfileProps) {
     <div className="grid grid-cols-1 gap-3 px-4 md:grid-cols-6">
       <section className="relative overflow-hidden rounded-[28px] p-6 md:col-span-6" style={{ background: tint(ing) }}>
         <div className="flex flex-col gap-5 md:flex-row md:items-center">
-          <Illustration art={ing.art} cat={ing.cat} size={150} strokeWidth={1.3} className="shrink-0 text-ink" />
+          {ing.photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoUrl(ing.photo, 420, 420)} alt={ing.photo.alt || ing.name} width={210} height={210} className="aspect-square w-full max-w-[260px] shrink-0 rounded-[22px] object-cover shadow-[0_14px_30px_-18px_rgba(23,22,20,0.6)] md:w-[210px]" style={{ background: ing.photo.color }} />
+          ) : (
+            <Illustration art={ing.art} cat={ing.cat} size={150} strokeWidth={1.3} className="shrink-0 text-ink" />
+          )}
           <div className="min-w-0">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-ink-2">{CATEGORY_LABEL[ing.cat]} · {seasonLine(ing)}</p>
             <h1 className="t-display mt-1 text-[3rem]">{ing.name}</h1>
@@ -94,7 +100,9 @@ export function BentoProfile(props: ProfileProps) {
             <div className="mt-3"><AnchorStamps ing={ing} anchors={anchors} graph={graph} /></div>
           </div>
         </div>
-        <p className="mt-4 text-[0.6875rem] text-ink-2/70">Artwork by {props.artist}</p>
+        <p className="mt-4 text-[0.6875rem] text-ink-2/80">
+          {ing.photo ? <>Photo by <a href={ing.photo.byUrl} target="_blank" rel="noopener noreferrer" className="underline">{ing.photo.by}</a> on <a href={ing.photo.url} target="_blank" rel="noopener noreferrer" className="underline">Pexels</a></> : <>Artwork by {props.artist}</>}
+        </p>
       </section>
       <section className="card p-5 md:col-span-3"><H2>Taste</H2><TasteHexagon ingredient={ing} anchors={anchors} /></section>
       <section className="card p-5 md:col-span-3"><H2>Cuisine</H2><CuisineOctagon ingredient={ing} anchors={anchors} cuisines={graph.cuisines} onAxis={onCuisine} /></section>
@@ -125,7 +133,7 @@ export function TabsProfile(props: ProfileProps) {
   return (
     <div className="px-4">
       <section className="flex items-center gap-4">
-        <Mark art={ing.art} cat={ing.cat} size={96} />
+        <Mark art={ing.art} cat={ing.cat} photo={ing.photo} size={96} />
         <div className="min-w-0">
           <h1 className="t-display text-[2.5rem]">{ing.name}</h1>
           <p className="mt-1 text-[0.875rem] text-muted">{CATEGORY_LABEL[ing.cat]} · {seasonLine(ing)}</p>
@@ -166,7 +174,7 @@ export function BarsProfile(props: ProfileProps) {
           <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-muted">{CATEGORY_LABEL[ing.cat]} · {seasonLine(ing)}</p>
           <h1 className="t-display mt-1 text-[3.25rem]">{ing.name}</h1>
         </div>
-        <Mark art={ing.art} cat={ing.cat} size={88} />
+        <Mark art={ing.art} cat={ing.cat} photo={ing.photo} size={88} />
       </section>
       <div className="mt-3"><AnchorStamps ing={ing} anchors={anchors} graph={graph} /></div>
       {ing.description && <p className="mt-5 text-[1.125rem] leading-relaxed">{ing.description}</p>}
@@ -209,7 +217,7 @@ export function StudioProfile(props: ProfileProps) {
   return (
     <div className="px-4">
       <section className="flex items-center gap-4">
-        <Mark art={ing.art} cat={ing.cat} size={84} />
+        <Mark art={ing.art} cat={ing.cat} photo={ing.photo} size={84} />
         <div><h1 className="t-display text-[2.5rem]">{ing.name}</h1><p className="text-[0.875rem] text-muted">{CATEGORY_LABEL[ing.cat]} · {seasonLine(ing)}</p></div>
       </section>
       {ing.description && <p className="mt-4 text-[1.0625rem] leading-relaxed">{ing.description}</p>}
@@ -223,7 +231,7 @@ export function StudioProfile(props: ProfileProps) {
         {anchors.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t border-hairline px-4 py-3">
             <span className="t-label-muted mr-1">Compare</span>
-            {anchors.map((a) => <Chip key={a.id} size="sm" on={compare.includes(a.id)} mark={<Mark art={a.art} cat={a.cat} size={24} />} onClick={() => setCompare((c) => (c.includes(a.id) ? c.filter((x) => x !== a.id) : [...c, a.id]))}>{a.name}</Chip>)}
+            {anchors.map((a) => <Chip key={a.id} size="sm" on={compare.includes(a.id)} mark={<Mark art={a.art} cat={a.cat} photo={a.photo} size={24} />} onClick={() => setCompare((c) => (c.includes(a.id) ? c.filter((x) => x !== a.id) : [...c, a.id]))}>{a.name}</Chip>)}
           </div>
         )}
       </section>
@@ -233,7 +241,7 @@ export function StudioProfile(props: ProfileProps) {
           <div key={g.label} className="mt-3 flex items-center gap-3">
             <span className="t-label-muted w-[104px] shrink-0">{g.label}</span>
             <div className="no-scrollbar flex -space-x-2 overflow-x-auto py-1">
-              {g.items.slice(0, 14).map((p) => <button key={p.id} type="button" onClick={() => onPair(p.id)} title={p.name} aria-label={p.name} className="transition-transform hover:z-10 hover:-translate-y-0.5"><Mark art={p.art} cat={p.cat} size={40} ring /></button>)}
+              {g.items.slice(0, 14).map((p) => <button key={p.id} type="button" onClick={() => onPair(p.id)} title={p.name} aria-label={p.name} className="transition-transform hover:z-10 hover:-translate-y-0.5"><Mark art={p.art} cat={p.cat} photo={p.photo} size={40} ring /></button>)}
             </div>
             <span className="tnum shrink-0 text-[0.8125rem] text-muted">{g.items.length}</span>
           </div>
@@ -277,7 +285,7 @@ export function CardProfile(props: ProfileProps) {
           {Object.keys(ing.cuisines).length === 0 && <p className="py-2 text-[0.875rem] text-muted">No cuisine links</p>}
           <p className="t-label-muted mt-4">Best with</p>
           <div className="mt-2 grid grid-cols-4 gap-2">
-            {t[0].items.slice(0, 8).map((p) => <button key={p.id} type="button" onClick={() => onPair(p.id)} className="flex flex-col items-center gap-1"><Mark art={p.art} cat={p.cat} size={48} /><span className="line-clamp-1 text-[0.75rem] font-semibold">{p.name}</span></button>)}
+            {t[0].items.slice(0, 8).map((p) => <button key={p.id} type="button" onClick={() => onPair(p.id)} className="flex flex-col items-center gap-1"><Mark art={p.art} cat={p.cat} photo={p.photo} size={48} /><span className="line-clamp-1 text-[0.75rem] font-semibold">{p.name}</span></button>)}
           </div>
           {anchors.length > 0 && <div className="mt-4 border-t border-hairline pt-3"><AnchorStamps ing={ing} anchors={anchors} graph={graph} /></div>}
         </div>

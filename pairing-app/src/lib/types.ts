@@ -3,6 +3,9 @@ export type Taste = "sweet" | "sour" | "salty" | "bitter" | "hot" | "astringent"
 export type Season = "spring" | "summer" | "autumn" | "winter";
 export type Category = "herb" | "spice" | "vegetable" | "fruit" | "protein" | "seafood" | "dairy" | "grain" | "nut" | "oil" | "acid" | "sweetener" | "alcohol" | "condiment" | "other";
 
+/** A Pexels photo: the original's URL plus credit. Sized copies come from photoUrl(). */
+export type Photo = { id: number; src: string; w: number; h: number; by: string; byUrl: string; url: string; color: string; alt: string };
+
 export type Scale = { v: number; lo: number; hi: number };
 
 export type Ingredient = {
@@ -20,6 +23,7 @@ export type Ingredient = {
   dishes: string[];
   art: string | null;
   description: string | null;
+  photo: Photo | null;
   hub: boolean;
   degree: number;
 };

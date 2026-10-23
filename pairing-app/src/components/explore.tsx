@@ -53,7 +53,7 @@ export function SearchField({ autoFocus, onPick, placeholder = "Ingredient", exc
           {results.map((r) => (
             <li key={`${r.kind}:${r.id}`}>
               <button type="button" role="option" aria-selected={false} onClick={() => { setQ(""); onPick(r); }} className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left hover:bg-paper-deep/60">
-                {r.kind === "ingredient" ? <Mark art={graph?.get(r.id)?.art ?? null} cat={r.cat} size={36} /> : <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-paper-deep text-[0.6875rem] font-semibold uppercase tracking-wider text-muted">{r.kind === "cuisine" ? "C" : "D"}</span>}
+                {r.kind === "ingredient" ? <Mark art={graph?.get(r.id)?.art ?? null} cat={r.cat} photo={graph?.get(r.id)?.photo} size={36} /> : <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-paper-deep text-[0.6875rem] font-semibold uppercase tracking-wider text-muted">{r.kind === "cuisine" ? "C" : "D"}</span>}
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-[1.0625rem] font-medium">{r.kind === "ingredient" && r.via ? <><span className="text-muted">{r.via}</span> → {r.name}</> : r.name}</span>
                 </span>
@@ -64,7 +64,7 @@ export function SearchField({ autoFocus, onPick, placeholder = "Ingredient", exc
           {results.length === 0 && (
             <li className="px-4 py-4 text-[0.9375rem] text-muted">
               No ingredient called ‘{q.trim()}’. Try a simpler name.
-              {closest.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{closest.map((i) => <Chip key={i.id} size="sm" mark={<Mark art={i.art} cat={i.cat} size={26} />} onClick={() => { setQ(""); onPick({ kind: "ingredient", id: i.id, name: i.name, cat: i.cat }); }}>{i.name}</Chip>)}</div>}
+              {closest.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{closest.map((i) => <Chip key={i.id} size="sm" mark={<Mark art={i.art} cat={i.cat} photo={i.photo} size={26} />} onClick={() => { setQ(""); onPick({ kind: "ingredient", id: i.id, name: i.name, cat: i.cat }); }}>{i.name}</Chip>)}</div>}
             </li>
           )}
         </ul>
@@ -97,13 +97,13 @@ function SearchHome() {
         <section className="mt-8">
           <div className="flex items-center justify-between"><h2 className="t-title text-[1.375rem]">{picked.name}</h2><button type="button" aria-label="Clear" onClick={() => { setPicked(null); if (picked.kind === "cuisine") setFilters({ ...filters, cuisine: null }); }} className="inline-flex size-9 items-center justify-center rounded-full text-muted"><XIcon className="size-4" /></button></div>
           <p className="mt-1 text-[0.875rem] text-muted">{picked.kind === "cuisine" ? "Pick an ingredient to start from. The wheel will show only partners of this cuisine until you reset filters." : "Ingredients that work in it. Pick one to start from."}</p>
-          <div className="mt-3 flex flex-wrap gap-2">{pickedList.map((i) => <Chip key={i.id} mark={<Mark art={i.art} cat={i.cat} size={30} />} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
+          <div className="mt-3 flex flex-wrap gap-2">{pickedList.map((i) => <Chip key={i.id} mark={<Mark art={i.art} cat={i.cat} photo={i.photo} size={30} />} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
         </section>
       )}
       {recents.length > 0 && (
         <section className="mt-8">
           <SectionLabel>Recent</SectionLabel>
-          <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">{recents.map((id) => graph.get(id)).filter((i): i is Ingredient => !!i).map((i) => <Chip key={i.id} mark={<Mark art={i.art} cat={i.cat} size={30} />} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
+          <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">{recents.map((id) => graph.get(id)).filter((i): i is Ingredient => !!i).map((i) => <Chip key={i.id} mark={<Mark art={i.art} cat={i.cat} photo={i.photo} size={30} />} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
         </section>
       )}
       <section className="mt-8">
@@ -111,7 +111,7 @@ function SearchHome() {
         <div className="no-scrollbar -mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-2">
           {season.map((i) => (
             <button key={i.id} type="button" onClick={() => open(i.id)} className="card flex w-[116px] shrink-0 flex-col items-center gap-2 px-2 pt-4 pb-3 transition-transform active:scale-[0.97]">
-              <Mark art={i.art} cat={i.cat} size={64} />
+              <Mark art={i.art} cat={i.cat} photo={i.photo} size={64} />
               <span className="t-title text-[1rem] leading-tight">{i.name}</span>
               <span className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted">{CATEGORY_SHORT[i.cat]}</span>
             </button>
@@ -127,7 +127,7 @@ function SearchHome() {
           ))}
         </div>
         {picked?.id.startsWith("cat:") && (
-          <div className="mt-3 flex flex-wrap gap-2">{byCat(picked.id.slice(4) as Category).map((i) => <Chip key={i.id} mark={<Mark art={i.art} cat={i.cat} size={30} />} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
+          <div className="mt-3 flex flex-wrap gap-2">{byCat(picked.id.slice(4) as Category).map((i) => <Chip key={i.id} mark={<Mark art={i.art} cat={i.cat} photo={i.photo} size={30} />} onClick={() => open(i.id)}>{i.name}</Chip>)}</div>
         )}
       </section>
       <section className="card mt-10 flex items-center gap-4 p-5">
@@ -192,7 +192,7 @@ function MapScreen() {
           <Link href="/" aria-label="Back to search" className="fab size-10 shrink-0 [&_svg]:size-4"><SearchIcon /></Link>
           {anchors.map((a) => (
             <span key={a.id} className="chip chip-on gap-2 pr-1.5">
-              <Mark art={a.art} cat={a.cat} size={30} />
+              <Mark art={a.art} cat={a.cat} photo={a.photo} size={30} />
               <Link href={`/ingredient/?id=${a.id}&a=${anchorIds.filter((x) => x !== a.id).join(",")}`} className="underline-offset-4 hover:underline">{a.name}</Link>
               <button type="button" aria-label={`Remove ${a.name}`} onClick={() => removeAnchor(a.id)} className="inline-flex size-7 items-center justify-center rounded-full bg-white/15"><XIcon className="size-4" /></button>
             </span>
@@ -266,7 +266,7 @@ function EmptyNotice({ result, filters, onReset, onPick }: { result: PartnerResu
         <>
           <p className="text-[0.9375rem] font-medium">Nothing pairs with all of these.{result.bridges.length > 0 && " These bridge them:"}</p>
           {result.bridges.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">{result.bridges.map((b) => <Chip key={b.ing.id} size="sm" mark={<Mark art={b.ing.art} cat={b.ing.cat} size={26} />} onClick={() => onPick(b.ing.id)}>{b.ing.name}</Chip>)}</div>
+            <div className="mt-3 flex flex-wrap gap-2">{result.bridges.map((b) => <Chip key={b.ing.id} size="sm" mark={<Mark art={b.ing.art} cat={b.ing.cat} photo={b.ing.photo} size={26} />} onClick={() => onPick(b.ing.id)}>{b.ing.name}</Chip>)}</div>
           )}
           <p className="mt-2 text-[0.8125rem] text-muted">Bridges reach {names.slice(0, -1).join(", ")} and {names.at(-1)} in two hops. They are not full matches.</p>
         </>
@@ -322,7 +322,7 @@ function ListRow({ partner, onTap, onAdd }: { partner: Partner; onTap: () => voi
         onPointerCancel={() => { setDx(0); start.current = null; }}
         className={cn("row", partner.missing.length > 0 && "opacity-70")}
         style={{ transform: `translateX(${dx}px)`, transition: dx ? "none" : "transform 160ms ease", touchAction: "pan-y" }}>
-        <Mark art={partner.ing.art} cat={partner.ing.cat} size={40} />
+        <Mark art={partner.ing.art} cat={partner.ing.cat} photo={partner.ing.photo} size={40} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[1.0625rem] font-medium">{partner.ing.name}</span>
           {partner.missing.length > 0 && <span className="block text-[0.75rem] text-muted">not with {partner.missing.join(", ")}</span>}
@@ -345,7 +345,7 @@ function IngredientCard({ id, partner, bridge, anchors, onClose, onAdd, onSave }
   return (
     <Sheet open onClose={onClose} labelledBy="card-title">
       <div className="flex items-start gap-4">
-        <Mark art={ing.art} cat={ing.cat} size={72} />
+        <Mark art={ing.art} cat={ing.cat} photo={ing.photo} size={72} />
         <div className="min-w-0 flex-1">
           <h2 id="card-title" className="t-title text-[1.875rem]">{ing.name}</h2>
           <p className="mt-1 text-[0.875rem] text-muted">{CATEGORY_LABEL[ing.cat]} · {seasonText(ing.season)}{ing.hub ? " · common" : ""}</p>

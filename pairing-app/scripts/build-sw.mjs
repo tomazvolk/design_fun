@@ -83,10 +83,26 @@ async function staleWhileRevalidate(request) {
   return hit || refresh;
 }
 
+const PHOTOS = "photos-v1";
+const PHOTO_MAX = 600;
+async function photo(request) {
+  const cache = await caches.open(PHOTOS);
+  const hit = await cache.match(request);
+  if (hit) return hit;
+  const res = await fetch(request);
+  if (res.ok || res.type === "opaque") {
+    await cache.put(request, res.clone());
+    const keys = await cache.keys();
+    for (const k of keys.slice(0, Math.max(0, keys.length - PHOTO_MAX))) await cache.delete(k);
+  }
+  return res;
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  if (url.hostname === "images.pexels.com") return event.respondWith(photo(req));
   if (url.origin !== self.location.origin || !url.pathname.startsWith(BASE)) return;
   if (url.pathname === GRAPH) return event.respondWith(staleWhileRevalidate(req));
   if (url.pathname.startsWith(BASE + "/_next/static/")) return event.respondWith(cacheFirst(req));

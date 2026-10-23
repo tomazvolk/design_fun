@@ -26,7 +26,7 @@ export function SavedScreen() {
           <SectionLabel muted className="mt-6 mb-2">{saved.length} combination{saved.length === 1 ? "" : "s"} · swipe to delete</SectionLabel>
           <ul className="card overflow-hidden">
             {saved.map((c) => (
-              <SavedRow key={c.id} combo={c} names={c.anchors.map((id) => graph?.get(id)?.name ?? id)} marks={c.anchors.map((id) => graph?.get(id)).filter((i): i is NonNullable<typeof i> => !!i).map((i) => <Mark key={i.id} art={i.art} cat={i.cat} size={34} ring />)} date={fmt.format(c.created)}
+              <SavedRow key={c.id} combo={c} names={c.anchors.map((id) => graph?.get(id)?.name ?? id)} marks={c.anchors.map((id) => graph?.get(id)).filter((i): i is NonNullable<typeof i> => !!i).map((i) => <Mark key={i.id} art={i.art} cat={i.cat} photo={i.photo} size={34} ring />)} date={fmt.format(c.created)}
                 onOpen={() => router.push(exploreHref(c.anchors))}
                 onDelete={async () => { await deleteCombination(c.id); toast("Deleted"); }} />
             ))}

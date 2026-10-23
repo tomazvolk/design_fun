@@ -4,7 +4,7 @@
  * types (ingredient, cuisine, dish), undirected edges stored once with the higher tier, every edge tiered,
  * hubs marked, 15 fixed categories, seasons as a set or "all".
  */
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import vegetables from "../src/data/source/vegetables.mjs";
@@ -20,6 +20,7 @@ import descB from "../src/data/source/descriptions-b.mjs";
 import descC from "../src/data/source/descriptions-c.mjs";
 
 const DESCRIPTIONS = { ...descA, ...descB, ...descC };
+import { queryFor, pickFor } from "../src/data/source/photo-queries.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -84,10 +85,23 @@ for (const [id, src] of Object.entries(raw)) {
     dishes: (src.dishes || "").split(/\s+/).filter(Boolean).filter((d) => d !== "everything").map(dishNode),
     art: src.art ?? null, hub: false, degree: 0,
     description: DESCRIPTIONS[id] ?? null,
+    photo: null,
   };
   for (const c of Object.keys(ing.cuisines)) if (!CUISINES.some((g) => g.id === c)) throw new Error(`${id}: bad cuisine ${c}`);
   ingredients.push(ing);
   byId.set(id, ing);
+}
+
+// Photos from Pexels (scripts/fetch-photos.mjs): the chosen result per ingredient, without the alternatives.
+const photosPath = join(root, "src", "data", "photos.json");
+const PHOTOS = existsSync(photosPath) ? JSON.parse(readFileSync(photosPath, "utf8")) : {};
+let withPhoto = 0;
+for (const ing of ingredients) {
+  const e = PHOTOS[ing.id];
+  if (!e || e.none || !e.alts?.length) continue;
+  const chosen = e.query === queryFor(ing.id, ing.name) ? e.alts[pickFor(ing.id)] ?? e.alts[0] : e.alts[0];
+  ing.photo = chosen;
+  withPhoto++;
 }
 
 // Pass 2: edges.
@@ -182,6 +196,7 @@ for (const e of edges.values()) tiers[e.tier]++;
 const sparse = ingredients.filter((i) => i.degree < 6).map((i) => `${i.id}(${i.degree})`);
 console.log(`graph.json: ${ingredients.length} ingredients, ${edges.size} edges, ${dishes.size} dishes, ${combos.length} combos, ${(json.length / 1024).toFixed(0)} KB`);
 console.log(`tiers: works ${tiers[1]}, recommended ${tiers[2]}, highly ${tiers[3]}, holy grail ${tiers[4]}; two-way listings with different tiers: ${disagreements}; dish mentions folded in: ${dishMentions}`);
+console.log(`photos: ${withPhoto} of ${ingredients.length} ingredients`);
 console.log(`hubs: ${hubs.slice(0, 10).map((h) => `${h}(${byId.get(h).degree})`).join(" ")} …`);
 const undescribed = ingredients.filter((i) => !i.description).map((i) => i.id);
 if (undescribed.length) console.log(`no description: ${undescribed.join(" ")}`);

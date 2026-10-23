@@ -22,7 +22,7 @@ function Empty({ result, onTap }: { result: PartnerResult; onTap?: (id: string) 
       <p className="t-title text-[1.25rem]">Nothing pairs with all of these.</p>
       {result.bridges.length > 0 && <>
         <p className="mt-1 text-[0.875rem] text-muted">These bridge them in two steps:</p>
-        <div className="mt-3 flex flex-wrap gap-2">{result.bridges.map((b) => <button key={b.ing.id} type="button" onClick={() => onTap?.(b.ing.id)} className="chip h-10 text-[0.875rem]"><Mark art={b.ing.art} cat={b.ing.cat} size={28} />{b.ing.name}</button>)}</div>
+        <div className="mt-3 flex flex-wrap gap-2">{result.bridges.map((b) => <button key={b.ing.id} type="button" onClick={() => onTap?.(b.ing.id)} className="chip h-10 text-[0.875rem]"><Mark art={b.ing.art} cat={b.ing.cat} photo={b.ing.photo} size={28} />{b.ing.name}</button>)}</div>
       </>}
     </div>
   );
@@ -49,7 +49,7 @@ export function RowsView({ result, onTap, onAdd }: ViewProps) {
             {[...g.items].sort(byStrength).map((p) => (
               <div key={p.ing.id} className={cn("card relative flex w-[132px] shrink-0 snap-start flex-col items-center gap-2 px-2 pt-5 pb-3", p.missing.length > 0 && "opacity-60")}>
                 <button type="button" onClick={() => onTap(p.ing.id)} className="flex flex-col items-center gap-2" aria-label={`Open ${p.ing.name}`}>
-                  <Mark art={p.ing.art} cat={p.ing.cat} size={72} />
+                  <Mark art={p.ing.art} cat={p.ing.cat} photo={p.ing.photo} size={72} />
                   <span className="t-title text-center text-[1rem] leading-tight">{p.ing.name}</span>
                   <span className="text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-muted">{famLabel(p)}</span>
                 </button>
@@ -84,7 +84,7 @@ export function GridView({ result, onTap, onAdd }: ViewProps) {
         <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6">
           {items.map((p) => (
             <button key={p.ing.id} type="button" onClick={() => onTap(p.ing.id)} onDoubleClick={() => onAdd(p.ing.id)} className="card relative flex flex-col items-center gap-1.5 px-1.5 pt-4 pb-3 transition-transform active:scale-[0.97]">
-              <Mark art={p.ing.art} cat={p.ing.cat} size={56} />
+              <Mark art={p.ing.art} cat={p.ing.cat} photo={p.ing.photo} size={56} />
               <span className="line-clamp-1 text-center text-[0.875rem] font-semibold">{p.ing.name}</span>
               <span className="flex items-center gap-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-muted"><TierMeter tier={p.tier} />{TIER_LABEL[p.tier]}</span>
             </button>
@@ -109,7 +109,7 @@ export function RankedView({ result, onTap, onAdd }: ViewProps) {
             <div className="flex items-center gap-3 px-3 py-2.5">
               <span className="tnum w-6 text-right text-[0.8125rem] font-semibold text-muted">{i + 1}</span>
               <button type="button" onClick={() => onTap(p.ing.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                <Mark art={p.ing.art} cat={p.ing.cat} size={40} />
+                <Mark art={p.ing.art} cat={p.ing.cat} photo={p.ing.photo} size={40} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2"><span className="truncate text-[1rem] font-semibold">{p.ing.name}</span><span className="shrink-0 text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-muted">{TIER_LABEL[p.tier]}</span></span>
                   <span className="mt-1.5 block h-2.5 overflow-hidden rounded-full bg-paper-deep"><span className="block h-full rounded-full" style={{ width: `${(score(p) / top) * 100}%`, background: CATEGORY_TINT[p.ing.cat], boxShadow: "inset -1.5px 0 0 var(--ink)" }} /></span>
@@ -186,7 +186,7 @@ export function CompareView({ result, onTap, onAdd }: ViewProps) {
           <tr className="text-left">
             <th className="sticky top-0 bg-card px-3 py-3 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted">Partner</th>
             {anchors.map((a) => (
-              <th key={a.id} className="sticky top-0 bg-card px-2 py-3 text-center"><span className="inline-flex flex-col items-center gap-1"><Mark art={a.art} cat={a.cat} size={30} /><span className="text-[0.6875rem] font-semibold">{a.name}</span></span></th>
+              <th key={a.id} className="sticky top-0 bg-card px-2 py-3 text-center"><span className="inline-flex flex-col items-center gap-1"><Mark art={a.art} cat={a.cat} photo={a.photo} size={30} /><span className="text-[0.6875rem] font-semibold">{a.name}</span></span></th>
             ))}
             <th className="sticky top-0 bg-card px-2 py-3" />
           </tr>
@@ -195,7 +195,7 @@ export function CompareView({ result, onTap, onAdd }: ViewProps) {
           {rows.map((p) => (
             <tr key={p.ing.id} className={cn(p.missing.length > 0 && "opacity-60")}>
               <td className="border-t border-hairline px-3 py-2">
-                <button type="button" onClick={() => onTap(p.ing.id)} className="flex items-center gap-2.5 text-left"><Mark art={p.ing.art} cat={p.ing.cat} size={32} /><span className="font-semibold">{p.ing.name}</span></button>
+                <button type="button" onClick={() => onTap(p.ing.id)} className="flex items-center gap-2.5 text-left"><Mark art={p.ing.art} cat={p.ing.cat} photo={p.ing.photo} size={32} /><span className="font-semibold">{p.ing.name}</span></button>
               </td>
               {anchors.map((a) => {
                 const e = p.edges[a.id];

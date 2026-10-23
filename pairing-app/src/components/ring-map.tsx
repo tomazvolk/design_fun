@@ -6,6 +6,7 @@ import type { Ingredient } from "@/lib/types";
 import { arcPath, LABEL_SIZE, wobblyCircle, type WheelLayout } from "@/lib/rings";
 import { CATEGORY_TINT } from "@/lib/labels";
 import { ArtGlyph } from "./illustrations";
+import { photoUrl } from "@/lib/photo";
 
 const GLYPH = { small: 20, medium: 24, large: 30 } as const;
 const ZOOMS = [0.55, 0.75, 1, 1.3];
@@ -118,8 +119,17 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onCentre }: Props
             return (
               <g key={id} className="glide cursor-pointer" style={{ transform: `translate(${n.x}px, ${n.y}px)`, opacity: n.faded ? 0.35 : 1 }} onClick={() => tapNode(id)} role="button" aria-label={`${n.partner.ing.name}${n.faded ? ", pairs with some anchors" : ""}`}>
                 <circle r={n.r + 10} fill="transparent" />
-                <circle r={n.r} fill={CATEGORY_TINT[n.partner.ing.cat]} stroke="var(--ink)" strokeWidth={n.partner.size === "large" ? 1.6 : 1.1} />
-                <g className="text-ink"><ArtGlyph art={n.partner.ing.art} cat={n.partner.ing.cat} size={GLYPH[n.partner.size]} strokeWidth={2.6} /></g>
+                <circle r={n.r} fill={n.partner.ing.photo?.color ?? CATEGORY_TINT[n.partner.ing.cat]} />
+                {n.partner.ing.photo ? (
+                  <>
+                    <clipPath id={`clip-${n.partner.ing.photo.id}`}><circle r={n.r} /></clipPath>
+                    <image href={photoUrl(n.partner.ing.photo, n.r * 2)} x={-n.r} y={-n.r} width={n.r * 2} height={n.r * 2} preserveAspectRatio="xMidYMid slice" clipPath={`url(#clip-${n.partner.ing.photo.id})`} />
+                    <circle r={n.r - 1.5} fill="none" stroke={CATEGORY_TINT[n.partner.ing.cat]} strokeWidth={3} />
+                  </>
+                ) : (
+                  <g className="text-ink"><ArtGlyph art={n.partner.ing.art} cat={n.partner.ing.cat} size={GLYPH[n.partner.size]} strokeWidth={2.6} /></g>
+                )}
+                <circle r={n.r} fill="none" stroke="var(--ink)" strokeWidth={n.partner.size === "large" ? 1.6 : 1.1} />
                 <text x={n.label.x - n.x} y={n.label.y - n.y} textAnchor={n.label.anchor} fontSize={LABEL_SIZE} fontWeight={bold ? 700 : 500} fill="var(--ink)" fontFamily="var(--font-sans)" paintOrder="stroke" stroke="var(--paper)" strokeWidth={4} strokeLinejoin="round">
                   {n.partner.ing.name}
                 </text>

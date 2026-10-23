@@ -1,4 +1,5 @@
-import type { Category } from "@/lib/types";
+import type { Category, Photo } from "@/lib/types";
+import { photoUrl } from "@/lib/photo";
 import { cn } from "cn";
 import { CATEGORY_TINT } from "@/lib/labels";
 
@@ -104,7 +105,15 @@ export function ArtGlyph({ art, cat, x = 0, y = 0, size = 24, strokeWidth = 2.4,
 }
 
 /** A tinted disc carrying the drawing: the ingredient's mark in chips, rows and cards. */
-export function Mark({ art, cat, size = 36, className, ring }: { art: string | null; cat: Category; size?: number; className?: string; ring?: boolean }) {
+export function Mark({ art, cat, size = 36, className, ring, photo }: { art: string | null; cat: Category; size?: number; className?: string; ring?: boolean; photo?: Photo | null }) {
+  if (photo) {
+    return (
+      <span className={cn("mark overflow-hidden", className)} style={{ width: size, height: size, background: photo.color, boxShadow: ring ? "0 0 0 2px var(--card), 0 0 0 3.5px var(--ink)" : undefined }} aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photoUrl(photo, size)} alt="" width={size} height={size} loading="lazy" decoding="async" className="size-full object-cover" />
+      </span>
+    );
+  }
   return (
     <span className={cn("mark", className)} style={{ width: size, height: size, ["--tint" as string]: CATEGORY_TINT[cat], boxShadow: ring ? "0 0 0 2px var(--card), 0 0 0 3.5px var(--ink)" : undefined }} aria-hidden="true">
       <Illustration art={art} cat={cat} size={Math.round(size * 0.66)} strokeWidth={2.6} />

@@ -39,7 +39,7 @@ export function SeasonScreen() {
           <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
             {g.items.map((i) => (
               <button key={i.id} type="button" onClick={() => open(i)} className="card flex flex-col items-center gap-2 px-2 pt-4 pb-3 transition-transform active:scale-[0.97]">
-                <Mark art={i.art} cat={i.cat} size={60} />
+                <Mark art={i.art} cat={i.cat} photo={i.photo} size={60} />
                 <span className="t-title text-center text-[0.9375rem] leading-tight">{i.name}</span>
               </button>
             ))}

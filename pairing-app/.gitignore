@@ -44,3 +44,6 @@ next-env.d.ts
 !.env.example
 .impeccable/review/
 .impeccable/mocks/
+
+# local photo review sheet
+photo-review.html
