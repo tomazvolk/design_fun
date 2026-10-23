@@ -97,14 +97,13 @@ export function GridView({ result, onTap, onAdd }: ViewProps) {
 
 /* ---------- 3. Ranked: a leaderboard with strength bars ---------- */
 export function RankedView({ result, onTap, onAdd }: ViewProps) {
-  const [limit, setLimit] = useState(30);
   const all = useMemo(() => [...result.full].sort(byStrength), [result]);
   const top = all[0] ? score(all[0]) : 1;
   return (
     <div className="h-full overflow-y-auto px-4 pb-28">
       <Empty result={result} onTap={onTap} />
       <ol className="card mt-2 overflow-hidden">
-        {all.slice(0, limit).map((p, i) => (
+        {all.map((p, i) => (
           <li key={p.ing.id} className="border-b border-hairline last:border-0">
             <div className="flex items-center gap-3 px-3 py-2.5">
               <span className="tnum w-6 text-right text-[0.8125rem] font-semibold text-muted">{i + 1}</span>
@@ -120,7 +119,6 @@ export function RankedView({ result, onTap, onAdd }: ViewProps) {
           </li>
         ))}
       </ol>
-      {limit < all.length && <button type="button" onClick={() => setLimit((l) => l + 40)} className="btn-secondary mx-auto mt-4 flex">Show {Math.min(40, all.length - limit)} more</button>}
     </div>
   );
 }
@@ -145,7 +143,7 @@ function pack(items: Partner[]): { bubbles: Bubble[]; w: number; h: number } {
   return { bubbles, w: maxX - minX, h: maxY - minY };
 }
 export function BubblesView({ result, onTap }: ViewProps & { anchors?: Ingredient[] }) {
-  const items = useMemo(() => [...result.full].sort(byStrength).slice(0, 60), [result]);
+  const items = useMemo(() => [...result.full].sort(byStrength), [result]);
   const { bubbles, w, h } = useMemo(() => (items.length ? pack(items) : { bubbles: [], w: 1, h: 1 }), [items]);
   return (
     <div className="h-full overflow-y-auto px-3 pb-28">
@@ -177,7 +175,7 @@ export function BubblesView({ result, onTap }: ViewProps & { anchors?: Ingredien
 /* ---------- 5. Compare: partners against each anchor ---------- */
 export function CompareView({ result, onTap, onAdd }: ViewProps) {
   const anchors = result.anchors;
-  const rows = useMemo(() => [...result.full.sort(byStrength), ...result.partial.sort(byStrength)].slice(0, 80), [result]);
+  const rows = useMemo(() => [...result.full.sort(byStrength), ...result.partial.sort(byStrength)], [result]);
   return (
     <div className="h-full overflow-auto px-4 pb-28">
       {anchors.length === 1 && <p className="mt-2 rounded-2xl bg-paper-deep px-4 py-3 text-[0.875rem] text-ink-2">Add a second ingredient with the + at the top to see where they agree and where they differ.</p>}

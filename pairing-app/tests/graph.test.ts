@@ -93,10 +93,11 @@ describe("F3 partners", () => {
 });
 
 describe("F4 ring placement", () => {
-  it("caps a ring at 24 and reports the overflow", () => {
-    const layout = layoutWheel(g.partners(["garlic"], DEFAULT_FILTERS));
-    for (const ring of layout.rings) expect(ring.count).toBeLessThanOrEqual(24);
-    expect(layout.overflow).toBe(layout.rings.reduce((s, r) => s + r.overflow, 0));
+  it("shows every partner on the wheel, with nothing collapsed", () => {
+    const r = g.partners(["garlic"], DEFAULT_FILTERS);
+    const layout = layoutWheel(r);
+    expect(layout.overflow).toBe(0);
+    expect(layout.nodes.length).toBe(r.full.length + r.partial.length);
   });
   it("keeps families in the fixed order around the wheel, herbs first", () => {
     const layout = layoutWheel(g.partners(["garlic"], DEFAULT_FILTERS));

@@ -56,7 +56,7 @@ function Facts({ ing, graph }: { ing: Ingredient; graph: PairingGraph }) {
     </dl>
   );
 }
-function PartnerChips({ items, onPair, max = 10 }: { items: Ingredient[]; onPair: (id: string) => void; max?: number }) {
+function PartnerChips({ items, onPair, max = Infinity }: { items: Ingredient[]; onPair: (id: string) => void; max?: number }) {
   return (
     <div className="flex flex-wrap gap-2">
       {items.slice(0, max).map((p) => <Chip key={p.id} size="sm" mark={<Mark art={p.art} cat={p.cat} photo={p.photo} image={p.image} size={26} />} onClick={() => onPair(p.id)}>{p.name}</Chip>)}
@@ -119,8 +119,8 @@ export function BentoProfile(props: ProfileProps) {
       <section className="card p-5 md:col-span-4"><H2>Facts</H2><div className="mt-3"><Facts ing={ing} graph={graph} /></div></section>
       <section className="card p-5 md:col-span-6">
         <div className="flex items-baseline justify-between"><H2>Pairs with</H2><button type="button" onClick={onMore} className="text-[0.875rem] font-semibold underline">Open the map</button></div>
-        <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
-          {t.map((g) => <div key={g.label}><p className="t-label-muted mb-2">{g.label} · {g.items.length}</p><PartnerChips items={g.items} onPair={onPair} max={8} /></div>)}
+        <div className="mt-4 flex flex-col gap-6">
+          {t.map((g) => <div key={g.label}><p className="t-label-muted mb-2">{g.label} · {g.items.length}</p><PartnerChips items={g.items} onPair={onPair} /></div>)}
         </div>
       </section>
       <section className="md:col-span-6"><H2 className="mb-3">Proven combos</H2><ComboList {...props} /></section>
@@ -160,7 +160,7 @@ export function TabsProfile(props: ProfileProps) {
         )}
         {tab === 1 && <div className="card p-5"><TasteHexagon ingredient={ing} anchors={anchors} /><div className="mt-4 flex flex-col gap-2">{TASTES.map((x) => <HBar key={x} label={cap(x)} value={ing.taste[x]} max={3} tint={tint(ing)} />)}</div></div>}
         {tab === 2 && <div className="card p-5"><CuisineOctagon ingredient={ing} anchors={anchors} cuisines={graph.cuisines} onAxis={onCuisine} /><div className="mt-4 flex flex-col gap-2">{cuisineRows(ing, graph.cuisines).map(({ c, v }) => <HBar key={c.id} label={c.name} value={v} max={4} tint={tint(ing)} suffix={v ? TIER_LABEL[v as Tier] : "—"} />)}</div></div>}
-        {tab === 3 && <div className="flex flex-col gap-4"><div className="card p-4"><PairingArcs ingredient={ing} graph={graph} onPick={onPair} onMore={onMore} /></div>{t.map((g) => <div key={g.label} className="card p-4"><p className="t-label-muted mb-3">{g.label} · {g.items.length}</p><PartnerChips items={g.items} onPair={onPair} max={16} /></div>)}</div>}
+        {tab === 3 && <div className="flex flex-col gap-4"><div className="card p-4"><PairingArcs ingredient={ing} graph={graph} onPick={onPair} onMore={onMore} /></div>{t.map((g) => <div key={g.label} className="card p-4"><p className="t-label-muted mb-3">{g.label} · {g.items.length}</p><PartnerChips items={g.items} onPair={onPair}  /></div>)}</div>}
         {tab === 4 && <ComboList {...props} />}
       </div>
     </div>
@@ -299,7 +299,7 @@ export function CardProfile(props: ProfileProps) {
         </footer>
       </article>
       <section className="mx-auto mt-6 max-w-[440px]">
-        {t.slice(1).map((g) => <div key={g.label} className="mt-4"><p className="t-label-muted mb-2">{g.label} · {g.items.length}</p><PartnerChips items={g.items} onPair={onPair} max={10} /></div>)}
+        {t.slice(1).map((g) => <div key={g.label} className="mt-4"><p className="t-label-muted mb-2">{g.label} · {g.items.length}</p><PartnerChips items={g.items} onPair={onPair} /></div>)}
         <H2 className="mt-8 mb-3">Proven combos</H2><ComboList {...props} />
         <div className="card mt-6 p-5"><Facts ing={ing} graph={graph} /></div>
       </section>
