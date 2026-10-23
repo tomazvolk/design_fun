@@ -1,5 +1,7 @@
 "use client";
 
+import { t } from "@/lib/i18n";
+
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "cn";
 import { XIcon } from "lucide-react";
@@ -79,14 +81,14 @@ function SheetBody({ onClose, children, title, height = "half", labelledBy }: Sh
   const h = height === "auto" ? "max-h-[88dvh]" : full ? "h-[92dvh]" : "h-[56dvh]";
   return (
     <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-labelledby={labelledBy} aria-label={title}>
-      <button type="button" aria-label="Close" className="absolute inset-0 bg-ink/40 anim-fade backdrop-blur-[2px]" onClick={onClose} />
+      <button type="button" aria-label={t("Close")} className="absolute inset-0 bg-ink/40 anim-fade backdrop-blur-[2px]" onClick={onClose} />
       <div
         className={cn("sheet absolute inset-x-0 bottom-0 flex flex-col anim-rise transition-[height] duration-200", h)}
         style={{ transform: drag ? `translateY(${drag}px)` : undefined, transition: drag ? "none" : undefined }}
       >
         <div className="shrink-0 touch-none" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           <div className="grabber" />
-          {title && <div className="flex items-center justify-between px-5 pt-3 pb-1"><h2 className="t-title text-[1.5rem]">{title}</h2><button type="button" aria-label="Close" onClick={onClose} className="-mr-2 inline-flex size-10 items-center justify-center rounded-full"><XIcon className="size-5" /></button></div>}
+          {title && <div className="flex items-center justify-between px-5 pt-3 pb-1"><h2 className="t-title text-[1.5rem]">{title}</h2><button type="button" aria-label={t("Close")} onClick={onClose} className="-mr-2 inline-flex size-10 items-center justify-center rounded-full"><XIcon className="size-5" /></button></div>}
         </div>
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(20px+var(--safe-b))]" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           {children}

@@ -204,15 +204,60 @@ function levenshtein(a: string, b: string): number {
   return prev[n];
 }
 
-let loading: Promise<PairingGraph> | null = null;
-/** Fetches graph.json once per page life; the service worker serves it from cache after the first visit. */
-export function loadGraph(url: string): Promise<PairingGraph> {
-  if (!loading) {
-    loading = fetch(url).then(async (r) => {
+/** Per-language overlay written by scripts/build-graph.mjs to public/i18n/<lang>.json. */
+export type Overlay = {
+  names: Record<string, string[]>; descriptions: Record<string, string>; dishes: Record<string, string>; cuisines: Record<string, string>;
+  chips: Record<string, string>; techniques: Record<string, string>; origins: Record<string, string>; reasons: Record<string, string>;
+};
+
+/** Apply an overlay: translated names (English names stay searchable as aliases), descriptions, dishes, regions, techniques, reasons. */
+export function localize(json: GraphJson, o: Overlay): GraphJson {
+  const ingredients = json.ingredients.map((i) => {
+    const n = o.names[i.id];
+    return {
+      ...i,
+      name: n?.[0] ?? i.name,
+      aliases: n ? [...n.slice(1), i.name, ...i.aliases] : i.aliases,
+      description: o.descriptions[i.id] ?? i.description,
+      chips: i.chips.map((c) => o.chips[c] ?? c),
+      techniques: i.techniques.map((x) => o.techniques[x] ?? x),
+    };
+  });
+  const edges = json.edges.map(([a, b, tier, shared, type, _reason]) => {
+    const key = [json.ingredients[a].id, json.ingredients[b].id].sort().join("|");
+    return [a, b, tier, shared, type, o.reasons[key] ?? null] as GraphJson["edges"][number];
+  });
+  return {
+    ...json,
+    ingredients,
+    edges,
+    dishes: json.dishes.map((d) => ({ ...d, name: o.dishes[d.id] ?? d.name })),
+    cuisines: json.cuisines.map((c) => ({ ...c, name: o.cuisines[c.id] ?? c.name })),
+    combos: json.combos.map((c) => ({ ...c, origin: o.origins[c.origin] ?? c.origin })),
+  };
+}
+
+let raw: Promise<GraphJson> | null = null;
+const built = new Map<string, Promise<PairingGraph>>();
+/** Fetches graph.json once per page life and builds one graph per language; the service worker caches both files. */
+export function loadGraph(base: string, lang: string): Promise<PairingGraph> {
+  if (!raw) {
+    raw = fetch(`${base}/graph.json`).then(async (r) => {
       if (!r.ok) throw new Error(`graph ${r.status}`);
-      return new PairingGraph((await r.json()) as GraphJson);
+      return (await r.json()) as GraphJson;
     });
-    loading.catch(() => { loading = null; });
+    raw.catch(() => { raw = null; });
   }
-  return loading;
+  let p = built.get(lang);
+  if (!p) {
+    p = raw.then(async (json) => {
+      if (lang === "en") return new PairingGraph(json);
+      const r = await fetch(`${base}/i18n/${lang}.json`);
+      if (!r.ok) throw new Error(`translation ${r.status}`);
+      return new PairingGraph(localize(json, (await r.json()) as Overlay));
+    });
+    p.catch(() => built.delete(lang));
+    built.set(lang, p);
+  }
+  return p;
 }

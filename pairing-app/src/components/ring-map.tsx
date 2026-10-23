@@ -1,5 +1,7 @@
 "use client";
 
+import { t, tn } from "@/lib/i18n";
+
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LocateFixedIcon, MinusIcon, PlusIcon } from "lucide-react";
 import type { Ingredient } from "@/lib/types";
@@ -81,7 +83,7 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onCentre }: Props
   return (
     <div className="relative h-full w-full">
       <div ref={box} className="no-scrollbar h-full w-full overflow-auto overscroll-contain" style={{ touchAction: "pan-x pan-y" }}>
-        <svg width={px} height={px} viewBox={`${-half} ${-half} ${layout.size} ${layout.size}`} className="block select-none" role="group" aria-label="Pairing wheel" style={{ minWidth: px }}>
+        <svg width={px} height={px} viewBox={`${-half} ${-half} ${layout.size} ${layout.size}`} className="block select-none" role="group" aria-label={t("Pairing wheel")} style={{ minWidth: px }}>
           {/* family wedges */}
           {layout.wedges.map((w) => (
             <path key={w.id} d={arcPath(hubR + 10, layout.rim, w.start, w.end)} fill={w.tint} fillOpacity={w.count > 0 ? 0.6 : 0.22} stroke="var(--paper)" strokeWidth={4} strokeLinejoin="round" />
@@ -97,22 +99,23 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onCentre }: Props
             <path key={ring.index} d={wobblyCircle(ring.radius, i + 1, 1.4)} fill="none" stroke="var(--ink)" strokeOpacity={0.22} strokeWidth={1.2} />
           ))}
           {layout.rings.map((ring, i) => {
-            const w = RING_KEY[i].length * 7 + 22;
+            const key = t(RING_KEY[i]);
+            const w = key.length * 7 + 22;
             return (
               <g key={`k${i}`} transform={`translate(0 ${-ring.radius})`}>
                 <rect x={-w / 2} y={-12} width={w} height={24} rx={12} fill="var(--card)" stroke="var(--ink)" strokeOpacity={0.25} />
-                <text y={4} textAnchor="middle" fontSize={10.5} fontWeight={700} letterSpacing={1.2} fill="var(--ink)" fontFamily="var(--font-sans)">{RING_KEY[i].toUpperCase()}</text>
+                <text y={4} textAnchor="middle" fontSize={10.5} fontWeight={700} letterSpacing={1.2} fill="var(--ink)" fontFamily="var(--font-sans)">{key.toUpperCase()}</text>
               </g>
             );
           })}
           {/* hub */}
-          <g className="cursor-pointer" onClick={onCentre} role="button" aria-label={multi ? `${anchors.length} anchors: save or share` : `${anchors[0]?.name}: save or share`}>
+          <g className="cursor-pointer" onClick={onCentre} role="button" aria-label={`${multi ? tn(anchors.length, "{n} anchor", "{n} anchors") : anchors[0]?.name}: ${t("save or share")}`}>
             <circle r={hubR + 4} fill="var(--card)" stroke="var(--ink)" strokeWidth={1.6} />
             <g className="text-ink">{hubSlots.map((s) => s.a.image
               ? <image key={s.a.id} href={`${BASE_PATH}/${s.a.image}`} x={s.x - s.s * 0.6} y={s.y - s.s * 0.6} width={s.s * 1.2} height={s.s * 1.2} preserveAspectRatio="xMidYMid meet" />
               : <ArtGlyph key={s.a.id} art={s.a.art} cat={s.a.cat} x={s.x} y={s.y} size={s.s} strokeWidth={s.s > 40 ? 2.2 : 2.6} />)}</g>
             <text y={hubR - 14} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--ink)" fontFamily="var(--font-sans)">
-              {multi ? `${anchors.length} anchors` : anchors[0] ? (anchors[0].name.length > 14 ? anchors[0].name.slice(0, 13) + "…" : anchors[0].name) : ""}
+              {multi ? tn(anchors.length, "{n} anchor", "{n} anchors") : anchors[0] ? (anchors[0].name.length > 14 ? anchors[0].name.slice(0, 13) + "…" : anchors[0].name) : ""}
             </text>
           </g>
           {/* partners */}
@@ -120,7 +123,7 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onCentre }: Props
             const id = n.partner.ing.id;
             const bold = n.partner.size !== "small";
             return (
-              <g key={id} className="glide cursor-pointer" style={{ transform: `translate(${n.x}px, ${n.y}px)`, opacity: n.faded ? 0.35 : 1 }} onClick={() => tapNode(id)} role="button" aria-label={`${n.partner.ing.name}${n.faded ? ", pairs with some anchors" : ""}`}>
+              <g key={id} className="glide cursor-pointer" style={{ transform: `translate(${n.x}px, ${n.y}px)`, opacity: n.faded ? 0.35 : 1 }} onClick={() => tapNode(id)} role="button" aria-label={`${n.partner.ing.name}${n.faded ? `, ${t("pairs with some anchors")}` : ""}`}>
                 <circle r={n.r + 10} fill="transparent" />
                 <circle r={n.r} fill={n.partner.ing.image ? CATEGORY_TINT[n.partner.ing.cat] : n.partner.ing.photo?.color ?? CATEGORY_TINT[n.partner.ing.cat]} />
                 {n.partner.ing.image ? (
@@ -144,9 +147,9 @@ export function RingMap({ layout, anchors, onTap, onDoubleTap, onCentre }: Props
         </svg>
       </div>
       <div className="absolute right-4 top-3 flex flex-col gap-2">
-        <button type="button" className="fab size-10 [&_svg]:size-4" aria-label="Zoom in" disabled={zoomIndex === ZOOMS.length - 1} onClick={() => setZoomIndex((z) => Math.min(ZOOMS.length - 1, z + 1))}><PlusIcon /></button>
-        <button type="button" className="fab size-10 [&_svg]:size-4" aria-label="Zoom out" disabled={zoomIndex === 0} onClick={() => setZoomIndex((z) => Math.max(0, z - 1))}><MinusIcon /></button>
-        <button type="button" className="fab size-10 [&_svg]:size-4" aria-label="Back to the centre" onClick={() => centre(true)}><LocateFixedIcon /></button>
+        <button type="button" className="fab size-10 [&_svg]:size-4" aria-label={t("Zoom in")} disabled={zoomIndex === ZOOMS.length - 1} onClick={() => setZoomIndex((z) => Math.min(ZOOMS.length - 1, z + 1))}><PlusIcon /></button>
+        <button type="button" className="fab size-10 [&_svg]:size-4" aria-label={t("Zoom out")} disabled={zoomIndex === 0} onClick={() => setZoomIndex((z) => Math.max(0, z - 1))}><MinusIcon /></button>
+        <button type="button" className="fab size-10 [&_svg]:size-4" aria-label={t("Back to the centre")} onClick={() => centre(true)}><LocateFixedIcon /></button>
       </div>
     </div>
   );

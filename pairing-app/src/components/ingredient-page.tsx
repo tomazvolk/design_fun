@@ -1,5 +1,7 @@
 "use client";
 
+import { t } from "@/lib/i18n";
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -45,16 +47,16 @@ export function IngredientPage() {
     <div className="pb-[calc(var(--safe-b)+104px)]">
       <div className="sticky top-0 z-20 bg-paper/92 px-3 pt-[calc(var(--safe-t)+8px)] pb-2 backdrop-blur-md">
         <div className="flex items-center gap-2">
-          <button type="button" aria-label="Back" onClick={() => (history.length > 1 ? router.back() : router.push("/"))} className="fab size-10 shrink-0 [&_svg]:size-4"><ArrowLeftIcon /></button>
+          <button type="button" aria-label={t("Back")} onClick={() => (history.length > 1 ? router.back() : router.push("/"))} className="fab size-10 shrink-0 [&_svg]:size-4"><ArrowLeftIcon /></button>
         </div>
       </div>
       <div className="mx-auto mt-2 max-w-[1100px]">
         <BentoProfile {...props} />
       </div>
       <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-paper via-paper/90 to-transparent px-5 pb-[calc(var(--safe-b)+16px)] pt-6 md:left-auto md:right-6 md:w-[360px] md:bg-none">
-        <button type="button" className="btn-primary w-full" onClick={() => openMap(anchorIds.length ? [...anchorIds, ing.id] : [ing.id])}>{anchors.length > 0 ? "Add to the map" : "See what pairs"}</button>
+        <button type="button" className="btn-primary w-full" onClick={() => openMap(anchorIds.length ? [...anchorIds, ing.id] : [ing.id])}>{anchors.length > 0 ? t("Add to the map") : t("See what pairs")}</button>
       </div>
-      <SaveSheet ids={saveFor} onClose={() => setSaveFor(null)} onSave={async (ids, note) => { const r = await saveCombination(ids, note); toast(r.ok ? "Saved" : r.reason); setSaveFor(null); }} />
+      <SaveSheet ids={saveFor} onClose={() => setSaveFor(null)} onSave={async (ids, note) => { const r = await saveCombination(ids, note); toast(r.ok ? t("Saved") : r.reason); setSaveFor(null); }} />
     </div>
   );
 }

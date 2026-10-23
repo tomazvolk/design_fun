@@ -1,5 +1,8 @@
 "use client";
 
+import { locale, t } from "@/lib/i18n";
+import { LangSwitch } from "./lang-switch";
+
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { profileHref } from "@/lib/explore-state";
@@ -21,18 +24,19 @@ export function SeasonScreen() {
   const list = graph ? graph.inSeason(month, hemisphere) : [];
   const groups = CATEGORY_ORDER.map((c) => ({ cat: c, items: list.filter((i) => i.cat === c) })).filter((g) => g.items.length > 0);
   const open = (i: Ingredient) => { pushRecent(i.id); router.push(profileHref(i.id)); };
-  const monthName = new Intl.DateTimeFormat(undefined, { month: "long" }).format(new Date());
+  const monthName = new Intl.DateTimeFormat(locale(), { month: "long" }).format(new Date());
   return (
     <div className="px-4 pt-[calc(var(--safe-t)+20px)] md:px-8">
       <div className="flex items-end justify-between gap-4">
-        <h1 className="t-display text-[2.75rem]">{cap(season)}<span className="block text-[1.125rem] text-muted">in {monthName}</span></h1>
+        <h1 className="t-display text-[2.75rem]">{t(cap(season))}<span className="block text-[1.125rem] text-muted">{t("in {month}", { month: monthName })}</span></h1>
         <Illustration art={HERO[season].art} cat={HERO[season].cat} size={104} wash={WASH[season]} strokeWidth={1.4} className="shrink-0 text-ink" />
       </div>
-      <div className="mt-4 flex gap-2" role="radiogroup" aria-label="Hemisphere">
-        <Chip size="sm" on={hemisphere === "north"} muted onClick={() => setHemisphere("north")} pressed={hemisphere === "north"}>Northern hemisphere</Chip>
-        <Chip size="sm" on={hemisphere === "south"} muted onClick={() => setHemisphere("south")} pressed={hemisphere === "south"}>Southern</Chip>
+      <div className="mt-4 flex gap-2" role="radiogroup" aria-label={t("Hemisphere")}>
+        <Chip size="sm" on={hemisphere === "north"} muted onClick={() => setHemisphere("north")} pressed={hemisphere === "north"}>{t("Northern hemisphere")}</Chip>
+        <Chip size="sm" on={hemisphere === "south"} muted onClick={() => setHemisphere("south")} pressed={hemisphere === "south"}>{t("Southern")}</Chip>
+        <LangSwitch className="ml-auto" />
       </div>
-      {!graph && <p className="mt-8 text-muted">Loading…</p>}
+      {!graph && <p className="mt-8 text-muted">{t("Loading…")}</p>}
       {groups.map((g) => (
         <section key={g.cat} className="mt-8">
           <div className="flex items-center gap-2"><span className="mark" style={{ width: 14, height: 14, ["--tint" as string]: CATEGORY_TINT[g.cat] }} /><SectionLabel>{CATEGORY_SHORT[g.cat]}</SectionLabel></div>

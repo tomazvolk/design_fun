@@ -1,11 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { loadGraph, PairingGraph } from "./graph";
 import { db, newId } from "./db";
 import type { Combination } from "./types";
 import { BASE_PATH, FREE_SAVED_LIMIT, RECENTS_MAX } from "./config";
 import { getPref, setPref, useMediaQuery, useMounted, useOnline, usePref } from "./prefs";
+import { type Lang, setLang as setModuleLang, t } from "./i18n";
 
 type Hemisphere = "north" | "south";
 
@@ -23,6 +24,8 @@ type Store = {
   setOnboarded: (v: boolean) => void;
   hemisphere: Hemisphere;
   setHemisphere: (h: Hemisphere) => void;
+  lang: Lang;
+  setLang: (l: Lang) => void;
   /** iOS Safari has no install prompt: show a one-time hint after the second visit, or after a save. */
   installHint: boolean;
   dismissInstallHint: () => void;
@@ -34,7 +37,12 @@ type Store = {
 
 const Ctx = createContext<Store | null>(null);
 
-const LS = { onboarded: "pe:onboarded", visits: "pe:visits", hint: "pe:install-hint-shown", hemisphere: "pe:hemisphere" };
+const LS = { onboarded: "pe:onboarded", visits: "pe:visits", hint: "pe:install-hint-shown", hemisphere: "pe:hemisphere", lang: "pe:lang" };
+
+/** First visit: Slovenian when the browser prefers it, English otherwise. */
+function guessLang(): Lang {
+  try { return (navigator.languages ?? [navigator.language]).some((l) => l.toLowerCase().startsWith("sl")) ? "sl" : "en"; } catch { return "en"; }
+}
 
 const SOUTHERN_TZ = /^(Australia|Pacific\/(Auckland|Fiji|Tongatapu|Apia|Chatham)|America\/(Sao_Paulo|Argentina|Buenos_Aires|Santiago|Montevideo|Lima|La_Paz|Asuncion)|Africa\/(Johannesburg|Windhoek|Maputo|Harare|Lusaka|Gaborone)|Indian\/(Mauritius|Reunion)|Antarctica)/;
 function guessHemisphere(): Hemisphere {
@@ -67,9 +75,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const visits = Number(usePref(LS.visits) ?? "0");
   const hintShown = usePref(LS.hint) === "1";
   const installHint = mounted && !hintShown && isIosSafariBrowser() && (visits >= 2 || nudge);
+  const langPref = usePref(LS.lang) as Lang | null;
+  const lang: Lang = langPref === "en" || langPref === "sl" ? langPref : mounted ? guessLang() : "en";
+  // The active language is module state read by t(); it is set during render, before the keyed children remount.
+  setModuleLang(lang);
 
   useEffect(() => {
-    loadGraph(`${BASE_PATH}/graph.json`).then(setGraph).catch((e: Error) => setGraphError(e.message));
+    document.documentElement.lang = lang;
+    let live = true;
+    loadGraph(BASE_PATH, lang).then((g) => { if (live) setGraph(g); }).catch((e: Error) => setGraphError(e.message));
+    return () => { live = false; };
+  }, [lang]);
+
+  useEffect(() => {
     db.getKv<string[]>("recents").then((r) => { if (r) setRecents(r); });
     db.allCombinations().then((all) => { setSaved(all.sort((x, y) => y.created - x.created)); setSavedLoaded(true); });
     setPref(LS.visits, String(Number(getPref(LS.visits) ?? "0") + 1));
@@ -106,9 +124,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveCombination = useCallback<Store["saveCombination"]>(async (anchors, note) => {
-    if (saved.length >= FREE_SAVED_LIMIT) return { ok: false, reason: `Up to ${FREE_SAVED_LIMIT} saved combinations in the free tier.` };
+    if (saved.length >= FREE_SAVED_LIMIT) return { ok: false, reason: t("Up to {n} saved combinations in the free tier.", { n: FREE_SAVED_LIMIT }) };
     const c: Combination = { id: newId(), anchors: [...anchors], note: note.trim(), created: Date.now() };
-    try { await db.putCombination(c); } catch { return { ok: false, reason: "Could not save on this device." }; }
+    try { await db.putCombination(c); } catch { return { ok: false, reason: t("Could not save on this device.") }; }
     setSaved((prev) => [c, ...prev]);
     setNudge(true);
     return { ok: true, id: c.id };
@@ -123,12 +141,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     graph, graphError, online, recents, pushRecent, saved, savedLoaded, saveCombination, deleteCombination,
     onboarded, setOnboarded: (v) => setPref(LS.onboarded, v ? "1" : "0"),
     hemisphere, setHemisphere: (h) => setPref(LS.hemisphere, h),
+    lang, setLang: (l) => setPref(LS.lang, l),
     installHint, dismissInstallHint: () => setPref(LS.hint, "1"), requestInstallHint: () => setNudge(true),
     installed, updateReady,
     applyUpdate: () => { waiting.current?.postMessage("skip-waiting"); },
-  }), [graph, graphError, online, recents, pushRecent, saved, savedLoaded, saveCombination, deleteCombination, onboarded, hemisphere, installHint, installed, updateReady]);
+  }), [graph, graphError, online, recents, pushRecent, saved, savedLoaded, saveCombination, deleteCombination, onboarded, hemisphere, lang, installHint, installed, updateReady]);
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={value}><Fragment key={lang}>{children}</Fragment></Ctx.Provider>;
 }
 
 export function useStore(): Store {

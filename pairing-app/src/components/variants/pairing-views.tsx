@@ -1,5 +1,7 @@
 "use client";
 
+import { t } from "@/lib/i18n";
+
 import { useMemo, useState } from "react";
 import { PlusIcon } from "lucide-react";
 import { cn } from "cn";
@@ -16,12 +18,12 @@ const famLabel = (p: Partner) => familyOf(p.ing.cat).label;
 
 function Empty({ result, onTap }: { result: PartnerResult; onTap?: (id: string) => void }) {
   if (result.full.length > 0) return null;
-  if (result.anchors.length < 2) return <p className="px-6 py-16 text-center text-muted">No partners to show with these filters.</p>;
+  if (result.anchors.length < 2) return <p className="px-6 py-16 text-center text-muted">{t("No partners to show with these filters.")}</p>;
   return (
     <div className="card mx-auto mt-4 max-w-[520px] p-5">
-      <p className="t-title text-[1.25rem]">Nothing pairs with all of these.</p>
+      <p className="t-title text-[1.25rem]">{t("Nothing pairs with all of these.")}</p>
       {result.bridges.length > 0 && <>
-        <p className="mt-1 text-[0.875rem] text-muted">These bridge them in two steps:</p>
+        <p className="mt-1 text-[0.875rem] text-muted">{t("These bridge them in two steps:")}</p>
         <div className="mt-3 flex flex-wrap gap-2">{result.bridges.map((b) => <button key={b.ing.id} type="button" onClick={() => onTap?.(b.ing.id)} className="chip h-10 text-[0.875rem]"><Mark art={b.ing.art} cat={b.ing.cat} photo={b.ing.photo} image={b.ing.image} size={28} />{b.ing.name}</button>)}</div>
       </>}
     </div>
@@ -31,10 +33,10 @@ function Empty({ result, onTap }: { result: PartnerResult; onTap?: (id: string) 
 /* ---------- 1. Rows: one shelf per strength, big illustrated cards ---------- */
 export function RowsView({ result, onTap, onAdd }: ViewProps) {
   const groups = [
-    { label: "Classic", hint: "the pairings cooks reach for first", items: result.full.filter((p) => p.tier >= 3) },
-    { label: "Recommended", hint: "strong and reliable", items: result.full.filter((p) => p.tier === 2) },
-    { label: "Works", hint: "worth trying", items: result.full.filter((p) => p.tier === 1) },
-    { label: "Pairs with some", hint: "takes the dish another way", items: result.partial },
+    { label: t("Classic"), hint: t("the pairings cooks reach for first"), items: result.full.filter((p) => p.tier >= 3) },
+    { label: t("Recommended"), hint: t("strong and reliable"), items: result.full.filter((p) => p.tier === 2) },
+    { label: t("Works"), hint: t("worth trying"), items: result.full.filter((p) => p.tier === 1) },
+    { label: t("Pairs with some"), hint: t("takes the dish another way"), items: result.partial },
   ].filter((g) => g.items.length > 0);
   return (
     <div className="h-full overflow-y-auto pb-28">
@@ -48,12 +50,12 @@ export function RowsView({ result, onTap, onAdd }: ViewProps) {
           <div className="no-scrollbar mt-3 flex snap-x gap-3 overflow-x-auto px-4 pb-3">
             {[...g.items].sort(byStrength).map((p) => (
               <div key={p.ing.id} className={cn("card relative flex w-[132px] shrink-0 snap-start flex-col items-center gap-2 px-2 pt-5 pb-3", p.missing.length > 0 && "opacity-60")}>
-                <button type="button" onClick={() => onTap(p.ing.id)} className="flex flex-col items-center gap-2" aria-label={`Open ${p.ing.name}`}>
+                <button type="button" onClick={() => onTap(p.ing.id)} className="flex flex-col items-center gap-2" aria-label={t("Open {name}", { name: p.ing.name })}>
                   <Mark art={p.ing.art} cat={p.ing.cat} photo={p.ing.photo} image={p.ing.image} size={72} />
                   <span className="t-title text-center text-[1rem] leading-tight">{p.ing.name}</span>
                   <span className="text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-muted">{famLabel(p)}</span>
                 </button>
-                <button type="button" aria-label={`Add ${p.ing.name} as anchor`} onClick={() => onAdd(p.ing.id)} className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-paper-deep text-ink hover:bg-ink hover:text-white"><PlusIcon className="size-4" /></button>
+                <button type="button" aria-label={t("Add {name} as anchor", { name: p.ing.name })} onClick={() => onAdd(p.ing.id)} className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-paper-deep text-ink hover:bg-ink hover:text-white"><PlusIcon className="size-4" /></button>
               </div>
             ))}
           </div>
@@ -72,7 +74,7 @@ export function GridView({ result, onTap, onAdd }: ViewProps) {
   return (
     <div className="flex h-full flex-col">
       <div className="no-scrollbar flex shrink-0 gap-2 overflow-x-auto px-4 py-2">
-        <button type="button" onClick={() => setFam("all")} className={cn("chip chip-plain h-9 text-[0.875rem]", fam === "all" && "chip-on")}>All <span className="tnum opacity-60">{all.length}</span></button>
+        <button type="button" onClick={() => setFam("all")} className={cn("chip chip-plain h-9 text-[0.875rem]", fam === "all" && "chip-on")}>{t("All")} <span className="tnum opacity-60">{all.length}</span></button>
         {FAMILIES.filter((f) => counts[f.id] > 0).map((f) => (
           <button key={f.id} type="button" onClick={() => setFam(f.id)} className={cn("chip h-9 pl-2 text-[0.875rem]", fam === f.id && "chip-on")}>
             <span className="size-4 rounded-full border border-ink/20" style={{ background: f.tint }} />{f.label} <span className="tnum opacity-60">{counts[f.id]}</span>
@@ -114,7 +116,7 @@ export function RankedView({ result, onTap, onAdd }: ViewProps) {
                   <span className="mt-1.5 block h-2.5 overflow-hidden rounded-full bg-paper-deep"><span className="block h-full rounded-full" style={{ width: `${(score(p) / top) * 100}%`, background: CATEGORY_TINT[p.ing.cat], boxShadow: "inset -1.5px 0 0 var(--ink)" }} /></span>
                 </span>
               </button>
-              <button type="button" aria-label={`Add ${p.ing.name} as anchor`} onClick={() => onAdd(p.ing.id)} className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-paper-deep hover:bg-ink hover:text-white"><PlusIcon className="size-4" /></button>
+              <button type="button" aria-label={t("Add {name} as anchor", { name: p.ing.name })} onClick={() => onAdd(p.ing.id)} className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-paper-deep hover:bg-ink hover:text-white"><PlusIcon className="size-4" /></button>
             </div>
           </li>
         ))}
@@ -149,7 +151,7 @@ export function BubblesView({ result, onTap }: ViewProps & { anchors?: Ingredien
     <div className="h-full overflow-y-auto px-3 pb-28">
       <Empty result={result} onTap={onTap} />
       {bubbles.length > 0 && (
-        <svg viewBox={`-6 -6 ${w + 12} ${h + 12}`} className="mx-auto block w-full max-w-[720px]" role="group" aria-label="Pairings as bubbles">
+        <svg viewBox={`-6 -6 ${w + 12} ${h + 12}`} className="mx-auto block w-full max-w-[720px]" role="group" aria-label={t("Pairings as bubbles")}>
           {bubbles.map((b) => {
             const big = b.r >= 44;
             const name = b.p.ing.name;
@@ -166,7 +168,7 @@ export function BubblesView({ result, onTap }: ViewProps & { anchors?: Ingredien
       )}
       <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-[0.75rem] text-ink-2">
         {FAMILIES.map((f) => <span key={f.id} className="inline-flex items-center gap-1.5"><span className="size-3 rounded-full border border-ink/30" style={{ background: f.tint }} />{f.label}</span>)}
-        <span className="text-muted">· bigger = stronger</span>
+        <span className="text-muted">· {t("bigger = stronger")}</span>
       </div>
     </div>
   );
@@ -178,11 +180,11 @@ export function CompareView({ result, onTap, onAdd }: ViewProps) {
   const rows = useMemo(() => [...result.full.sort(byStrength), ...result.partial.sort(byStrength)], [result]);
   return (
     <div className="h-full overflow-auto px-4 pb-28">
-      {anchors.length === 1 && <p className="mt-2 rounded-2xl bg-paper-deep px-4 py-3 text-[0.875rem] text-ink-2">Add a second ingredient with the + at the top to see where they agree and where they differ.</p>}
+      {anchors.length === 1 && <p className="mt-2 rounded-2xl bg-paper-deep px-4 py-3 text-[0.875rem] text-ink-2">{t("Add a second ingredient with the + at the top to see where they agree and where they differ.")}</p>}
       <table className="card mt-3 w-full border-separate border-spacing-0 overflow-hidden text-[0.875rem]">
         <thead>
           <tr className="text-left">
-            <th className="sticky top-0 bg-card px-3 py-3 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted">Partner</th>
+            <th className="sticky top-0 bg-card px-3 py-3 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted">{t("Partner")}</th>
             {anchors.map((a) => (
               <th key={a.id} className="sticky top-0 bg-card px-2 py-3 text-center"><span className="inline-flex flex-col items-center gap-1"><Mark art={a.art} cat={a.cat} photo={a.photo} image={a.image} size={30} /><span className="text-[0.6875rem] font-semibold">{a.name}</span></span></th>
             ))}
@@ -204,7 +206,7 @@ export function CompareView({ result, onTap, onAdd }: ViewProps) {
                 );
               })}
               <td className="border-t border-hairline px-2 py-2 text-right">
-                <button type="button" aria-label={`Add ${p.ing.name} as anchor`} onClick={() => onAdd(p.ing.id)} className="inline-flex size-8 items-center justify-center rounded-full bg-paper-deep hover:bg-ink hover:text-white"><PlusIcon className="size-4" /></button>
+                <button type="button" aria-label={t("Add {name} as anchor", { name: p.ing.name })} onClick={() => onAdd(p.ing.id)} className="inline-flex size-8 items-center justify-center rounded-full bg-paper-deep hover:bg-ink hover:text-white"><PlusIcon className="size-4" /></button>
               </td>
             </tr>
           ))}

@@ -18,6 +18,11 @@ import { ALIASES, DISHES, DROP, EXTRA, COMBOS, REASONS } from "../src/data/sourc
 import descA from "../src/data/source/descriptions-a.mjs";
 import descB from "../src/data/source/descriptions-b.mjs";
 import descC from "../src/data/source/descriptions-c.mjs";
+import slDescA from "../src/data/i18n/sl-descriptions-a.mjs";
+import slDescB from "../src/data/i18n/sl-descriptions-b.mjs";
+import slDescC from "../src/data/i18n/sl-descriptions-c.mjs";
+import slNames from "../src/data/i18n/sl-names.mjs";
+import * as slTerms from "../src/data/i18n/sl-terms.mjs";
 
 const DESCRIPTIONS = { ...descA, ...descB, ...descC };
 import { queryFor, pickFor } from "../src/data/source/photo-queries.mjs";
@@ -197,6 +202,35 @@ const graph = {
 mkdirSync(join(root, "public"), { recursive: true });
 const json = JSON.stringify(graph);
 writeFileSync(join(root, "public", "graph.json"), json);
+
+// Translations: one overlay file per language, applied in the browser on top of graph.json.
+function overlay({ names, descriptions, terms }) {
+  const cap1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const word = (w) => terms.ORIGIN_WORDS[w] ?? (terms.CHIPS[w] ? cap1(terms.CHIPS[w]) : null);
+  const origins = {};
+  for (const c of combos) {
+    const parts = c.origin.split(" · ");
+    const out = parts.map((p, i) => word(p) ?? (i === 0 ? null : p));
+    if (out[0] == null) throw new Error(`no translation for combo origin "${c.origin}"`);
+    origins[c.origin] = cap1(out.join(" · "));
+  }
+  const chips = {};
+  for (const ing of ingredients) for (const ch of ing.chips) { if (!terms.CHIPS[ch]) throw new Error(`no translation for region "${ch}"`); chips[ch] = cap1(terms.CHIPS[ch]); }
+  const techniques = {};
+  for (const ing of ingredients) for (const tq of ing.techniques) { if (!terms.TECHNIQUES[tq]) throw new Error(`no translation for technique "${tq}"`); techniques[tq] = terms.TECHNIQUES[tq]; }
+  const dishNames = {};
+  for (const [id] of dishes) { if (!terms.DISHES[id]) throw new Error(`no translation for dish "${id}"`); dishNames[id] = terms.DISHES[id]; }
+  for (const ing of ingredients) {
+    if (!names[ing.id]) throw new Error(`no translated name for "${ing.id}"`);
+    if (ing.description && !descriptions[ing.id]) throw new Error(`no translated description for "${ing.id}"`);
+  }
+  const reasons = {};
+  for (const [k, v] of Object.entries(terms.REASONS)) reasons[k.split("|").sort().join("|")] = v;
+  for (const c of CUISINES) if (!terms.CUISINES[c.id]) throw new Error(`no translation for cuisine "${c.id}"`);
+  return { names, descriptions, dishes: dishNames, cuisines: Object.fromEntries(Object.entries(terms.CUISINES).map(([k, v]) => [k, cap1(v)])), chips, techniques, origins, reasons };
+}
+mkdirSync(join(root, "public", "i18n"), { recursive: true });
+writeFileSync(join(root, "public", "i18n", "sl.json"), JSON.stringify(overlay({ names: slNames, descriptions: { ...slDescA, ...slDescB, ...slDescC }, terms: slTerms })));
 
 // Report.
 const tiers = [0, 0, 0, 0, 0];

@@ -1,5 +1,7 @@
 "use client";
 
+import { t as tr } from "@/lib/i18n";
+
 import { useState } from "react";
 import { cn } from "cn";
 import type { Combination, Combo, Cuisine, Edge, Ingredient, Tier } from "@/lib/types";
@@ -29,15 +31,15 @@ export type ProfileProps = {
 
 /* ---------- shared pieces ---------- */
 const tint = (i: Ingredient) => CATEGORY_TINT[i.cat];
-const seasonLine = (i: Ingredient) => (i.season === "all" ? "All year" : i.season.map(cap).join(", "));
+const seasonLine = (i: Ingredient) => (i.season === "all" ? tr("All year") : i.season.map((s) => tr(cap(s))).join(", "));
 function tiers(ing: Ingredient, graph: PairingGraph) {
   const edges = graph.partnersOf(ing.id);
   const other = (e: Edge) => graph.get(e.a === ing.id ? e.b : e.a)!;
   const sort = (x: Edge, y: Edge) => y.tier - x.tier || y.shared - x.shared;
   return [
-    { label: "Classic", items: edges.filter((e) => e.tier >= 3).sort(sort).map(other) },
-    { label: "Recommended", items: edges.filter((e) => e.tier === 2).sort(sort).map(other) },
-    { label: "Works", items: edges.filter((e) => e.tier === 1).sort(sort).map(other) },
+    { label: tr("Classic"), items: edges.filter((e) => e.tier >= 3).sort(sort).map(other) },
+    { label: tr("Recommended"), items: edges.filter((e) => e.tier === 2).sort(sort).map(other) },
+    { label: tr("Works"), items: edges.filter((e) => e.tier === 1).sort(sort).map(other) },
   ];
 }
 function cuisineRows(ing: Ingredient, cuisines: Cuisine[]) {
@@ -45,15 +47,15 @@ function cuisineRows(ing: Ingredient, cuisines: Cuisine[]) {
 }
 function AnchorStamps({ ing, anchors, graph }: { ing: Ingredient; anchors: Ingredient[]; graph: PairingGraph }) {
   if (!anchors.length) return null;
-  return <div className="flex flex-wrap gap-1.5">{anchors.map((a) => { const e = graph.edge(ing.id, a.id); return <span key={a.id} className={e ? "stamp" : "stamp stamp-ink"}>{e ? `${TIER_LABEL[e.tier]} · ${a.name}` : `not with ${a.name}`}</span>; })}</div>;
+  return <div className="flex flex-wrap gap-1.5">{anchors.map((a) => { const e = graph.edge(ing.id, a.id); return <span key={a.id} className={e ? "stamp" : "stamp stamp-ink"}>{e ? `${TIER_LABEL[e.tier]} · ${a.name}` : tr("not with {names}", { names: a.name })}</span>; })}</div>;
 }
 function Facts({ ing, graph }: { ing: Ingredient; graph: PairingGraph }) {
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2.5 text-[0.9375rem]">
-      {ing.aliases.length > 0 && <><dt className="t-label-muted pt-0.5">Also</dt><dd>{ing.aliases.join(", ")}</dd></>}
-      <dt className="t-label-muted pt-0.5">Season</dt><dd>{seasonLine(ing)}</dd>
-      {ing.techniques.length > 0 && <><dt className="t-label-muted pt-0.5">Cook</dt><dd>{ing.techniques.join(", ")}</dd></>}
-      {ing.dishes.length > 0 && <><dt className="t-label-muted pt-0.5">Works in</dt><dd>{ing.dishes.map((d) => graph.dishes.get(d) ?? d).join(", ")}</dd></>}
+      {ing.aliases.length > 0 && <><dt className="t-label-muted pt-0.5">{tr("Also")}</dt><dd>{ing.aliases.join(", ")}</dd></>}
+      <dt className="t-label-muted pt-0.5">{tr("Season")}</dt><dd>{seasonLine(ing)}</dd>
+      {ing.techniques.length > 0 && <><dt className="t-label-muted pt-0.5">{tr("Cook")}</dt><dd>{ing.techniques.join(", ")}</dd></>}
+      {ing.dishes.length > 0 && <><dt className="t-label-muted pt-0.5">{tr("Works in")}</dt><dd>{ing.dishes.map((d) => graph.dishes.get(d) ?? d).join(", ")}</dd></>}
     </dl>
   );
 }
@@ -66,14 +68,14 @@ function PartnerChips({ items, onPair, max = Infinity }: { items: Ingredient[]; 
   );
 }
 function ComboList({ ing, graph, combos, mine, onCombo, onHoldCombo }: ProfileProps) {
-  if (!combos.length && !mine.length) return <p className="text-[0.9375rem] text-muted">No established trios recorded for {ing.name} yet.</p>;
+  if (!combos.length && !mine.length) return <p className="text-[0.9375rem] text-muted">{tr("No established trios recorded for {name} yet.", { name: ing.name })}</p>;
   const card = (ids: string[], origin: string, key: string, yours?: boolean) => (
     <li key={key}>
       <Chip className="card h-auto w-full flex-col items-start gap-2.5 rounded-[20px] px-4 py-4 whitespace-normal" onClick={() => onCombo(ids)} onLongPress={yours ? undefined : () => onHoldCombo(ids)}>
         <span className="flex flex-wrap items-center gap-1.5">
           {ids.map((id, i) => { const x = graph.get(id); return <span key={id} className="flex items-center gap-1.5">{i > 0 && <span className="text-faint">+</span>}{x && <Mark art={x.art} cat={x.cat} photo={x.photo} image={x.image} size={28} />}<span className="text-[0.9375rem] font-medium">{x?.name ?? id}</span></span>; })}
         </span>
-        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">{yours ? `Yours${origin ? ` · ${origin}` : ""}` : origin}</span>
+        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">{yours ? `${tr("Yours")}${origin ? ` · ${origin}` : ""}` : origin}</span>
       </Chip>
     </li>
   );
@@ -93,7 +95,7 @@ export function BentoProfile(props: ProfileProps) {
         <div className="flex flex-col gap-5 md:flex-row md:items-center">
           {ing.image ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={`${BASE_PATH}/${ing.image}`} alt={`Illustration of ${ing.name}`} width={240} height={240} className="aspect-square w-full max-w-[280px] shrink-0 object-contain drop-shadow-[0_14px_18px_rgba(23,22,20,0.22)] md:w-[230px]" />
+            <img src={`${BASE_PATH}/${ing.image}`} alt={tr("Illustration of {name}", { name: ing.name })} width={240} height={240} className="aspect-square w-full max-w-[280px] shrink-0 object-contain drop-shadow-[0_14px_18px_rgba(23,22,20,0.22)] md:w-[230px]" />
           ) : ing.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoUrl(ing.photo, 420, 420)} alt={ing.photo.alt || ing.name} width={210} height={210} className="aspect-square w-full max-w-[260px] shrink-0 rounded-[22px] object-cover shadow-[0_14px_30px_-18px_rgba(23,22,20,0.6)] md:w-[210px]" style={{ background: ing.photo.color }} />
@@ -108,29 +110,29 @@ export function BentoProfile(props: ProfileProps) {
           </div>
         </div>
         <p className="mt-4 text-[0.6875rem] text-ink-2/80">
-          {ing.image ? null : ing.photo ? (() => { const c = creditLinks(ing.photo); return <>Photo by <a href={c.by} target="_blank" rel="noopener noreferrer" className="underline">{ing.photo.by}</a> on <a href={c.site} target="_blank" rel="noopener noreferrer" className="underline">{c.siteName}</a></>; })() : <>Artwork by {props.artist}</>}
+          {ing.image ? null : ing.photo ? (() => { const c = creditLinks(ing.photo); return <>{tr("Photo by")} <a href={c.by} target="_blank" rel="noopener noreferrer" className="underline">{ing.photo.by}</a> {tr("on")} <a href={c.site} target="_blank" rel="noopener noreferrer" className="underline">{c.siteName}</a></>; })() : <>{tr("Artwork by")} {props.artist}</>}
         </p>
       </section>
       {anchors.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 md:col-span-6">
-          <span className="t-label-muted mr-1">Compare with</span>
+          <span className="t-label-muted mr-1">{tr("Compare with")}</span>
           {anchors.map((a) => <Chip key={a.id} size="sm" on={cmpId === a.id} pressed={cmpId === a.id} mark={<Mark art={a.art} cat={a.cat} photo={a.photo} image={a.image} size={24} />} onClick={() => setCmpId(cmpId === a.id ? null : a.id)}>{a.name}</Chip>)}
         </div>
       )}
-      <section className="card p-5 md:col-span-3"><H2 className="mb-2">Taste</H2><TasteChart ing={ing} tint={tint(ing)} compare={cmp} /></section>
-      <section className="card p-5 md:col-span-3"><H2 className="mb-2">Cuisine</H2><CuisineChart ing={ing} cuisines={graph.cuisines} tint={tint(ing)} compare={cmp} onCuisine={onCuisine} /></section>
+      <section className="card p-5 md:col-span-3"><H2 className="mb-2">{tr("Taste")}</H2><TasteChart ing={ing} tint={tint(ing)} compare={cmp} /></section>
+      <section className="card p-5 md:col-span-3"><H2 className="mb-2">{tr("Cuisine")}</H2><CuisineChart ing={ing} cuisines={graph.cuisines} tint={tint(ing)} compare={cmp} onCuisine={onCuisine} /></section>
       <section className="card flex flex-col gap-6 p-5 md:col-span-2">
-        <ScaleChart title="Heaviness" value={ing.weight} labels={WEIGHT_LABEL} tint={tint(ing)} compare={cmp ? { name: cmp.name, lo: cmp.weight.lo, hi: cmp.weight.hi } : null} />
-        <ScaleChart title="Volume" value={ing.volume} labels={VOLUME_LABEL} tint={tint(ing)} compare={cmp ? { name: cmp.name, lo: cmp.volume.lo, hi: cmp.volume.hi } : null} />
+        <ScaleChart title={tr("Heaviness")} value={ing.weight} labels={WEIGHT_LABEL} tint={tint(ing)} compare={cmp ? { name: cmp.name, lo: cmp.weight.lo, hi: cmp.weight.hi } : null} />
+        <ScaleChart title={tr("Volume")} value={ing.volume} labels={VOLUME_LABEL} tint={tint(ing)} compare={cmp ? { name: cmp.name, lo: cmp.volume.lo, hi: cmp.volume.hi } : null} />
       </section>
-      <section className="card p-5 md:col-span-4"><H2>Facts</H2><div className="mt-3"><Facts ing={ing} graph={graph} /></div></section>
+      <section className="card p-5 md:col-span-4"><H2>{tr("Facts")}</H2><div className="mt-3"><Facts ing={ing} graph={graph} /></div></section>
       <section className="card p-5 md:col-span-6">
-        <div className="flex items-baseline justify-between"><H2>Pairs with</H2><button type="button" onClick={onMore} className="text-[0.875rem] font-semibold underline">Open the map</button></div>
+        <div className="flex items-baseline justify-between"><H2>{tr("Pairs with")}</H2><button type="button" onClick={onMore} className="text-[0.875rem] font-semibold underline">{tr("Open the map")}</button></div>
         <div className="mt-4 flex flex-col gap-6">
           {t.map((g) => <div key={g.label}><p className="t-label-muted mb-2">{g.label} · {g.items.length}</p><PartnerChips items={g.items} onPair={onPair} /></div>)}
         </div>
       </section>
-      <section className="md:col-span-6"><H2 className="mb-3">Proven combos</H2><ComboList {...props} /></section>
+      <section className="md:col-span-6"><H2 className="mb-3">{tr("Proven combos")}</H2><ComboList {...props} /></section>
     </div>
   );
 }

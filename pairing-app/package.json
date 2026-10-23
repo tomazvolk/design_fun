@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build:graph": "node scripts/build-graph.mjs",
-    "build": "pnpm build:graph && next build && node scripts/build-sw.mjs",
+    "build": "pnpm build:graph && node scripts/check-i18n.mjs && next build && node scripts/build-sw.mjs",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

@@ -1,5 +1,7 @@
 "use client";
 
+import { t } from "@/lib/i18n";
+
 import { cn } from "cn";
 import { usePref, setPref } from "@/lib/prefs";
 import type { Tier } from "@/lib/types";
@@ -13,7 +15,7 @@ export function useVariant(key: string, count: number): [number, (v: number) => 
 
 export function VariantBar({ value, onChange, labels, className }: { value: number; onChange: (v: number) => void; labels: string[]; className?: string }) {
   return (
-    <div className={cn("no-scrollbar flex gap-1 overflow-x-auto rounded-full bg-paper-deep p-1", className)} role="tablist" aria-label="Version">
+    <div className={cn("no-scrollbar flex gap-1 overflow-x-auto rounded-full bg-paper-deep p-1", className)} role="tablist" aria-label={t("Version")}>
       {labels.map((l, i) => (
         <button key={l} type="button" role="tab" aria-selected={value === i + 1} onClick={() => onChange(i + 1)}
           className={cn("h-8 shrink-0 rounded-full px-3 text-[0.75rem] font-semibold whitespace-nowrap transition-colors", value === i + 1 ? "bg-ink text-white" : "text-ink-2 hover:bg-card")}>
@@ -27,7 +29,7 @@ export function VariantBar({ value, onChange, labels, className }: { value: numb
 /** Strength meter: four bars, one per tier step. */
 export function TierMeter({ tier, className }: { tier: Tier; className?: string }) {
   return (
-    <span className={cn("inline-flex items-end gap-[2px]", className)} aria-label={`strength ${tier} of 4`}>
+    <span className={cn("inline-flex items-end gap-[2px]", className)} aria-label={t("strength {n} of 4", { n: tier })}>
       {[1, 2, 3, 4].map((n) => <span key={n} className={cn("w-[4px] rounded-[1px]", n <= tier ? "bg-ink" : "bg-pencil")} style={{ height: 4 + n * 2.5 }} />)}
     </span>
   );
@@ -36,7 +38,7 @@ export function TierMeter({ tier, className }: { tier: Tier; className?: string 
 /** Dot pips, e.g. a taste score of 2 out of 3. */
 export function Pips({ value, max, tint }: { value: number; max: number; tint?: string }) {
   return (
-    <span className="inline-flex gap-1" aria-label={`${value} of ${max}`}>
+    <span className="inline-flex gap-1" aria-label={t("{n} of {max}", { n: value, max })}>
       {Array.from({ length: max }, (_, i) => (
         <span key={i} className="size-2.5 rounded-full border border-ink" style={{ background: i < Math.round(value) ? tint ?? "var(--ink)" : "transparent" }} />
       ))}
