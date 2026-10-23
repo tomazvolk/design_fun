@@ -21,7 +21,8 @@ function walk(dir, acc = []) {
   }
   return acc;
 }
-const files = walk(out).map((p) => relative(out, p).split("\\").join("/")).filter((p) => p !== "sw.js" && !p.endsWith(".map") && !p.endsWith(".DS_Store"));
+// Ingredient art is cached as it is viewed (see the fetch handler), not at install: there will be hundreds.
+const files = walk(out).map((p) => relative(out, p).split("\\").join("/")).filter((p) => p !== "sw.js" && !p.endsWith(".map") && !p.endsWith(".DS_Store") && !p.startsWith("art/"));
 const urls = files.map((p) => (p.endsWith("index.html") ? `${BASE}/${p.slice(0, -"index.html".length)}` : `${BASE}/${p}`));
 const hash = createHash("sha1");
 for (const f of files) hash.update(f).update(readFileSync(join(out, f)));
@@ -105,6 +106,7 @@ self.addEventListener("fetch", (event) => {
   if (url.hostname === "images.pexels.com" || url.hostname === "images.unsplash.com") return event.respondWith(photo(req));
   if (url.origin !== self.location.origin || !url.pathname.startsWith(BASE)) return;
   if (url.pathname === GRAPH) return event.respondWith(staleWhileRevalidate(req));
+  if (url.pathname.startsWith(BASE + "/art/")) return event.respondWith(photo(req));
   if (url.pathname.startsWith(BASE + "/_next/static/")) return event.respondWith(cacheFirst(req));
   if (req.mode === "navigate") return event.respondWith(networkFirst(req, BASE + "/"));
   event.respondWith(networkFirst(req));
