@@ -111,7 +111,8 @@ async function track(id) {
 
 const redo = new Set(listArg("--redo"));
 const stale = (id) => photos[id] && !photos[id].none && (photos[id].alts[0]?.provider ?? "pexels") !== PROVIDER;
-const queue = ingredients.filter(({ id, name }) => redo.has(id) || !photos[id] || photos[id].query !== queryFor(id, name) || stale(id));
+// Photos chosen by hand ("manual": true) are kept unless named with --redo.
+const queue = ingredients.filter(({ id, name }) => redo.has(id) || (!photos[id]?.manual && (!photos[id] || photos[id].query !== queryFor(id, name) || stale(id))));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 for (const { id } of ingredients) if (!queue.some((q) => q.id === id)) await track(id);
 if (queue.length === 0) { console.log("Every ingredient already has its photo. Nothing to fetch."); writeReview(); process.exit(0); }
