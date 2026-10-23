@@ -1,0 +1,92 @@
+{
+ "pork": {
+  "query": "pork chop",
+  "alts": [
+   {
+    "provider": "pexels",
+    "id": 7333262,
+    "src": "https://images.pexels.com/photos/7333262/pexels-photo-7333262.jpeg",
+    "w": 0,
+    "h": 0,
+    "by": "Evgeniy Alekseyev",
+    "byUrl": "https://www.pexels.com/@shliftik/",
+    "url": "https://www.pexels.com/photo/uncooked-meat-slices-on-a-wooden-chopping-board-7333262/",
+    "color": "#8a7f78",
+    "alt": "Raw pork chops with rosemary, garlic and tomato on a wooden board"
+   }
+  ],
+  "manual": true
+ },
+ "squash": {
+  "query": "butternut squash",
+  "alts": [
+   {
+    "provider": "pexels",
+    "id": 4187620,
+    "src": "https://images.pexels.com/photos/4187620/pexels-photo-4187620.jpeg",
+    "w": 0,
+    "h": 0,
+    "by": "Polina Tankilevitch",
+    "byUrl": "https://www.pexels.com/@polina-tankilevitch/",
+    "url": "https://www.pexels.com/photo/close-up-photo-of-butternut-squash-4187620/",
+    "color": "#e9e4dc",
+    "alt": "A whole butternut squash on a pale background"
+   }
+  ],
+  "manual": true
+ },
+ "juniper": {
+  "query": "juniper berries",
+  "alts": [
+   {
+    "provider": "pexels",
+    "id": 10259219,
+    "src": "https://images.pexels.com/photos/10259219/pexels-photo-10259219.jpeg",
+    "w": 0,
+    "h": 0,
+    "by": "Valentina Bondarenko",
+    "byUrl": "https://www.pexels.com/@valentina-bondarenko-111153662/",
+    "url": "https://www.pexels.com/photo/close-up-of-juniper-berries-10259219/",
+    "color": "#2c3b2a",
+    "alt": "Ripe juniper berries on a branch"
+   }
+  ],
+  "manual": true
+ },
+ "rosemary": {
+  "query": "rosemary",
+  "alts": [
+   {
+    "provider": "pexels",
+    "id": 4277116,
+    "src": "https://images.pexels.com/photos/4277116/pexels-photo-4277116.jpeg",
+    "w": 0,
+    "h": 0,
+    "by": "Enson Renton",
+    "byUrl": "https://www.pexels.com/@enson-renton-2389863/",
+    "url": "https://www.pexels.com/photo/spruce-green-rosemary-twig-on-black-background-4277116/",
+    "color": "#1e2a33",
+    "alt": "A sprig of fresh rosemary against a dark background"
+   }
+  ],
+  "manual": true
+ },
+ "thyme": {
+  "query": "fresh thyme",
+  "alts": [
+   {
+    "provider": "pexels",
+    "id": 4207778,
+    "src": "https://images.pexels.com/photos/4207778/pexels-photo-4207778.jpeg",
+    "w": 0,
+    "h": 0,
+    "by": "Karolina Grabowska",
+    "byUrl": "https://www.pexels.com/@karola-g/",
+    "url": "https://www.pexels.com/photo/fresh-thyme-in-ceramic-pot-on-shelf-4207778/",
+    "color": "#cfc6bb",
+    "alt": "A pot of fresh thyme"
+   }
+  ],
+  "manual": true
+ }
+}

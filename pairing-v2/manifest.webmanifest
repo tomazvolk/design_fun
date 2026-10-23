@@ -1,0 +1,20 @@
+{
+  "name": "Pairing Explorer",
+  "short_name": "Pairings",
+  "description": "A map of flavour pairings you can walk. Type an ingredient, tap a second, see what goes with both.",
+  "id": "/pairing-v2/",
+  "start_url": "/pairing-v2/",
+  "scope": "/pairing-v2/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f1ea",
+  "theme_color": "#f3f1ea",
+  "lang": "en",
+  "categories": ["food", "lifestyle", "utilities"],
+  "icons": [
+    { "src": "/pairing-v2/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/pairing-v2/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pairing-v2/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/pairing-v2/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

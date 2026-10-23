@@ -12,6 +12,17 @@
  */
 const PROTOTYPES = [
   {
+    slug: 'pairing-v2',
+    name: 'Pairing Explorer v2',
+    deployed: '2026-10-23',
+    status: 'wip',
+    description:
+      'Pairing Explorer with a new UI: a calm, grainy space of cool grey paper and soft aurora glows, Newsreader serif and Nunito, one orange-red accent. Pantry masonry grid, ingredient sheet with why-it-works lines, tilted pairing stacks, ring-coloured collections, a Chance flow with Skip and Keep, a dark-mood save confirmation and twelve mascot skins. Same data, map and features as v1.',
+    tags: ['pwa', 'food', 'v2', 'next.js', 'prototype'],
+    accent: '#FF5A1F',
+    art: 'pairing',
+  },
+  {
     slug: 'warranty-landing-v2',
     name: 'Warranty landing page v2',
     deployed: '2026-10-23',
